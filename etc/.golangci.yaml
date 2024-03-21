@@ -1,0 +1,102 @@
+service:
+  golangci-lint-version: 1.51.x
+run:
+  deadline: 900s
+  modules-download-mode: readonly
+  skip-dirs:
+    - genfiles$
+    - gen$
+    - vendor$
+    - test$
+  tests: true
+linters:
+  enable-all: true
+  disable:
+    - asasalint
+    - containedctx
+    - cyclop
+    - deadcode
+    - depguard
+    - dupl # lots of dupes due to nature of original C code macros
+    - exhaustivestruct
+    - exhaustruct
+    - forcetypeassert
+    - funlen
+    - gocognit
+    - goconst
+    - godox # lots of dupes due to nature of original C code macros
+    - goerr113
+    - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gomnd
+    - ifshort
+    - importas
+    - interfacebloat
+    - interfacer
+    - ireturn
+    - maintidx
+    - maligned
+    - makezero
+    - musttag
+    - nestif
+    - nlreturn
+    - nosnakecase
+    - nonamedreturns
+    - nosprintfhostport
+    - paralleltest
+    - prealloc
+    - scopelint
+    - structcheck
+    - tagliatelle
+    - testpackage
+    - thelper # false positives
+    - varcheck
+    - varnamelen
+    - wrapcheck
+    - wsl
+linters-settings:
+  errcheck:
+    check-blank: true
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/erh/gonmea)
+  gofumpt:
+    lang-version: "1.19"
+    extra-rules: true
+  gosec:
+    excludes:
+      - G601
+      - G104
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+  lll:
+    line-length: 140
+  revive:
+    disable:
+    - package-comments
+issues:
+  exclude:
+    - composites
+  exclude-rules:
+    - path: _test\.go$|^tests/|^samples/
+      linters:
+        - errcheck
+        - contextcheck
+        - exhaustive
+        - forcetypeassert
+        - goconst
+        - gosec
+        - govet
+        - noctx
+  exclude-use-default: false
+  max-per-linter: 0
+  max-same-issues: 0
