@@ -19,6 +19,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -594,4 +595,45 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 	}
 
 	return setParsedValues(m, int(prio), int(pgn), int(dst), int(src), i)
+}
+
+// ParseRawFormatNavLink2 parses Digital Yacht NavLink 2 messages.
+// https://github.com/digitalyacht/iKonvert/wiki/4.-Serial-Protocol#41-rx-pgn-sentence
+// !PDGY,<pgn#>,p,src,dst,timer,<pgn_data> CR LF
+//
+// # Key
+//
+// <pgn#> = NMEA2000 PGN number between 0 and 999999
+//
+// p = Priority 0-7 with 0 being highest and 7 lowest
+//
+// src = Source Address of the device sending the PGN between 0-251
+//
+// dst = Destination Address of the device receiving the PGN between 0-255 (255 = global)
+//
+// timer = internal timer of the gateway in milliseconds 0-999999
+//
+// <pgn_data> = The binary payload of the PGN encoded in Base64.
+func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger *Logger) int {
+	var pgn, prio, src, dst int
+	var timer float64
+	var pgnData string
+	r, _ := fmt.Sscanf(string(msg), "!PDGY,%d,%d,%d,%d,%f,%s ", &pgn, &prio, &src, &dst, &timer, &pgnData)
+	if r != 6 {
+		//nolint:errcheck
+		logger.Error("wrong amount of fields in message: %d", r)
+		return -1
+	}
+
+	m.Timestamp = strconv.FormatFloat(timer, 'f', 2, 64)
+
+	decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
+	if err != nil {
+		//nolint:errcheck
+		logger.Error("error decoding base64 data: %s", err)
+		return -1
+	}
+	copy(m.Data[:], decoded)
+
+	return setParsedValues(m, prio, pgn, dst, src, len(decoded))
 }

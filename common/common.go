@@ -18,12 +18,11 @@ package common
 // limitations under the License.
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"strings"
 	"time"
-
-	"cmp"
 )
 
 // FastPacket constants.

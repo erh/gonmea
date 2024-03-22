@@ -21,6 +21,7 @@ package analyzer
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -56,6 +57,7 @@ type Analyzer struct {
 	fieldTypes       []fieldType
 	pgns             []pgnInfo
 	reassemblyBuffer [reassemblyBufferSize]packet
+	reader           *bufio.Reader
 }
 
 // NewAnalyzer returns a new analyzer using the given config.
@@ -69,6 +71,7 @@ func NewAnalyzer(conf *Config) (*Analyzer, error) {
 
 		fieldTypes: make([]fieldType, len(immutFieldTypes)),
 		pgns:       make([]pgnInfo, len(immutPGNs)),
+		reader:     bufio.NewReader(conf.InFile),
 	}
 
 	copy(ana.fieldTypes, immutFieldTypes)
@@ -115,11 +118,17 @@ type Config struct {
 
 // NewConfigForCLI returns a config for use with a CLI.
 func NewConfigForCLI() *Config {
-	return NewConfigForLibrary(os.Stdout, os.Stderr, common.NewLoggerForCLI(os.Stderr))
+	return newConfig(os.Stdout, os.Stderr, common.NewLoggerForCLI(os.Stderr))
 }
 
 // NewConfigForLibrary returns a config for use with a library.
 func NewConfigForLibrary(
+	logger *common.Logger,
+) *Config {
+	return newConfig(io.Discard, io.Discard, logger)
+}
+
+func newConfig(
 	outFile io.Writer,
 	outErrFile io.Writer,
 	logger *common.Logger,
@@ -263,32 +272,20 @@ func ParseArgs(args []string) (*Config, bool, error) {
 	return conf, true, nil
 }
 
-// Run performs analysis.
-func (ana *Analyzer) Run() error {
-	if !ana.ShowJSON {
-		ana.Logger.Info("N2K packet analyzer\n" + common.Copyright)
-	} else if ana.ShowVersion {
-		siStr := "si"
-		if !ana.showSI {
-			siStr = "std"
-		}
-
-		jsonValueStr := "true"
-		if !ana.ShowJSONValue {
-			jsonValueStr = "false"
-		}
-		fmt.Fprintf(ana.OutFile, "{\"version\":\"%s\",\"units\":\"%s\",\"showLookupValues\":%s}\n",
-			common.Version,
-			siStr,
-			jsonValueStr)
+// ReadMessage returns the next message read or io.EOF.
+func (ana *Analyzer) ReadMessage() ([]byte, error) {
+	var buf bytes.Buffer
+	if err := ana.readMessage(&buf); err != nil {
+		return nil, err
 	}
+	return buf.Bytes(), nil
+}
 
-	reader := bufio.NewReader(ana.InFile)
+func (ana *Analyzer) readMessage(writer io.Writer) error {
 	for {
-		msg, isPrefix, err := reader.ReadLine()
+		msg, isPrefix, err := ana.reader.ReadLine()
 		if err != nil || isPrefix {
-			//nolint:nilerr
-			return nil
+			return io.EOF
 		}
 		var m common.RawMessage
 
@@ -350,6 +347,9 @@ func (ana *Analyzer) Run() error {
 		case rawFormatYDWG02:
 			r = common.ParseRawFormatYDWG02(msg, &m, ana.Logger)
 
+		case rawFormatNavLink2:
+			r = common.ParseRawFormatNavLink2(msg, &m, ana.Logger)
+
 		case rawFormatActisenseN2KASCII:
 			r = common.ParseRawFormatActisenseN2KAscii(msg, &m, ana.ShowJSON, ana.Logger)
 
@@ -360,13 +360,43 @@ func (ana *Analyzer) Run() error {
 		}
 
 		if r == 0 {
-			if err := ana.printCanFormat(&m); err != nil {
+			if err := ana.printCanFormat(&m, writer); err != nil {
 				return err
 			}
 			ana.printCanRaw(&m)
-		} else {
-			//nolint:errcheck
-			ana.Logger.Error("Unknown message error %d: '%s'\n", r, msg)
+			return nil
+		}
+		//nolint:errcheck
+		ana.Logger.Error("Unknown message error %d: '%s'\n", r, msg)
+	}
+}
+
+// Run performs analysis.
+func (ana *Analyzer) Run() error {
+	if !ana.ShowJSON {
+		ana.Logger.Info("N2K packet analyzer\n" + common.Copyright)
+	} else if ana.ShowVersion {
+		siStr := "si"
+		if !ana.showSI {
+			siStr = "std"
+		}
+
+		jsonValueStr := "true"
+		if !ana.ShowJSONValue {
+			jsonValueStr = "false"
+		}
+		fmt.Fprintf(ana.OutFile, "{\"version\":\"%s\",\"units\":\"%s\",\"showLookupValues\":%s}\n",
+			common.Version,
+			siStr,
+			jsonValueStr)
+	}
+
+	for {
+		if err := ana.readMessage(ana.OutFile); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
 		}
 	}
 }
@@ -383,6 +413,7 @@ const (
 	rawFormatGarminCSV1        rawFormat = "GARMIN_CSV1"
 	rawFormatGarminCSV2        rawFormat = "GARMIN_CSV2"
 	rawFormatYDWG02            rawFormat = "YDWG02"
+	rawFormatNavLink2          rawFormat = "NAVLINK2"
 	rawFormatActisenseN2KASCII rawFormat = "ACTISENSE_N2K_ASCII"
 )
 
@@ -396,6 +427,7 @@ var rawFormats = []rawFormat{
 	rawFormatGarminCSV1,
 	rawFormatGarminCSV2,
 	rawFormatYDWG02,
+	rawFormatNavLink2,
 	rawFormatActisenseN2KASCII,
 }
 
@@ -505,6 +537,40 @@ func (ana *Analyzer) detectFormat(msg string) rawFormat {
 		return rawFormatAirmar
 	}
 
+	{
+		var a, b, c, d, f int
+		var e rune
+		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
+		if r == 6 && (e == 'R' || e == 'T') {
+			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame\n")
+			ana.multipackets = multipacketsSeparate
+			return rawFormatYDWG02
+		}
+	}
+
+	{
+		var a, b, c, d int
+		var e float64
+		var f string
+		r, _ := fmt.Sscanf(msg, "!PDGY,%d,%d,%d,%d,%f,%s ", &a, &b, &c, &d, &e, &f)
+		if r == 6 {
+			ana.Logger.Info("Detected Digital Yacht NavLink2 protocol with one line per frame\n")
+			ana.multipackets = multipacketsCoalesced
+			return rawFormatNavLink2
+		}
+	}
+
+	{
+		var a, b, c, d int
+		r1, _ := fmt.Sscanf(msg, "A%d.%d %x %x ", &a, &b, &c, &d)
+		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
+		if r1 == 4 || r2 == 3 {
+			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line\n")
+			ana.multipackets = multipacketsCoalesced
+			return rawFormatActisenseN2KASCII
+		}
+	}
+
 	p = strings.Index(msg, ",")
 	if p != -1 {
 		// NOTE(erd): this is a hacky af departure from the c code where it
@@ -536,28 +602,6 @@ func (ana *Analyzer) detectFormat(msg string) rawFormat {
 		return rawFormatPlain
 	}
 
-	{
-		var a, b, c, d, f int
-		var e rune
-		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
-		if r == 6 && (e == 'R' || e == 'T') {
-			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame\n")
-			ana.multipackets = multipacketsSeparate
-			return rawFormatYDWG02
-		}
-	}
-
-	{
-		var a, b, c, d int
-		r1, _ := fmt.Sscanf(msg, "A%d.%d %x %x ", &a, &b, &c, &d)
-		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
-		if r1 == 4 || r2 == 3 {
-			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line\n")
-			ana.multipackets = multipacketsCoalesced
-			return rawFormatActisenseN2KASCII
-		}
-	}
-
 	return rawFormatUnknown
 }
 
@@ -574,7 +618,10 @@ func (h *hexScanner) Scan(state fmt.ScanState, _ rune) error {
 	return err
 }
 
-func (ana *Analyzer) printCanFormat(msg *common.RawMessage) error {
+func (ana *Analyzer) printCanFormat(
+	msg *common.RawMessage,
+	writer io.Writer,
+) error {
 	if ana.OnlySrc >= 0 && ana.OnlySrc != int64(msg.Src) {
 		return nil
 	}
@@ -595,7 +642,7 @@ func (ana *Analyzer) printCanFormat(msg *common.RawMessage) error {
 	}
 	if ana.multipackets == multipacketsCoalesced || pgn == nil || pgn.packetType != packetTypeFast {
 		// No reassembly needed
-		if err := ana.printPgn(msg, msg.Data[:msg.Len]); err != nil {
+		if err := ana.printPgn(msg, msg.Data[:msg.Len], writer); err != nil {
 			return err
 		}
 		return nil
@@ -674,7 +721,7 @@ func (ana *Analyzer) printCanFormat(msg *common.RawMessage) error {
 			p.allFrames)
 		if p.frames == p.allFrames {
 			// Received all data
-			if err := ana.printPgn(msg, p.data[:p.size]); err != nil {
+			if err := ana.printPgn(msg, p.data[:p.size], writer); err != nil {
 				return err
 			}
 			p.used = false
@@ -684,7 +731,11 @@ func (ana *Analyzer) printCanFormat(msg *common.RawMessage) error {
 	return nil
 }
 
-func (ana *Analyzer) printPgn(msg *common.RawMessage, data []byte) error {
+func (ana *Analyzer) printPgn(
+	msg *common.RawMessage,
+	data []byte,
+	writer io.Writer,
+) error {
 	if msg == nil {
 		return nil
 	}
@@ -840,14 +891,14 @@ func (ana *Analyzer) printPgn(msg *common.RawMessage, data []byte) error {
 	ana.pb.Printf("\n")
 
 	if r {
-		ana.pb.Write(ana.OutFile)
+		ana.pb.Write(writer)
 		if variableFields > 0 && ana.variableFieldRepeat[0] < math.MaxUint8 {
 			//nolint:errcheck
 			ana.Logger.Error("PGN %d has %d missing fields in repeating set\n", msg.PGN, variableFields)
 		}
 	} else {
 		if !ana.ShowJSON {
-			ana.pb.Write(ana.OutFile)
+			ana.pb.Write(writer)
 		}
 		ana.pb.Reset()
 		//nolint:errcheck

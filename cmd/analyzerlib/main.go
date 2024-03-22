@@ -2,6 +2,9 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 
@@ -11,10 +14,11 @@ import (
 
 func main() {
 	logger := common.NewLogger(io.Discard)
-	conf := analyzer.NewConfigForLibrary(os.Stdout, io.Discard, logger)
+	conf := analyzer.NewConfigForLibrary(logger)
 
 	var err error
-	conf.InFile, err = os.Open("./analyzer/tests/pgn-test.in")
+	conf.ShowJSON = true
+	conf.InFile, err = os.Open("./analyzer/tests/navlink2-test.in")
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +26,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := ana.Run(); err != nil {
-		panic(err)
+	for {
+		msg, err := ana.ReadMessage()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			panic(err)
+		}
+		var msgJSON map[string]interface{}
+		if err := json.Unmarshal(msg, &msgJSON); err != nil {
+			panic(err)
+		}
+		md, err := json.MarshalIndent(msgJSON, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprintln(os.Stdout, string(md))
 	}
 }

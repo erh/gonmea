@@ -90,4 +90,13 @@ test8:
 	diff $(TEMPDIR)/pgn-test-actisense.out pgn-test-actisense.out
 	diff $(TEMPDIR)/pgn-test-actisense.err pgn-test-actisense.err
 
+#
+# This tests capability to read Digital Yacht NavLink2 format
+#
+test8:	
+	$(ANALYZER) < navlink2-test.in > $(TEMPDIR)/navlink2-test.out -nv -debug -q -json -fixtime pgn-test 2> $(TEMPDIR)/navlink2-test.err
+	python3 ../validate-json.py --line-by-line $(TEMPDIR)/navlink2-test.out
+	diff $(TEMPDIR)/navlink2-test.out navlink2-test.out
+	diff $(TEMPDIR)/navlink2-test.err navlink2-test.err
+
 tests:	test1 test2 test3 test4 test5 test6 test7 test8
