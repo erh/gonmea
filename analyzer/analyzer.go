@@ -287,7 +287,6 @@ func (ana *Analyzer) readMessage(writer io.Writer) error {
 		if err != nil || isPrefix {
 			return io.EOF
 		}
-		var m common.RawMessage
 
 		if len(msg) == 0 || msg[0] == '\r' || msg[0] == '\n' || msg[0] == '#' {
 			if len(msg) != 0 && msg[0] == '#' {
@@ -300,74 +299,23 @@ func (ana *Analyzer) readMessage(writer io.Writer) error {
 		}
 
 		if ana.SelectedFormat == rawFormatUnknown {
-			ana.SelectedFormat = ana.detectFormat(string(msg))
+			ana.SelectedFormat, ana.multipackets = detectFormat(string(msg), ana.Logger)
 			if ana.SelectedFormat == rawFormatGarminCSV1 || ana.SelectedFormat == rawFormatGarminCSV2 {
 				// Skip first line containing header line
 				continue
 			}
 		}
 
-		var r int
-		switch ana.SelectedFormat {
-		case rawFormatPlainOrFast:
-			ana.multipackets = multipacketsSeparate
-			r = common.ParseRawFormatPlain(msg, &m, ana.ShowJSON, ana.Logger)
-			ana.Logger.Debug("plain_or_fast: plain r=%d\n", r)
-			if r < 0 {
-				ana.multipackets = multipacketsCoalesced
-				r = common.ParseRawFormatFast(msg, &m, ana.ShowJSON, ana.Logger)
-				ana.Logger.Debug("plain_or_fast: fast r=%d\n", r)
-			}
-
-		case rawFormatPlain:
-			r = common.ParseRawFormatPlain(msg, &m, ana.ShowJSON, ana.Logger)
-			if r >= 0 {
-				break
-			}
-			// Else fall through to fast!
-			fallthrough
-
-		case rawFormatFast:
-			r = common.ParseRawFormatFast(msg, &m, ana.ShowJSON, ana.Logger)
-			if r >= 0 && ana.SelectedFormat == rawFormatPlain {
-				ana.Logger.Info("Detected normal format with all frames on one line\n")
-				ana.multipackets = multipacketsCoalesced
-				ana.SelectedFormat = rawFormatFast
-			}
-
-		case rawFormatAirmar:
-			r = common.ParseRawFormatAirmar(msg, &m, ana.ShowJSON, ana.Logger)
-
-		case rawFormatChetco:
-			r = common.ParseRawFormatChetco(msg, &m, ana.ShowJSON, ana.Logger)
-
-		case rawFormatGarminCSV1, rawFormatGarminCSV2:
-			r = common.ParseRawFormatGarminCSV(msg, &m, ana.ShowJSON, ana.SelectedFormat == rawFormatGarminCSV2, ana.Logger)
-
-		case rawFormatYDWG02:
-			r = common.ParseRawFormatYDWG02(msg, &m, ana.Logger)
-
-		case rawFormatNavLink2:
-			r = common.ParseRawFormatNavLink2(msg, &m, ana.Logger)
-
-		case rawFormatActisenseN2KASCII:
-			r = common.ParseRawFormatActisenseN2KAscii(msg, &m, ana.ShowJSON, ana.Logger)
-
-		case rawFormatUnknown:
-			fallthrough
-		default:
-			return ana.Logger.Error("Unknown message format\n")
-		}
-
-		if r == 0 {
-			if err := ana.printCanFormat(&m, writer); err != nil {
+		m, err := ParseLineWithFormat(msg, ana.SelectedFormat, ana.ShowJSON, ana.Logger)
+		if err != nil {
+			ana.Logger.Error("Unknown error %v\n", err)
+		} else {
+			if err := ana.printCanFormat(m, writer); err != nil {
 				return err
 			}
-			ana.printCanRaw(&m)
+			ana.printCanRaw(m)
 			return nil
 		}
-		//nolint:errcheck
-		ana.Logger.Error("Unknown message error %d: '%s'\n", r, msg)
 	}
 }
 
@@ -507,102 +455,6 @@ func (ana *Analyzer) showBuffers() {
 			ana.Logger.Debug("ReassemblyBuffer[%d]: inUse=false\n", buffer)
 		}
 	}
-}
-
-func (ana *Analyzer) detectFormat(msg string) rawFormat {
-	if msg[0] == '$' && msg == "$PCDIN" {
-		ana.Logger.Info("Detected Chetco protocol with all data on one line\n")
-		ana.multipackets = multipacketsCoalesced
-		return rawFormatChetco
-	}
-
-	if msg == "Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with relative timestamps\n")
-		ana.multipackets = multipacketsCoalesced
-		return rawFormatGarminCSV1
-	}
-
-	if msg ==
-		"Sequence #,Month_Day_Year_Hours_Minutes_Seconds_msTicks,PGN,Processed PGN,Name,Manufacturer,Remote Address,Local "+
-			"Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with absolute timestamps\n")
-		ana.multipackets = multipacketsCoalesced
-		return rawFormatGarminCSV2
-	}
-
-	p := strings.Index(msg, " ")
-	if p != -1 && (msg[p+1] == '-' || msg[p+2] == '-') {
-		ana.Logger.Info("Detected Airmar protocol with all data on one line\n")
-		ana.multipackets = multipacketsCoalesced
-		return rawFormatAirmar
-	}
-
-	{
-		var a, b, c, d, f int
-		var e rune
-		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
-		if r == 6 && (e == 'R' || e == 'T') {
-			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame\n")
-			ana.multipackets = multipacketsSeparate
-			return rawFormatYDWG02
-		}
-	}
-
-	{
-		var a, b, c, d int
-		var e float64
-		var f string
-		r, _ := fmt.Sscanf(msg, "!PDGY,%d,%d,%d,%d,%f,%s ", &a, &b, &c, &d, &e, &f)
-		if r == 6 {
-			ana.Logger.Info("Detected Digital Yacht NavLink2 protocol with one line per frame\n")
-			ana.multipackets = multipacketsCoalesced
-			return rawFormatNavLink2
-		}
-	}
-
-	{
-		var a, b, c, d int
-		r1, _ := fmt.Sscanf(msg, "A%d.%d %x %x ", &a, &b, &c, &d)
-		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
-		if r1 == 4 || r2 == 3 {
-			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line\n")
-			ana.multipackets = multipacketsCoalesced
-			return rawFormatActisenseN2KASCII
-		}
-	}
-
-	p = strings.Index(msg, ",")
-	if p != -1 {
-		// NOTE(erd): this is a hacky af departure from the c code where it
-		// can somehow use sscanf to count the number of hexes with
-		// sscanf(p, ",%*u,%*u,%*u,%*u,%d,%*x,%*x,%*x,%*x,%*x,%*x,%*x,%*x,%*x", &len);
-		var a, b, c, d, e int
-		var hexes [9]hexScanner
-		r, _ := fmt.Sscanf(
-			msg[p:],
-			",%d,%d,%d,%d,%d,%x,%x,%x,%x,%x,%x,%x,%x,%x",
-			&a, &b, &c, &d, &e, &hexes[0], &hexes[1], &hexes[2], &hexes[3], &hexes[4], &hexes[5], &hexes[6], &hexes[7], &hexes[8],
-		)
-		if r < 1 {
-			return rawFormatUnknown
-		}
-		var countHex int
-		for _, h := range hexes {
-			if h.isSet {
-				countHex++
-			}
-		}
-		if countHex > 8 {
-			ana.Logger.Info("Detected normal format with all frames on one line\n")
-			ana.multipackets = multipacketsCoalesced
-			return rawFormatFast
-		}
-		ana.Logger.Info("Assuming normal format with one line per frame\n")
-		ana.multipackets = multipacketsSeparate
-		return rawFormatPlain
-	}
-
-	return rawFormatUnknown
 }
 
 type hexScanner struct {

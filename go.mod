@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/edaniels/golinters v0.0.4
 	github.com/golangci/golangci-lint v1.51.2
+	go.viam.com/test v1.1.0
 )
 
 require (
@@ -135,6 +136,7 @@ require (
 	github.com/sivchari/containedctx v1.0.2 // indirect
 	github.com/sivchari/nosnakecase v1.7.0 // indirect
 	github.com/sivchari/tenv v1.7.1 // indirect
+	github.com/smartystreets/assertions v1.2.0 // indirect
 	github.com/sonatard/noctx v0.0.1 // indirect
 	github.com/sourcegraph/go-diff v0.7.0 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
