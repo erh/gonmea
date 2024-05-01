@@ -54,15 +54,78 @@ func (ana *Analyzer) ConvertFields(msg *common.RawMessage) (map[string]interface
 
 		fmt.Printf("%s\n", fieldName)
 		var countBits int
-		if ok, err := ana.printField(field, fieldName, data, startBit, &countBits); err != nil {
+		val, err := ana.convertFieldValue(field, data, startBit, &countBits)
+		if err != nil {
 			return nil, err
-		} else if !ok {
-			panic(1)
-			break
 		}
-
 		startBit += countBits
+		
+		data[fieldName] = val
 	}
 
-	return nil, nil
+	return data, nil
+}
+
+func (ana *Analyzer) convertFieldValue(
+	field *pgnField,
+	data []byte,
+	startBit int,
+	bits *int,
+) (interface{}, error) {
+
+	resolution := field.resolution
+	if resolution == 0.0 {
+		resolution = field.ft.resolution
+	}
+
+	ana.Logger.Debug("PGN %d: printField(<%s>, \"%s\", ..., startBit=%d) resolution=%g\n",
+		field.pgn.pgn,
+		field.name,
+		fieldName,
+		startBit,
+		resolution)
+
+	var bytes int
+	if field.size != 0 || field.ft != nil {
+		if field.size != 0 {
+			*bits = int(field.size)
+		} else {
+			*bits = int(field.ft.size)
+		}
+		bytes = (*bits + 7) / 8
+		bytes = common.Min(bytes, len(data)-startBit/8)
+		*bits = common.Min(bytes*8, *bits)
+	} else {
+		*bits = 0
+	}
+
+	// TODO: i think this is ok, but need to clean up globals
+	ana.fillGlobalsBasedOnFieldName(field.name, data, startBit, *bits)
+
+	ana.Logger.Debug("PGN %d: printField <%s>, \"%s\": bits=%d proprietary=%t refPgn=%d\n",
+		field.pgn.pgn,
+		field.name,
+		fieldName,
+		*bits,
+		field.proprietary,
+		ana.refPgn)
+
+	if field.proprietary {
+		if (ana.refPgn >= 65280 && ana.refPgn <= 65535) ||
+			(ana.refPgn >= 126720 && ana.refPgn <= 126975) ||
+			(ana.refPgn >= 130816 && ana.refPgn <= 131071) {
+			// proprietary, allow field
+		} else {
+			// standard PGN, skip field
+			*bits = 0
+			return nil, nil // TODO: I guess this just means it's a blank field??
+		}
+	}
+
+	if field.ft != nil && field.ft.pf != nil {
+		r, err := field.ft.pf(ana, field, fieldName, data, startBit, bits)
+	}
+	//nolint:errcheck
+	ana.Logger.Error("PGN %d: no function found to print field '%s'\n", field.pgn.pgn, fieldName)
+	return false, nil
 }
