@@ -40,6 +40,7 @@ func initFieldTypes() {
 				"value and that minus 1, not the all-ones bit encoding which is the maximum negative value.",
 			url:    "https://en.wikipedia.org/wiki/Binary_number",
 			v1Type: "Number",
+			cf:     convertFieldNumber,
 			pf:     fieldPrintNumber,
 		},
 
@@ -152,6 +153,7 @@ func initFieldTypes() {
 			size:        32,
 			hasSign:     &trueValue,
 			url:         "https://en.wikipedia.org/wiki/IEEE_754",
+			cf:          convertFieldFloat,
 			pf:          fieldPrintFloat,
 		},
 
@@ -162,6 +164,7 @@ func initFieldTypes() {
 				"with an odd number of digits will have 0 as the first digit in the first byte.",
 			hasSign: &falseValue,
 			url:     "https://en.wikipedia.org/wiki/Binary-coded_decimal",
+			cf:      convertFieldDecimal,
 			pf:      fieldPrintDecimal,
 		},
 
@@ -172,6 +175,7 @@ func initFieldTypes() {
 			comment: "For almost all lookups the list of values is known with some precision, but it is quite possible that a value " +
 				"occurs that has no corresponding textual explanation.",
 			hasSign: &falseValue,
+			cf:      convertFieldLookup,
 			pf:      fieldPrintLookup,
 			v1Type:  "Lookup table",
 		},
@@ -183,6 +187,7 @@ func initFieldTypes() {
 			comment: "For almost all lookups the list of values is known with some precision, but it is quite possible that a value " +
 				"occurs that has no corresponding textual explanation.",
 			hasSign: &falseValue,
+			cf:      convertFieldLookup,
 			pf:      fieldPrintLookup,
 			v1Type:  "Integer",
 		},
@@ -194,6 +199,7 @@ func initFieldTypes() {
 				"any combination of bits set.",
 			comment: "For almost all lookups the list of values is known with some precision, but it is quite possible that a value " +
 				"occurs that has no corresponding textual explanation.",
+			cf:     convertFieldBitLookup,
 			pf:     fieldPrintBitLookup,
 			v1Type: "Bitfield",
 		},
@@ -205,6 +211,7 @@ func initFieldTypes() {
 			comment: "These values have been determined by reverse engineering, given the known values it is anticipated that there are " +
 				"unknown enumeration values and some known values have incorrect datatypes",
 			hasSign: &falseValue,
+			cf:      convertFieldLookup,
 			pf:      fieldPrintLookup,
 		},
 
@@ -212,12 +219,20 @@ func initFieldTypes() {
 			name:          "MANUFACTURER",
 			description:   "Manufacturer",
 			size:          11,
+			cf:            convertFieldLookup,
 			pf:            fieldPrintLookup,
 			baseFieldType: "LOOKUP",
 			v1Type:        "Manufacturer code",
 		},
 
-		{name: "INDUSTRY", description: "Industry", size: 3, pf: fieldPrintLookup, baseFieldType: "LOOKUP"},
+		{
+			name:          "INDUSTRY",
+			description:   "Industry",
+			size:          3,
+			cf:            convertFieldLookup,
+			pf:            fieldPrintLookup,
+			baseFieldType: "LOOKUP",
+		},
 
 		{name: "VERSION", description: "Version", resolution: 0.001, baseFieldType: "UFIX16"},
 
@@ -295,6 +310,7 @@ func initFieldTypes() {
 				"cm when we refer to an Earth position",
 			resolution:    1.0e-7,
 			physical:      &geoCoordinateQuantity,
+			cf:            convertFieldLatLon,
 			pf:            fieldPrintLatLon,
 			baseFieldType: "FIX32",
 			v1Type:        "Lat/Lon",
@@ -307,6 +323,7 @@ func initFieldTypes() {
 				"refer to an Earth position",
 			resolution:    1.0e-16,
 			physical:      &geoCoordinateQuantity,
+			cf:            convertFieldLatLon,
 			pf:            fieldPrintLatLon,
 			baseFieldType: "FIX64",
 			v1Type:        "Lat/Lon",
@@ -476,7 +493,14 @@ func initFieldTypes() {
 
 		{name: "VOLUME_UFIX32_DL", description: "Volume", resolution: 0.1, physical: &volumeQuantity, baseFieldType: "UFIX32"},
 
-		{name: "TIME", description: "Time", physical: &timeQuantity, pf: fieldPrintTime, v1Type: "Time"},
+		{
+			name:        "TIME",
+			description: "Time",
+			physical:    &timeQuantity,
+			cf:          convertFieldTime,
+			pf:          fieldPrintTime,
+			v1Type:      "Time",
+		},
 
 		{
 			name:                "TIME_UFIX32",
@@ -604,6 +628,7 @@ func initFieldTypes() {
 			physical:            &dateQuantity,
 			size:                16,
 			hasSign:             &falseValue,
+			cf:                  convertFieldDate,
 			pf:                  fieldPrintDate,
 			v1Type:              "Date",
 		},
@@ -1098,6 +1123,7 @@ func initFieldTypes() {
 				"as '@', ' ', 0x0 or 0xff.",
 			comment: "It is unclear what character sets are allowed/supported. Possibly UTF-8 but it could also be that only ASCII values " +
 				"are supported.",
+			cf:     convertFieldStringFix,
 			pf:     fieldPrintStringFix,
 			v1Type: "ASCII text",
 		},
@@ -1110,6 +1136,7 @@ func initFieldTypes() {
 			comment: "It is unclear what character sets are allowed/supported. Possibly UTF-8 but it could also be that only ASCII values " +
 				"are supported.",
 			variableSize: true,
+			cf:           convertFieldStringLZ,
 			pf:           fieldPrintStringLZ,
 			v1Type:       "ASCII string starting with length byte",
 		},
@@ -1121,6 +1148,7 @@ func initFieldTypes() {
 			comment: "It is unclear what character sets are allowed/supported. For single byte, assume ASCII. For UNICODE, assume UTF-16, " +
 				"but this has not been seen in the wild yet.",
 			variableSize: true,
+			cf:           convertFieldStringLAU,
 			pf:           fieldPrintStringLAU,
 			v1Type:       "ASCII or UNICODE string starting with length and control byte",
 		},
@@ -1130,6 +1158,7 @@ func initFieldTypes() {
 			name:                "BINARY",
 			description:         "Binary field",
 			encodingDescription: "Unspecified content consisting of any number of bits.",
+			cf:                  convertFieldBinary,
 			pf:                  fieldPrintBinary,
 			v1Type:              "Binary data",
 		},
@@ -1139,6 +1168,7 @@ func initFieldTypes() {
 			description:         "Reserved field",
 			encodingDescription: "All reserved bits shall be 1",
 			comment:             "NMEA reserved for future expansion and/or to align next data on byte boundary",
+			cf:                  convertFieldReserved,
 			pf:                  fieldPrintReserved,
 		},
 
@@ -1148,6 +1178,7 @@ func initFieldTypes() {
 			encodingDescription: "All spare bits shall be 0",
 			comment: "This is like a reserved field but originates from other sources where unused fields shall be 0, like the AIS " +
 				"ITU-1371 standard.",
+			cf: convertFieldSpare,
 			pf: fieldPrintSpare,
 		},
 
@@ -1162,6 +1193,7 @@ func initFieldTypes() {
 			encodingDescription: "The MMSI is encoded as a 32 bit number, but is always printed as a 9 digit number and should be considered as a string. " +
 				"The first three or four digits are special, see the USCG link for a detailed explanation.",
 			url: "https://navcen.uscg.gov/maritime-mobile-service-identity",
+			cf:  convertFieldMMSI,
 			pf:  fieldPrintMMSI,
 		},
 
@@ -1169,7 +1201,9 @@ func initFieldTypes() {
 			name:                "VARIABLE",
 			description:         "Variable",
 			encodingDescription: "The definition of the field is that of the reference PGN and reference field, this is totally variable.",
-			pf:                  fieldPrintVariable, pfIsPrintVariable: true,
+			cf:                  convertFieldVariable,
+			pf:                  fieldPrintVariable,
+			pfIsPrintVariable:   true,
 		},
 
 		{
@@ -1177,6 +1211,7 @@ func initFieldTypes() {
 			description: "Key/value",
 			encodingDescription: "The type definition of the field is defined by an earlier LookupFieldTypeEnumeration field. The length is defined by " +
 				"the preceding length field.",
+			cf: convertFieldKeyValue,
 			pf: fieldPrintKeyValue,
 		},
 
@@ -1189,6 +1224,7 @@ func initFieldTypes() {
 			rangeMin:            1, // Minimum field index (.Order)
 			rangeMax:            253,
 			encodingDescription: "Index of the specified field in the PGN referenced.",
+			cf:                  convertFieldNumber,
 			pf:                  fieldPrintNumber,
 		},
 	}

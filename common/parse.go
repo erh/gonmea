@@ -38,6 +38,17 @@ type RawMessage struct {
 	Data      [FastPacketMaxSize]byte
 }
 
+// Message is a NMEA 2000 PGN message.
+type Message struct {
+	Timestamp   string                 `json:"timestamp"`
+	Priority    int                    `json:"prio"`
+	Src         int                    `json:"src"`
+	Dst         int                    `json:"dst"`
+	Pgn         int                    `json:"pgn"`
+	Description string                 `json:"description"`
+	Fields      map[string]interface{} `json:"fields"`
+}
+
 func findOccurrence(msg []byte, c rune, count int) int {
 	if len(msg) == 0 || msg[0] == '\n' {
 		return 0

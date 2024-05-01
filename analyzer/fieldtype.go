@@ -41,6 +41,15 @@ type fieldPrintFunctionType func(
 	bits *int,
 ) (bool, error)
 
+type convertFieldFunctionType func(
+	ana *Analyzer,
+	field *pgnField,
+	fieldName string,
+	data []byte,
+	startBit int,
+	bits *int,
+) (interface{}, bool, error)
+
 type fieldType struct {
 	name                string // Name, UPPERCASE_WITH_UNDERSCORE
 	description         string // English description, shortish
@@ -64,6 +73,7 @@ type fieldType struct {
 
 	// How to print this field
 	pf                fieldPrintFunctionType
+	cf                convertFieldFunctionType
 	pfIsPrintVariable bool
 	physical          *physicalQuantity
 
@@ -131,10 +141,16 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 			if ft.pf == nil {
 				ft.pf = base.pf
 			}
+			if ft.cf == nil {
+				ft.cf = base.cf
+			}
 		}
 
 		if ft.pf == nil {
 			return ana.Logger.Abort("FieldType '%s' has no print function\n", ft.name)
+		}
+		if ft.cf == nil {
+			return ana.Logger.Abort("FieldType '%s' has no convert function\n", ft.name)
 		}
 
 		// Set the field range
