@@ -10,8 +10,18 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	s := "!PDGY,126998,6,200,255,32624.24,050169643105016964321A0153706F745A65726F2052657665727365204F736D6F736973"
-	m, err := ParseLine(s, false, common.NewLogger(os.Stderr))
+
+	logger := common.NewLogger(os.Stderr)
+	
+	s := "!PDGY,130567,6,200,255,25631.18,RgPczwYAQnYeAB4AAAADAAAAAABQbiMA"
+	m, err := ParseLine(s, false, logger)
 	test.That(t, err, test.ShouldBeNil)
-	panic(m)
+
+	a, err := NewAnalyzer(&Config{Logger: logger})
+	test.That(t, err, test.ShouldBeNil)
+	
+	f, err := a.ConvertFields(m)
+	test.That(t, err, test.ShouldBeNil)
+
+	test.That(t, len(f), test.ShouldBeGreaterThan, 0)
 }

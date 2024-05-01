@@ -492,6 +492,7 @@ func (ana *Analyzer) printCanFormat(
 			return err
 		}
 	}
+
 	if ana.multipackets == multipacketsCoalesced || pgn == nil || pgn.packetType != packetTypeFast {
 		// No reassembly needed
 		if err := ana.printPgn(msg, msg.Data[:msg.Len], writer); err != nil {
