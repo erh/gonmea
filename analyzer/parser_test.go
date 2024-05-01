@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -10,11 +12,8 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	s := []byte("!PDGY,130567,6,200,255,25631.18,RgPczwYAQnYeAB4AAAADAAAAAABQbiMA")
-	m, format, err := ParseMessage(s)
-	test.That(t, err, test.ShouldBeNil)
-	test.That(t, format, test.ShouldEqual, RawFormatNavLink2)
-	test.That(t, m, test.ShouldResemble, &common.Message{
+	msgData := []byte("!PDGY,130567,6,200,255,25631.18,RgPczwYAQnYeAB4AAAADAAAAAABQbiMA")
+	expected := &common.Message{
 		Timestamp:   "25631.18",
 		Priority:    6,
 		Src:         200,
@@ -40,5 +39,35 @@ func TestParser(t *testing.T) {
 			"System Status":                 "OK",
 			"Watermaker Operating State":    "Initiating",
 		},
+	}
+
+	t.Run("one shot", func(t *testing.T) {
+		msg, format, err := ParseMessage(msgData)
+		test.That(t, err, test.ShouldBeNil)
+		test.That(t, format, test.ShouldEqual, RawFormatNavLink2)
+		test.That(t, msg, test.ShouldResemble, expected)
+	})
+
+	t.Run("preset parser format", func(t *testing.T) {
+		parser, err := NewParserWithFormat(RawFormatNavLink2)
+		test.That(t, err, test.ShouldBeNil)
+
+		msg, err := parser.ParseMessage(msgData)
+		test.That(t, err, test.ShouldBeNil)
+		test.That(t, msg, test.ShouldResemble, expected)
+
+		// try it again
+		msg, err = parser.ParseMessage(msgData)
+		test.That(t, err, test.ShouldBeNil)
+		test.That(t, msg, test.ShouldResemble, expected)
+	})
+
+	t.Run("invalid format for data is ignored", func(t *testing.T) {
+		parser, err := NewParserWithFormat(RawFormatGarminCSV2)
+		test.That(t, err, test.ShouldBeNil)
+
+		_, err = parser.ParseMessage(msgData)
+		test.That(t, err, test.ShouldNotBeNil)
+		test.That(t, errors.Is(err, io.EOF), test.ShouldBeTrue)
 	})
 }

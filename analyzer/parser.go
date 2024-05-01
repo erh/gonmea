@@ -25,6 +25,9 @@ func NewParserWithFormat(format RawFormat) (*Parser, error) {
 	conf := NewConfigForLibrary(common.NewLogger(io.Discard))
 	conf.InFile = &buf
 	conf.SelectedFormat = format
+	if conf.SelectedFormat != RawFormatPlain && conf.SelectedFormat != RawFormatPlainOrFast {
+		conf.multipackets = multipacketsCoalesced
+	}
 	ana, err := NewAnalyzer(conf)
 	if err != nil {
 		return nil, err
