@@ -1123,11 +1123,12 @@ func floatField(nam, unt, desc string) pgnField {
 	}
 }
 
-var immutPGNs []pgnInfo
-var pgnMap map[uint32]pgnInfo
+var (
+	immutPGNs []pgnInfo
+	pgnMap    map[uint32]pgnInfo
+)
 
 func initPGNs() {
-	//nolint:lll,dupword
 	immutPGNs = createPGNList()
 	pgnMap = map[uint32]pgnInfo{}
 	for _, pgn := range immutPGNs {

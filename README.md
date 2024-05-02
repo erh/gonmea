@@ -5,7 +5,7 @@ A partial port of https://github.com/canboat/canboat.
 ## Playing around
 
 * There's `github.com/erh/gonmea/cmd/analyzer` which is the CLI for analysis of NMEA 2000 PGNs.
-* There's also `github.com/erh/gonmea/cmd/analyzerlib` which is a reference if you wanted to use analysis in another go program. It's hardcoded to read [./analyzer/tests/pgn-test.in](/analyzer/tests/pgn-test.in).
+* There's also `github.com/erh/gonmea/cmd/parser` which is a reference if you wanted to use this as a library in another go program (e.g. `go run github.com/erh/gonmea/cmd/parser ./analyzer/tests/navlink2-test.in`)
 
 ## Note(UNTESTED)
 
