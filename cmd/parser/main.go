@@ -67,9 +67,12 @@ func processData(in io.ReadCloser) error {
 			continue
 		}
 		msg, err := parser.ParseMessage(line)
-		fmt.Printf("hi %v %v %v\n", line, msg, err)
+
 		if err != nil {
 			return err
+		}
+		if msg == nil {
+			continue
 		}
 		md, err := json.MarshalIndent(msg, "", "  ")
 		if err != nil {
