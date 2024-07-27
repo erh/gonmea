@@ -278,7 +278,7 @@ func (ana *Analyzer) ReadMessage() (*common.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ana.convertRawMessage(rawMsg)
+	return ana.ConvertRawMessage(rawMsg)
 }
 
 // ReadRawMessage returns the next raw message read or io.EOF.
@@ -1213,7 +1213,7 @@ func (ana *Analyzer) printCanRaw(msg *common.RawMessage) {
 	}
 }
 
-func (ana *Analyzer) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+func (ana *Analyzer) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
 	if rawMsg == nil {
 		return nil, nil
 	}
