@@ -280,7 +280,7 @@ For NMEA2000 the R bit is always 0, but SAE J1939 it is not. J1939 calls
 this the "Extended Data Page" (EDP).
 */
 
-func getISO11783BitsFromCanID(
+func GetISO11783BitsFromCanID(
 	id uint,
 	prio *uint,
 	pgn *uint,
