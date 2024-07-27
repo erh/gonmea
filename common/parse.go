@@ -355,7 +355,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		return 2
 	}
 
-	GetISO11783BitsFromCanID(id, &prio, &pgn, &src, &dst)
+	prio, pgn, src, dst = GetISO11783BitsFromCanID(id)
 
 	pIdx++
 	dataLen = uint(len(msg[pIdx:]) / 2)
@@ -591,7 +591,7 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 	//nolint:errcheck
 	n, _ := strconv.ParseInt(splitBySpaces[0], 16, 64)
 	msgid = uint(n)
-	GetISO11783BitsFromCanID(msgid, &prio, &pgn, &src, &dst)
+	prio, pgn, src, dst = GetISO11783BitsFromCanID(msgid)
 
 	// parse data
 	i := 0

@@ -280,41 +280,31 @@ For NMEA2000 the R bit is always 0, but SAE J1939 it is not. J1939 calls
 this the "Extended Data Page" (EDP).
 */
 
-func GetISO11783BitsFromCanID(
-	id uint,
-	prio *uint,
-	pgn *uint,
-	src *uint,
-	dst *uint,
-) {
-	PF := id >> 16
-	PS := id >> 8
+//	prio, pgn, src, dst := GetISO11783BitsFromCanID(id)
+//
+// return prio, pgn, src, sdst
+func GetISO11783BitsFromCanID(id uint) (uint, uint, uint, uint) {
+
+	PF := (id >> 16) & 0xFF
+	PS := (id >> 8) & 0xFF
 	RDP := id >> 24 & 3 // Use R + DP bits
 
-	if src != nil {
-		*src = id >> 0
-	}
-	if prio != nil {
-		*prio = (id >> 26) & 0x7
-	}
+	src := (id >> 0) & 0xFF
+	prio := (id >> 26) & 0x7
+
+	var pgn, dst uint
 
 	if PF < 240 {
 		/* PDU1 format, the PS contains the destination address */
-		if dst != nil {
-			*dst = PS
-		}
-		if pgn != nil {
-			*pgn = (RDP << 16) + (PF << 8)
-		}
+		dst = PS
+		pgn = (RDP << 16) + (PF << 8)
 	} else {
 		/* PDU2 format, the destination is implied global and the PGN is extended */
-		if dst != nil {
-			*dst = 0xff
-		}
-		if pgn != nil {
-			*pgn = (RDP << 16) + (PF << 8) + PS
-		}
+		dst = 0xff
+		pgn = (RDP << 16) + (PF << 8) + PS
 	}
+
+	return prio, pgn, src, dst
 }
 
 // ExitError is an error for exit codes.
