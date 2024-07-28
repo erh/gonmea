@@ -280,28 +280,32 @@ For NMEA2000 the R bit is always 0, but SAE J1939 it is not. J1939 calls
 this the "Extended Data Page" (EDP).
 */
 
+// var prio, src, dst uint8
+// var pgn uint32
+//
 //	prio, pgn, src, dst := GetISO11783BitsFromCanID(id)
 //
-// return prio, pgn, src, sdst
-func GetISO11783BitsFromCanID(id uint) (uint, uint, uint, uint) {
+// return prio, pgn, src, dst
+func GetISO11783BitsFromCanID(id uint) (uint8, uint32, uint8, uint8) {
 
 	PF := (id >> 16) & 0xFF
 	PS := (id >> 8) & 0xFF
 	RDP := id >> 24 & 3 // Use R + DP bits
 
-	src := (id >> 0) & 0xFF
-	prio := (id >> 26) & 0x7
+	src := uint8((id >> 0) & 0xFF)
+	prio := uint8((id >> 26) & 0x7)
 
-	var pgn, dst uint
+	var pgn uint32
+	var dst uint8
 
 	if PF < 240 {
 		/* PDU1 format, the PS contains the destination address */
-		dst = PS
-		pgn = (RDP << 16) + (PF << 8)
+		dst = uint8(PS)
+		pgn = uint32((RDP << 16) + (PF << 8))
 	} else {
 		/* PDU2 format, the destination is implied global and the PGN is extended */
 		dst = 0xff
-		pgn = (RDP << 16) + (PF << 8) + PS
+		pgn = uint32((RDP << 16) + (PF << 8) + PS)
 	}
 
 	return prio, pgn, src, dst

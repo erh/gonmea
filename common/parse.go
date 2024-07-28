@@ -38,6 +38,14 @@ type RawMessage struct {
 	Data      [FastPacketMaxSize]byte
 }
 
+func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen uint8) {
+	rm.Prio = prio
+	rm.PGN = pgn
+	rm.Dst = dst
+	rm.Src = src
+	rm.Len = dataLen
+}
+
 // Message is a NMEA 2000 PGN message.
 type Message struct {
 	Timestamp   string                 `json:"timestamp"`
@@ -71,7 +79,9 @@ func findOccurrence(msg []byte, c rune, count int) int {
 
 // ParseRawFormatPlain parses PLAIN messages.
 func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
-	var prio, pgn, dst, src, dataLen, junk, r int
+	var prio, src, dst, dataLen uint8
+	var pgn uint32
+	var junk, r int
 	var data [8]int
 
 	pIdx := findOccurrence(msg, ',', 1)
@@ -114,29 +124,23 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logge
 	}
 
 	if r <= 5+8 {
-		for i := 0; i < dataLen; i++ {
+		for i := uint8(0); i < dataLen; i++ {
 			m.Data[i] = uint8(data[i])
 		}
 	} else {
 		return -1
 	}
 
-	return setParsedValues(m, prio, pgn, dst, src, dataLen)
-}
-
-func setParsedValues(m *RawMessage, prio, pgn, dst, src, dataLen int) int {
-	m.Prio = uint8(prio)
-	m.PGN = uint32(pgn)
-	m.Dst = uint8(dst)
-	m.Src = uint8(src)
-	m.Len = uint8(dataLen)
-
+	m.setParsedValues(prio, pgn, dst, src, dataLen)
 	return 0
 }
 
 // ParseRawFormatFast parses FAST messages.
 func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
-	var prio, pgn, dst, src, dataLen, r int
+	var prio, src, dst, dataLen uint8
+	var pgn uint32
+
+	var r int
 
 	pIdx := findOccurrence(msg, ',', 1)
 	if pIdx == -1 {
@@ -166,7 +170,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 		return 2
 	}
 	pIdx += nextIdx
-	for i := 0; i < dataLen; i++ {
+	for i := uint8(0); i < dataLen; i++ {
 		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
 		if !ok {
 			//nolint:errcheck
@@ -190,7 +194,8 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 		}
 	}
 
-	return setParsedValues(m, prio, pgn, dst, src, dataLen)
+	m.setParsedValues(prio, pgn, dst, src, dataLen)
+	return 0
 }
 
 func scanNibble(c byte) byte {
@@ -311,7 +316,10 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 // ParseRawFormatAirmar parses Airmar messages.
 // Note(UNTESTED): See README.md.
 func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
-	var prio, pgn, dst, src, dataLen uint
+	var dataLen uint
+	var prio, src, dst uint8
+	var pgn uint32
+
 	var id uint
 
 	pIdx := findOccurrence(msg, ' ', 1)
@@ -383,20 +391,20 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		}
 	}
 
-	return setParsedValues(m, int(prio), int(pgn), int(dst), int(src), int(dataLen))
+	m.setParsedValues(prio, pgn, dst, src, uint8(dataLen))
+	return 0
 }
 
 // ParseRawFormatChetco parses Chetco messages.
 // Note(UNTESTED): See README.md.
 func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
-	var pgn, src uint
 	var tstamp uint
 
 	if len(msg) == 0 || msg[0] == '\n' {
 		return 1
 	}
 
-	if r, _ := fmt.Sscanf(string(msg), "$PCDIN,%x,%x,%x,", &pgn, &tstamp, &src); r < 3 {
+	if r, _ := fmt.Sscanf(string(msg), "$PCDIN,%x,%x,%x,", &m.PGN, &tstamp, &m.Src); r < 3 {
 		//nolint:errcheck
 		logger.Error("Error reading Chetco message: %s", msg)
 		if !showJSON {
@@ -427,7 +435,10 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		pIdx += advancedBy
 	}
 
-	return setParsedValues(m, 0, int(pgn), 255, int(src), int(i+1))
+	m.Prio = 0
+	m.Dst = 255
+	m.Len = uint8(i + 1)
+	return 0
 }
 
 /*
@@ -527,7 +538,8 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 		pIdx += advancedBy
 	}
 
-	return setParsedValues(m, int(prio), int(pgn), int(dst), int(src), int(i+1))
+	m.setParsedValues(uint8(prio), uint32(pgn), uint8(dst), uint8(src), uint8(i+1))
+	return 0
 }
 
 //nolint:dupword
@@ -564,7 +576,8 @@ Parameters","fields":{"Temperature Source":"Sea Temperature","Temperature":13.39
 // Note(UNTESTED): See README.md.
 func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 	var msgid uint
-	var prio, pgn, src, dst uint
+	var prio, src, dst uint8
+	var pgn uint32
 
 	// parse timestamp. YDWG doesn't give us date so let's figure it out ourself
 	splitBySpaces := strings.Split(string(msg), " ")
@@ -605,7 +618,8 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 		}
 	}
 
-	return setParsedValues(m, int(prio), int(pgn), int(dst), int(src), i)
+	m.setParsedValues(prio, pgn, dst, src, uint8(i))
+	return 0
 }
 
 // ParseRawFormatNavLink2 parses Digital Yacht NavLink 2 messages.
@@ -626,7 +640,8 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 //
 // <pgn_data> = The binary payload of the PGN encoded in Base64.
 func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger *Logger) int {
-	var pgn, prio, src, dst int
+	var prio, src, dst uint8
+	var pgn uint32
 	var timer float64
 	var pgnData string
 	r, _ := fmt.Sscanf(string(msg), "!PDGY,%d,%d,%d,%d,%f,%s ", &pgn, &prio, &src, &dst, &timer, &pgnData)
@@ -646,5 +661,6 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger *Logger) int {
 	}
 	copy(m.Data[:], decoded)
 
-	return setParsedValues(m, prio, pgn, dst, src, len(decoded))
+	m.setParsedValues(prio, pgn, dst, src, uint8(len(decoded)))
+	return 0
 }
