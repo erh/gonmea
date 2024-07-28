@@ -278,7 +278,7 @@ func (ana *Analyzer) ReadMessage() (*common.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ana.ConvertRawMessage(rawMsg)
+	return ana.convertRawMessage(rawMsg)
 }
 
 // ReadRawMessage returns the next raw message read or io.EOF.
@@ -300,12 +300,12 @@ func (ana *Analyzer) ReadRawMessage() (*common.RawMessage, error) {
 			continue
 		}
 
-		if msg[0] == '$' && len(msg) > 12 && string(msg[1:12]) == "PDGY,000000"{
+		if msg[0] == '$' && len(msg) > 12 && string(msg[1:12]) == "PDGY,000000" {
 			// digital yacht special $PDGY,000000,0,0,2,28830,0,0
 			// is there something better to return??
 			return nil, nil
 		}
-		
+
 		if ana.SelectedFormat == RawFormatUnknown {
 			ana.SelectedFormat = ana.detectFormat(string(msg))
 			if ana.SelectedFormat == RawFormatGarminCSV1 || ana.SelectedFormat == RawFormatGarminCSV2 {
@@ -1214,10 +1214,15 @@ func (ana *Analyzer) printCanRaw(msg *common.RawMessage) {
 }
 
 func (ana *Analyzer) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+	ana.multipackets = multipacketsCoalesced
+	return ana.convertRawMessage(rawMsg)
+}
+
+func (ana *Analyzer) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
 	if rawMsg == nil {
 		return nil, nil
 	}
-	
+
 	pgn, _ := ana.searchForPgn(rawMsg.PGN)
 	if ana.multipackets == multipacketsSeparate && pgn == nil {
 		var err error
