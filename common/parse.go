@@ -68,6 +68,19 @@ type Message struct {
 	Fields      map[string]interface{} `json:"fields"`
 }
 
+// TODO(erd): unfinished
+func (m *Message) ToRaw() (*RawMessage, error) {
+	raw := RawMessage{
+		Timestamp: m.Timestamp,
+		Prio:      uint8(m.Priority),
+		PGN:       uint32(m.Pgn),
+		Dst:       uint8(m.Dst),
+		Src:       uint8(m.Src),
+		// TODO(erd): data is opposite of convert
+	}
+	return &raw, nil
+}
+
 func findOccurrence(msg []byte, c rune, count int) int {
 	if len(msg) == 0 || msg[0] == '\n' {
 		return 0
