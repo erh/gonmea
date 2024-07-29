@@ -312,6 +312,7 @@ func (ana *Analyzer) ReadRawMessage() (*common.RawMessage, error) {
 			return nil, io.EOF
 		}
 		var m common.RawMessage
+		m.Data = make([]byte, common.FastPacketMaxSize)
 
 		if len(msg) == 0 || msg[0] == '\r' || msg[0] == '\n' || msg[0] == '#' {
 			if len(msg) != 0 && msg[0] == '#' {
@@ -1249,6 +1250,9 @@ func (ana *Analyzer) convertRawMessage(rawMsg *common.RawMessage) (*common.Messa
 	}
 	if ana.multipackets == multipacketsCoalesced || pgn == nil || pgn.packetType != packetTypeFast {
 		// No reassembly needed
+		if len(rawMsg.Data) < int(rawMsg.Len) {
+			return nil, fmt.Errorf("raw messsage data shorter than expected length %d", rawMsg.Len)
+		}
 		return ana.convertPGN(rawMsg, rawMsg.Data[:rawMsg.Len])
 	}
 

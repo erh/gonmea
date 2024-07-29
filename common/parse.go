@@ -45,7 +45,7 @@ type RawMessage struct {
 	Dst       uint8
 	Src       uint8
 	Len       uint8
-	Data      [FastPacketMaxSize]byte
+	Data      []byte
 }
 
 func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen uint8) {
