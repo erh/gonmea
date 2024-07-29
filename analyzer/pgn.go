@@ -19,6 +19,7 @@ package analyzer
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"strconv"
 	"unicode"
@@ -37,1166 +38,1166 @@ const (
 	resHiresRotation    = 1e-6 / 32.0
 )
 
-type packetStatus byte
+type PacketStatus byte
 
 const (
-	packetStatusComplete             packetStatus = 0
-	packetStatusFieldsUnknown        packetStatus = 1
-	packetStatusFieldLengthsUnknown  packetStatus = 2
-	packetStatusResolutionUnknown    packetStatus = 4
-	packetStatusLookupsUnknown       packetStatus = 8
-	packetStatusNotSeen              packetStatus = 16
-	packetStatusIntervalUnknown      packetStatus = 32
-	packetStatusMissingcompanyFields packetStatus = 64
+	PacketStatusComplete             PacketStatus = 0
+	PacketStatusFieldsUnknown        PacketStatus = 1
+	PacketStatusFieldLengthsUnknown  PacketStatus = 2
+	PacketStatusResolutionUnknown    PacketStatus = 4
+	PacketStatusLookupsUnknown       PacketStatus = 8
+	PacketStatusNotSeen              PacketStatus = 16
+	PacketStatusIntervalUnknown      PacketStatus = 32
+	PacketStatusMissingcompanyFields PacketStatus = 64
 )
 
 const (
-	packetStatusIncomplete       = (packetStatusFieldsUnknown | packetStatusFieldLengthsUnknown | packetStatusResolutionUnknown)
-	packetStatusIncompleteLookup = (packetStatusIncomplete | packetStatusLookupsUnknown)
-	packetStatusPDFOnly          = (packetStatusFieldLengthsUnknown |
-		packetStatusResolutionUnknown |
-		packetStatusLookupsUnknown |
-		packetStatusNotSeen)
+	PacketStatusInComplete       = (PacketStatusFieldsUnknown | PacketStatusFieldLengthsUnknown | PacketStatusResolutionUnknown)
+	PacketStatusInCompleteLookup = (PacketStatusInComplete | PacketStatusLookupsUnknown)
+	PacketStatusPDFOnly          = (PacketStatusFieldLengthsUnknown |
+		PacketStatusResolutionUnknown |
+		PacketStatusLookupsUnknown |
+		PacketStatusNotSeen)
 )
 
-type packetType byte
+type PacketType byte
 
 const (
-	packetTypeSingle packetType = iota
-	packetTypeFast
-	packetTypeISOTP
-	packetTypeMixed
+	PacketTypeSingle PacketType = iota
+	PacketTypeFast
+	PacketTypeISOTP
+	PacketTypeMixed
 )
 
-func (pt packetType) String() string {
+func (pt PacketType) String() string {
 	switch pt {
-	case packetTypeSingle:
+	case PacketTypeSingle:
 		return "Single"
-	case packetTypeFast:
+	case PacketTypeFast:
 		return "Fast"
-	case packetTypeISOTP:
+	case PacketTypeISOTP:
 		return "ISO"
-	case packetTypeMixed:
+	case PacketTypeMixed:
 		return "Mixed"
 	default:
 		return "UNKNOWN"
 	}
 }
 
-type pgnField struct {
-	name      string
-	fieldType string
+type PGNField struct {
+	Name      string
+	FieldType string
 
-	size        uint32 /* Size in bits. All fields are contiguous in message; use 'reserved' fields to fill in empty bits. */
-	unit        string /* String containing the 'Dimension' (e.g. s, h, m/s, etc.) */
-	description string
+	Size        uint32 /* Size in bits. All fields are contiguous in message; use 'reserved' fields to fill in empty bits. */
+	Unit        string /* String containing the 'Dimension' (e.g. s, h, m/s, etc.) */
+	Description string
 
-	offset int32 /* Only used for SAE J1939 values with sign; these are in Offset/Excess-K notation instead
+	Offset int32 /* Only used for SAE J1939 values with sign; these are in Offset/Excess-K notation instead
 	 *    of two's complement as used by NMEA 2000.
 	 *    See http://en.wikipedia.org/wiki/Offset_binary
 	 */
-	resolution  float64 /* Either a positive real value or zero */
-	precision   int     /* How many decimal digits after the decimal point to print; usually 0 = automatic */
-	unitOffset  float64 /* Only used for K.C conversion in non-SI print */
-	proprietary bool    /* Field is only present if earlier PGN field is in proprietary range */
-	hasSign     bool    /* Is the value signed, e.g. has both positive and negative values? */
+	Resolution  float64 /* Either a positive real value or zero */
+	Precision   int     /* How many decimal digits after the decimal point to print; usually 0 = automatic */
+	UnitOffset  float64 /* Only used for K.C conversion in non-SI print */
+	Proprietary bool    /* Field is only present if earlier PGN field is in Proprietary range */
+	HasSign     bool    /* Is the value signed, e.g. has both positive and negative values? */
 
 	/* The following fields are filled by C, no need to set in initializers */
-	order uint8
-	//nolint:unused
-	bitOffset int // Bit offset from start of data, e.g. lower 3 bits = bit#, bit 4.. is byte offset
-	camelName string
-	lookup    lookupInfo
-	ft        *fieldType
-	pgn       *pgnInfo
-	rangeMin  float64
-	rangeMax  float64
+	Order uint8
+	
+	BitOffset int // Bit offset from start of data, e.g. lower 3 bits = bit#, bit 4.. is byte offset
+	CamelName string
+	Lookup    LookupInfo
+	FT        *FieldType
+	PGN       *PGNInfo
+	RangeMin  float64
+	RangeMax  float64
 }
 
-type pgnInfo struct {
-	description      string
-	pgn              uint32
-	complete         packetStatus /* Either packetStatusComplete or bit values set for various unknown items */
-	packetType       packetType   /* Single, Fast or ISO_TP */
-	fieldList        [33]pgnField /* Note fixed # of fields; increase if needed. RepeatingFields support means this is enough for now. */
-	fieldCount       uint32       /* Filled by C, no need to set in initializers. */
-	camelDescription string       /* Filled by C, no need to set in initializers. */
-	fallback         bool         /* true = this is a catch-all for unknown PGNs */
-	hasMatchFields   bool         /* true = there are multiple PGNs with same PRN */
-	explanation      string       /* Preferably the NMEA 2000 explanation from the NMEA PGN field list */
-	url              string       /* External URL */
-	interval         uint16       /* Milliseconds between transmissions, standard. 0 is: not known, math.MaxUint16 = never */
-	repeatingCount1  uint8        /* How many fields repeat in set 1? */
-	repeatingCount2  uint8        /* How many fields repeat in set 2? */
-	repeatingStart1  uint8        /* At which field does the first set start? */
-	repeatingStart2  uint8        /* At which field does the second set start? */
-	repeatingField1  uint8        /* Which field explains how often the repeating fields set #1 repeats? 255 = there is no field */
-	repeatingField2  uint8        /* Which field explains how often the repeating fields set #2 repeats? 255 = there is no field */
+type PGNInfo struct {
+	Description      string
+	PGN              uint32
+	Complete         PacketStatus /* Either PacketStatusComplete or bit values set for various unknown items */
+	PacketType       PacketType   /* Single, Fast or ISO_TP */
+	FieldList        [33]PGNField /* Note fixed # of fields; increase if needed. RepeatingFields support means this is enough for now. */
+	FieldCount       uint32       /* Filled by C, no need to set in initializers. */
+	CamelDescription string       /* Filled by C, no need to set in initializers. */
+	Fallback         bool         /* true = this is a catch-all for unknown PGNs */
+	HasMatchFields   bool         /* true = there are multiple PGNs with same PRN */
+	Explanation      string       /* Preferably the NMEA 2000 explanation from the NMEA PGN field list */
+	URL              string       /* External URL */
+	Interval         uint16       /* Milliseconds between transmissions, standard. 0 is: not known, math.MaxUint16 = never */
+	RepeatingCount1  uint8        /* How many fields repeat in set 1? */
+	RepeatingCount2  uint8        /* How many fields repeat in set 2? */
+	RepeatingStart1  uint8        /* At which field does the first set start? */
+	RepeatingStart2  uint8        /* At which field does the second set start? */
+	RepeatingField1  uint8        /* Which field explains how often the repeating fields set #1 repeats? 255 = there is no field */
+	RepeatingField2  uint8        /* Which field explains how often the repeating fields set #2 repeats? 255 = there is no field */
 }
 
-func lookupField(nam string, dataLen uint32, typ string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypePair,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func lookupField(nam string, dataLen uint32, typ string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypePair,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
 		},
-		fieldType: "LOOKUP",
+		FieldType: "LOOKUP",
 	}
 }
 
-func lookupFieldtypeField(nam string, dataLen uint32, typ string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypeFieldType,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func lookupFieldtypeField(nam string, dataLen uint32, typ string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypeFieldType,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
 		},
-		fieldType: "FIELDTYPE_LOOKUP",
+		FieldType: "FieldType_LOOKUP",
 	}
 }
 
-func lookupTripletField(nam string, dataLen uint32, typ, desc string, order uint8) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:      lookupTypeTriplet,
-			functionTriplet: lookupFunctionTripletForTyp[typ],
-			name:            typ,
-			val1Order:       order,
+func lookupTripletField(nam string, dataLen uint32, typ, desc string, order uint8) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:      LookupTypeTriplet,
+			FunctionTriplet: lookupFunctionTripletForTyp[typ],
+			Name:            typ,
+			Val1Order:       order,
 		},
-		fieldType:   "INDIRECT_LOOKUP",
-		description: desc,
+		FieldType:   "INDIRECT_LOOKUP",
+		Description: desc,
 	}
 }
 
-func lookupFieldDesc(nam string, dataLen uint32, typ, desc string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypePair,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func lookupFieldDesc(nam string, dataLen uint32, typ, desc string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypePair,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
 		},
-		fieldType:   "LOOKUP",
-		description: desc,
+		FieldType:   "LOOKUP",
+		Description: desc,
 	}
 }
 
-func bitlookupField(nam string, dataLen uint32, typ string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypeBit,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func bitlookupField(nam string, dataLen uint32, typ string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypeBit,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
 		},
-		fieldType: "BITLOOKUP",
+		FieldType: "BITLOOKUP",
+	}
+}
+
+
+func FieldTypeLookup(nam string, dataLen uint32, typ string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypeFieldType,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
+		},
+		FieldType: "LOOKUP_TYPE_FieldType",
 	}
 }
 
 //nolint:unused
-func fieldtypeLookup(nam string, dataLen uint32, typ string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypeFieldType,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func unknownLookupField(nam string, dataLen uint32) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType: LookupTypePair,
 		},
-		fieldType: "LOOKUP_TYPE_FIELDTYPE",
+		FieldType: "LOOKUP",
 	}
 }
 
-//nolint:unused
-func unknownLookupField(nam string, dataLen uint32) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType: lookupTypePair,
-		},
-		fieldType: "LOOKUP",
+func spareNamedField(nam string, dataLen uint32) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, FieldType: "SPARE",
 	}
 }
 
-func spareNamedField(nam string, dataLen uint32) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, fieldType: "SPARE",
-	}
-}
-
-func spareField(dataLen uint32) pgnField {
+func spareField(dataLen uint32) PGNField {
 	return spareNamedField("Spare", dataLen)
 }
 
-func reservedField(dataLen uint32) pgnField {
-	return pgnField{
-		name: "Reserved", size: dataLen, resolution: 1, fieldType: "RESERVED",
+func reservedField(dataLen uint32) PGNField {
+	return PGNField{
+		Name: "Reserved", Size: dataLen, Resolution: 1, FieldType: "RESERVED",
 	}
 }
 
-func reservedPropField(dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: "Reserved", size: dataLen, resolution: 1, description: desc, fieldType: "RESERVED", proprietary: true,
+func reservedPropField(dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: "Reserved", Size: dataLen, Resolution: 1, Description: desc, FieldType: "RESERVED", Proprietary: true,
 	}
 }
 
-func binaryField(nam string, dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, description: desc, fieldType: "BINARY",
+func binaryField(nam string, dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Description: desc, FieldType: "BINARY",
 	}
 }
 
 //nolint:unused
-func binaryUnitField(nam string, dataLen uint32, unt, desc string, prop bool) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, unit: unt, description: desc, proprietary: prop, fieldType: "BINARY",
+func binaryUnitField(nam string, dataLen uint32, unt, desc string, prop bool) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Unit: unt, Description: desc, Proprietary: prop, FieldType: "BINARY",
 	}
 }
 
-func latitudeI32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1e-7, hasSign: true, unit: "deg", fieldType: "GEO_FIX32",
+func latitudeI32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1e-7, HasSign: true, Unit: "deg", FieldType: "GEO_FIX32",
 	}
 }
 
-func latitudeI64Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 8, resolution: 1e-16, hasSign: true, unit: "deg", fieldType: "GEO_FIX64",
+func latitudeI64Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 8, Resolution: 1e-16, HasSign: true, Unit: "deg", FieldType: "GEO_FIX64",
 	}
 }
 
-func longitudeI32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1e-7, hasSign: true, unit: "deg", fieldType: "GEO_FIX32",
+func longitudeI32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1e-7, HasSign: true, Unit: "deg", FieldType: "GEO_FIX32",
 	}
 }
 
-func longitudeI64Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 8, resolution: 1e-16, hasSign: true, unit: "deg", fieldType: "GEO_FIX64",
+func longitudeI64Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 8, Resolution: 1e-16, HasSign: true, Unit: "deg", FieldType: "GEO_FIX64",
 	}
 }
 
-func angleU16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: resRadians, hasSign: false, unit: "rad", description: desc,
-		fieldType: "ANGLE_UFIX16",
+func angleU16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: resRadians, HasSign: false, Unit: "rad", Description: desc,
+		FieldType: "ANGLE_UFIX16",
 	}
 }
 
-func angleI16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: resRadians, hasSign: true, unit: "rad", description: desc,
-		fieldType: "ANGLE_FIX16",
+func angleI16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: resRadians, HasSign: true, Unit: "rad", Description: desc,
+		FieldType: "ANGLE_FIX16",
 	}
 }
 
-func int32Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, hasSign: true, fieldType: "INT32", description: desc,
+func int32Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, HasSign: true, FieldType: "INT32", Description: desc,
 	}
 }
 
 // A whole bunch of different NUMBER fields, with variing resolutions
 
-func unsignedAlmanacParameterField(nam string, dataLen uint32, res float64, unt, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: res, hasSign: false, unit: unt, description: desc, fieldType: "UNSIGNED_ALMANAC_PARAMETER",
+func unsignedAlmanacParameterField(nam string, dataLen uint32, res float64, unt, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: res, HasSign: false, Unit: unt, Description: desc, FieldType: "UNSIGNED_ALMANAC_PARAMETER",
 	}
 }
 
-func signedAlmanacParameterField(nam string, dataLen uint32, res float64, unt, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: res, hasSign: true, unit: unt, description: desc, fieldType: "SIGNED_ALMANAC_PARAMETER",
+func signedAlmanacParameterField(nam string, dataLen uint32, res float64, unt, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: res, HasSign: true, Unit: unt, Description: desc, FieldType: "SIGNED_ALMANAC_PARAMETER",
 	}
 }
 
-func dilutionOfPrecisionUfix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, fieldType: "DILUTION_OF_PRECISION_UFIX16", description: desc,
+func dilutionOfPrecisionUfix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, FieldType: "DILUTION_OF_PRECISION_UFIX16", Description: desc,
 	}
 }
 
-func dilutionOfPrecisionFix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, hasSign: true, fieldType: "DILUTION_OF_PRECISION_FIX16", description: desc,
+func dilutionOfPrecisionFix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, HasSign: true, FieldType: "DILUTION_OF_PRECISION_FIX16", Description: desc,
 	}
 }
 
-func signaltonoiseratioUfix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, fieldType: "SIGNALTONOISERATIO_UFIX16", description: desc,
+func signaltonoiseratioUfix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, FieldType: "SIGNALTONOISERATIO_UFIX16", Description: desc,
 	}
 }
 
-func signaltonoiseratioFix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, hasSign: true, fieldType: "SIGNALTONOISERATIO_FIX16", description: desc,
+func signaltonoiseratioFix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, HasSign: true, FieldType: "SIGNALTONOISERATIO_FIX16", Description: desc,
 	}
 }
 
-func versionField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.001, fieldType: "VERSION",
+func versionField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.001, FieldType: "VERSION",
 	}
 }
 
-func voltageU16VField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1.0, unit: "V", fieldType: "VOLTAGE_UFIX16_V",
+func voltageU16VField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1.0, Unit: "V", FieldType: "VOLTAGE_UFIX16_V",
 	}
 }
 
-func voltageU1610mvField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "V", fieldType: "VOLTAGE_UFIX16_10MV",
+func voltageU1610mvField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "V", FieldType: "VOLTAGE_UFIX16_10MV",
 	}
 }
 
 //nolint:unused
-func voltageU1650mvField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.05, unit: "V", fieldType: "VOLTAGE_UFIX16_50MV",
+func voltageU1650mvField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.05, Unit: "V", FieldType: "VOLTAGE_UFIX16_50MV",
 	}
 }
 
-func voltageU16100mvField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, unit: "V", fieldType: "VOLTAGE_UFIX16_100MV",
+func voltageU16100mvField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, Unit: "V", FieldType: "VOLTAGE_UFIX16_100MV",
 	}
 }
 
-func voltageUfix8200mvField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 0.2, unit: "V", fieldType: "VOLTAGE_UFIX8_200MV",
+func voltageUfix8200mvField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 0.2, Unit: "V", FieldType: "VOLTAGE_UFIX8_200MV",
 	}
 }
 
-func voltageI1610mvField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "V", hasSign: true, fieldType: "VOLTAGE_FIX16_10MV",
+func voltageI1610mvField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "V", HasSign: true, FieldType: "VOLTAGE_FIX16_10MV",
 	}
 }
 
-func radioFrequencyField(nam string, res float64) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: res, unit: "Hz", fieldType: "RADIO_FREQUENCY_UFIX32",
+func radioFrequencyField(nam string, res float64) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: res, Unit: "Hz", FieldType: "RADIO_FREQUENCY_UFIX32",
 	}
 }
 
-func frequencyField(nam string, res float64) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: res, unit: "Hz", fieldType: "FREQUENCY_UFIX16",
+func frequencyField(nam string, res float64) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: res, Unit: "Hz", FieldType: "FREQUENCY_UFIX16",
 	}
 }
 
-func speedI16MmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.001, unit: "m/s", hasSign: true, fieldType: "SPEED_FIX16_MM",
+func speedI16MmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.001, Unit: "m/s", HasSign: true, FieldType: "SPEED_FIX16_MM",
 	}
 }
 
-func speedI16CmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "m/s", hasSign: true, fieldType: "SPEED_FIX16_CM",
+func speedI16CmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "m/s", HasSign: true, FieldType: "SPEED_FIX16_CM",
 	}
 }
 
-func speedU16CmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "m/s", fieldType: "SPEED_UFIX16_CM",
+func speedU16CmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "m/s", FieldType: "SPEED_UFIX16_CM",
 	}
 }
 
-func speedU16DmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, unit: "m/s", fieldType: "SPEED_UFIX16_DM", description: desc,
+func speedU16DmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, Unit: "m/s", FieldType: "SPEED_UFIX16_DM", Description: desc,
 	}
 }
 
-func distanceFix16MField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX16_M",
+func distanceFix16MField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX16_M",
 	}
 }
 
-func distanceFix16CmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX16_CM",
+func distanceFix16CmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX16_CM",
 	}
 }
 
-func distanceFix16MmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.001, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX16_MM",
+func distanceFix16MmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.001, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX16_MM",
 	}
 }
 
-func distanceFix32MmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.001, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX32_MM",
+func distanceFix32MmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.001, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX32_MM",
 	}
 }
 
-func distanceFix32CmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.01, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX32_CM",
+func distanceFix32CmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.01, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX32_CM",
 	}
 }
 
-func distanceFix64Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 8, resolution: 1e-6, hasSign: true, unit: "m", description: desc, fieldType: "DISTANCE_FIX64",
+func distanceFix64Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 8, Resolution: 1e-6, HasSign: true, Unit: "m", Description: desc, FieldType: "DISTANCE_FIX64",
 	}
 }
 
-func lengthUfix8DamField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8, resolution: 10, unit: "m", fieldType: "LENGTH_UFIX8_DAM", description: desc,
+func lengthUfix8DamField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8, Resolution: 10, Unit: "m", FieldType: "LENGTH_UFIX8_DAM", Description: desc,
 	}
 }
 
-func lengthUfix16CmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 16, resolution: 0.01, unit: "m", fieldType: "LENGTH_UFIX16_CM",
+func lengthUfix16CmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 16, Resolution: 0.01, Unit: "m", FieldType: "LENGTH_UFIX16_CM",
 	}
 }
 
-func lengthUfix16DmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 16, resolution: 0.1, unit: "m", fieldType: "LENGTH_UFIX16_DM",
+func lengthUfix16DmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 16, Resolution: 0.1, Unit: "m", FieldType: "LENGTH_UFIX16_DM",
 	}
 }
 
-func lengthUfix32MField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 32, resolution: 1, unit: "m", fieldType: "LENGTH_UFIX32_M", description: desc,
+func lengthUfix32MField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 32, Resolution: 1, Unit: "m", FieldType: "LENGTH_UFIX32_M", Description: desc,
 	}
 }
 
-func lengthUfix32CmField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 32, resolution: 0.01, unit: "m", fieldType: "LENGTH_UFIX32_CM", description: desc,
+func lengthUfix32CmField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 32, Resolution: 0.01, Unit: "m", FieldType: "LENGTH_UFIX32_CM", Description: desc,
 	}
 }
 
-func lengthUfix32MmField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 32, resolution: 0.001, unit: "m", fieldType: "LENGTH_UFIX32_MM",
+func lengthUfix32MmField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 32, Resolution: 0.001, Unit: "m", FieldType: "LENGTH_UFIX32_MM",
 	}
 }
 
-func currentUfix8AField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 1, unit: "A", fieldType: "CURRENT_UFIX8_A",
+func currentUfix8AField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 1, Unit: "A", FieldType: "CURRENT_UFIX8_A",
 	}
 }
 
 //nolint:unparam
-func currentUfix16AField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "A", fieldType: "CURRENT_UFIX16_A",
+func currentUfix16AField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "A", FieldType: "CURRENT_UFIX16_A",
 	}
 }
 
-func currentUfix16DaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, unit: "A", fieldType: "CURRENT_UFIX16_DA",
+func currentUfix16DaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, Unit: "A", FieldType: "CURRENT_UFIX16_DA",
 	}
 }
 
-func currentFix16DaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, hasSign: true, unit: "A", fieldType: "CURRENT_FIX16_DA",
+func currentFix16DaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, HasSign: true, Unit: "A", FieldType: "CURRENT_FIX16_DA",
 	}
 }
 
-func currentFix24CaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 3, resolution: 0.01, hasSign: true, unit: "A", fieldType: "CURRENT_FIX24_CA",
+func currentFix24CaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 3, Resolution: 0.01, HasSign: true, Unit: "A", FieldType: "CURRENT_FIX24_CA",
 	}
 }
 
-func electricChargeUfix16Ah(nam string) pgnField {
-	return pgnField{
-		name: nam, fieldType: "ELECTRIC_CHARGE_UFIX16_AH",
+func electricChargeUfix16Ah(nam string) PGNField {
+	return PGNField{
+		Name: nam, FieldType: "ELECTRIC_CHARGE_UFIX16_AH",
 	}
 }
 
-func peukertField(nam string) pgnField {
-	return pgnField{
-		name: nam, fieldType: "PEUKERT_EXPONENT",
+func peukertField(nam string) PGNField {
+	return PGNField{
+		Name: nam, FieldType: "PEUKERT_EXPONENT",
 	}
 }
 
 // Fully defined NUMBER fields
 
 //nolint:unparam
-func pgnPGNField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 3, resolution: 1, fieldType: "PGN", description: desc,
+func pgnPGNField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 3, Resolution: 1, FieldType: "PGN", Description: desc,
 	}
 }
 
-func instanceField() pgnField {
-	return pgnField{
-		name: "Instance", size: 8 * 1, resolution: 1, fieldType: "UINT8",
+func instanceField() PGNField {
+	return PGNField{
+		Name: "Instance", Size: 8 * 1, Resolution: 1, FieldType: "UINT8",
 	}
 }
 
-func powerFactorU16Field() pgnField {
-	return pgnField{
-		name: "Power factor", size: 8 * 2, resolution: 1 / 16384., unit: "Cos Phi", fieldType: "UFIX16",
+func powerFactorU16Field() PGNField {
+	return PGNField{
+		Name: "Power factor", Size: 8 * 2, Resolution: 1 / 16384., Unit: "Cos Phi", FieldType: "UFIX16",
 	}
 }
 
-func powerFactorU8Field() pgnField {
-	return pgnField{
-		name: "Power factor", size: 8 * 1, resolution: 0.01, unit: "Cos Phi", fieldType: "UFIX8",
+func powerFactorU8Field() PGNField {
+	return PGNField{
+		Name: "Power factor", Size: 8 * 1, Resolution: 0.01, Unit: "Cos Phi", FieldType: "UFIX8",
 	}
 }
 
 // End of NUMBER fields
 
-func manufacturerField(unt, desc string, prop bool) pgnField {
-	return pgnField{
-		name: "Manufacturer Code", size: 11, resolution: 1, description: desc, unit: unt,
-		lookup: lookupInfo{
-			lookupType:   lookupTypePair,
-			functionPair: lookupFunctionPairForTyp["MANUFACTURER_CODE"],
-			name:         "MANUFACTURER_CODE",
+func manufacturerField(unt, desc string, prop bool) PGNField {
+	return PGNField{
+		Name: "Manufacturer Code", Size: 11, Resolution: 1, Description: desc, Unit: unt,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypePair,
+			FunctionPair: lookupFunctionPairForTyp["MANUFACTURER_CODE"],
+			Name:         "MANUFACTURER_CODE",
 		},
-		proprietary: prop,
-		fieldType:   "MANUFACTURER",
+		Proprietary: prop,
+		FieldType:   "MANUFACTURER",
 	}
 }
 
-func industryField(unt, desc string, prop bool) pgnField {
-	return pgnField{
-		name: "Industry Code", size: 3, resolution: 1, unit: unt, description: desc,
-		lookup: lookupInfo{
-			lookupType:   lookupTypePair,
-			functionPair: lookupFunctionPairForTyp["INDUSTRY_CODE"],
-			name:         "INDUSTRY_CODE",
+func industryField(unt, desc string, prop bool) PGNField {
+	return PGNField{
+		Name: "Industry Code", Size: 3, Resolution: 1, Unit: unt, Description: desc,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypePair,
+			FunctionPair: lookupFunctionPairForTyp["INDUSTRY_CODE"],
+			Name:         "INDUSTRY_CODE",
 		},
-		proprietary: prop,
-		fieldType:   "INDUSTRY",
+		Proprietary: prop,
+		FieldType:   "INDUSTRY",
 	}
 }
 
-func marineIndustryField() pgnField {
+func marineIndustryField() PGNField {
 	return industryField("=4", "Marine Industry", false)
 }
 
-func company(id string) []pgnField {
-	return []pgnField{manufacturerField("="+id, "", false), reservedField(2), marineIndustryField()}
+func company(id string) []PGNField {
+	return []PGNField{manufacturerField("="+id, "", false), reservedField(2), marineIndustryField()}
 }
 
-func manufacturerFields() []pgnField {
-	return []pgnField{manufacturerField("", "", false), reservedField(2), industryField("", "", false)}
+func manufacturerFields() []PGNField {
+	return []PGNField{manufacturerField("", "", false), reservedField(2), industryField("", "", false)}
 }
 
-func manufacturerProprietaryFields1() pgnField {
-	return manufacturerField("", "Only in PGN when Commanded PGN is proprietary", true)
+func manufacturerProprietaryFields1() PGNField {
+	return manufacturerField("", "Only in PGN when Commanded PGN is Proprietary", true)
 }
 
-func manufacturerProprietaryFields2() pgnField {
-	return reservedPropField(2, "Only in PGN when Commanded PGN is proprietary")
+func manufacturerProprietaryFields2() PGNField {
+	return reservedPropField(2, "Only in PGN when Commanded PGN is Proprietary")
 }
 
-func manufacturerProprietaryFields3() pgnField {
-	return industryField("", "Only in PGN when Commanded PGN is proprietary", true)
+func manufacturerProprietaryFields3() PGNField {
+	return industryField("", "Only in PGN when Commanded PGN is Proprietary", true)
 }
 
 //nolint:unused
-func integerDescField(nam string, dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, description: desc,
+func integerDescField(nam string, dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Description: desc,
 	}
 }
 
 //nolint:unused
-func integerUnitField(nam string, dataLen uint32, unt string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, unit: unt,
+func integerUnitField(nam string, dataLen uint32, unt string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Unit: unt,
 	}
 }
 
 //nolint:unused
-func signedIntegerUnitField(nam string, dataLen uint32, unt string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, unit: unt, hasSign: true,
+func signedIntegerUnitField(nam string, dataLen uint32, unt string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Unit: unt, HasSign: true,
 	}
 }
 
 //nolint:unused
-func integerField(nam string, dataLen uint32) pgnField {
+func integerField(nam string, dataLen uint32) PGNField {
 	return integerDescField(nam, dataLen, "")
 }
 
-func uint8DescField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 1, fieldType: "UINT8", description: desc,
+func uint8DescField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 1, FieldType: "UINT8", Description: desc,
 	}
 }
 
 //nolint:unparam
-func fieldIndex(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 1, fieldType: "FIELD_INDEX", description: desc,
+func fieldIndex(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 1, FieldType: "FIELD_INDEX", Description: desc,
 	}
 }
 
-func uint8Field(nam string) pgnField {
+func uint8Field(nam string) PGNField {
 	return uint8DescField(nam, "")
 }
 
-func uint16DescField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, fieldType: "UINT16", description: desc,
+func uint16DescField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, FieldType: "UINT16", Description: desc,
 	}
 }
 
-func uint16Field(nam string) pgnField {
+func uint16Field(nam string) PGNField {
 	return uint16DescField(nam, "")
 }
 
-func uint32DescField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, fieldType: "UINT32", description: desc,
+func uint32DescField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, FieldType: "UINT32", Description: desc,
 	}
 }
 
-func uint32Field(nam string) pgnField {
+func uint32Field(nam string) PGNField {
 	return uint32DescField(nam, "")
 }
 
 //nolint:unparam
-func matchLookupField(nam string, dataLen uint32, id, typ string) pgnField {
-	return pgnField{
-		name:       nam,
-		size:       dataLen,
-		resolution: 1,
-		hasSign:    false,
-		lookup: lookupInfo{
-			lookupType:   lookupTypePair,
-			functionPair: lookupFunctionPairForTyp[typ],
-			name:         typ,
+func matchLookupField(nam string, dataLen uint32, id, typ string) PGNField {
+	return PGNField{
+		Name:       nam,
+		Size:       dataLen,
+		Resolution: 1,
+		HasSign:    false,
+		Lookup: LookupInfo{
+			LookupType:   LookupTypePair,
+			FunctionPair: lookupFunctionPairForTyp[typ],
+			Name:         typ,
 		},
-		fieldType: "LOOKUP",
-		unit:      "=" + id,
+		FieldType: "LOOKUP",
+		Unit:      "=" + id,
 	}
 }
 
-func matchField(nam string, dataLen uint32, id, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, unit: "=" + id, description: desc, fieldType: "UNSIGNED_INTEGER",
+func matchField(nam string, dataLen uint32, id, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Unit: "=" + id, Description: desc, FieldType: "UNSIGNED_INTEGER",
 	}
 }
 
-func simpleDescField(nam string, dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, description: desc, fieldType: "UNSIGNED_INTEGER",
+func simpleDescField(nam string, dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Description: desc, FieldType: "UNSIGNED_INTEGER",
 	}
 }
 
-func simpleField(nam string, dataLen uint32) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, fieldType: "UNSIGNED_INTEGER",
+func simpleField(nam string, dataLen uint32) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, FieldType: "UNSIGNED_INTEGER",
 	}
 }
 
-func simpleSignedField(nam string, dataLen uint32) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, hasSign: true, fieldType: "INTEGER",
+func simpleSignedField(nam string, dataLen uint32) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, HasSign: true, FieldType: "INTEGER",
 	}
 }
 
-func mmsiField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, hasSign: false, rangeMin: 2000000, rangeMax: 999999999, fieldType: "MMSI",
+func mmsiField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, HasSign: false, RangeMin: 2000000, RangeMax: 999999999, FieldType: "MMSI",
 	}
 }
 
 //nolint:unparam
-func decimalField(nam string, dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, description: desc, fieldType: "DECIMAL",
+func decimalField(nam string, dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Description: desc, FieldType: "DECIMAL",
 	}
 }
 
 //nolint:unused
-func decimalUnitField(nam string, dataLen uint32, unt string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 1, unit: unt, fieldType: "DECIMAL",
+func decimalUnitField(nam string, dataLen uint32, unt string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 1, Unit: unt, FieldType: "DECIMAL",
 	}
 }
 
-func stringlzField(nam string, dataLen uint32) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 0, fieldType: "STRING_LZ",
+func stringlzField(nam string, dataLen uint32) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 0, FieldType: "STRING_LZ",
 	}
 }
 
-func stringFixDescField(nam string, dataLen uint32, desc string) pgnField {
-	return pgnField{
-		name: nam, size: dataLen, resolution: 0, description: desc, fieldType: "STRING_FIX",
+func stringFixDescField(nam string, dataLen uint32, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: dataLen, Resolution: 0, Description: desc, FieldType: "STRING_FIX",
 	}
 }
 
 //nolint:unused
-func stringvarField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: lenVariable, resolution: 0, fieldType: "STRING_LZ",
+func stringvarField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: lenVariable, Resolution: 0, FieldType: "STRING_LZ",
 	}
 }
 
-func stringlauField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: lenVariable, resolution: 0, fieldType: "STRING_LAU",
+func stringlauField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: lenVariable, Resolution: 0, FieldType: "STRING_LAU",
 	}
 }
 
-func stringFixField(nam string, dataLen uint32) pgnField {
+func stringFixField(nam string, dataLen uint32) PGNField {
 	return stringFixDescField(nam, dataLen, "")
 }
 
-func temperatureHighField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, unit: "K", fieldType: "TEMPERATURE_HIGH",
+func temperatureHighField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, Unit: "K", FieldType: "TEMPERATURE_HIGH",
 	}
 }
 
-func temperatureField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "K", fieldType: "TEMPERATURE",
+func temperatureField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "K", FieldType: "TEMPERATURE",
 	}
 }
 
 //nolint:unused
-func temperatureUint8OffsetField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, offset: 233, resolution: 1, unit: "K", fieldType: "TEMPERATURE_UINT8_OFFSET",
+func temperatureUint8OffsetField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Offset: 233, Resolution: 1, Unit: "K", FieldType: "TEMPERATURE_UINT8_OFFSET",
 	}
 }
 
-func temperatureU24Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 3, resolution: 0.001, unit: "K", fieldType: "TEMPERATURE_UFIX24",
+func temperatureU24Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 3, Resolution: 0.001, Unit: "K", FieldType: "TEMPERATURE_UFIX24",
 	}
 }
 
-func temperatureDeltaFix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.001, unit: "K", hasSign: true, fieldType: "FIX16", description: desc,
+func temperatureDeltaFix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.001, Unit: "K", HasSign: true, FieldType: "FIX16", Description: desc,
 	}
 }
 
-func volumetricFlowField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, unit: "L/h", hasSign: true, fieldType: "VOLUMETRIC_FLOW",
+func volumetricFlowField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, Unit: "L/h", HasSign: true, FieldType: "VOLUMETRIC_FLOW",
 	}
 }
 
-func concentrationUint16Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "ppm", fieldType: "CONCENTRATION_UINT16_PPM",
+func concentrationUint16Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "ppm", FieldType: "CONCENTRATION_UINT16_PPM",
 	}
 }
 
-func volumeUfix16LField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "L", fieldType: "VOLUME_UFIX16_L",
+func volumeUfix16LField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "L", FieldType: "VOLUME_UFIX16_L",
 	}
 }
 
-func volumeUfix32DlField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.1, unit: "L", fieldType: "VOLUME_UFIX32_DL",
+func volumeUfix32DlField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.1, Unit: "L", FieldType: "VOLUME_UFIX32_DL",
 	}
 }
 
-func timeUfix16SField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "s", fieldType: "TIME_UFIX16_S",
+func timeUfix16SField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "s", FieldType: "TIME_UFIX16_S",
 	}
 }
 
-func timeFix32MsField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.001, unit: "s", hasSign: true, fieldType: "TIME_FIX32_MS", description: desc,
+func timeFix32MsField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.001, Unit: "s", HasSign: true, FieldType: "TIME_FIX32_MS", Description: desc,
 	}
 }
 
-func timeUfix85msField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 0.005, unit: "s", hasSign: false, fieldType: "TIME_UFIX8_5MS", description: desc,
+func timeUfix85msField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 0.005, Unit: "s", HasSign: false, FieldType: "TIME_UFIX8_5MS", Description: desc,
 	}
 }
 
-func timeUfix16MinField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 60, unit: "s", hasSign: false, fieldType: "TIME_UFIX16_MIN", description: desc,
+func timeUfix16MinField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 60, Unit: "s", HasSign: false, FieldType: "TIME_UFIX16_MIN", Description: desc,
 	}
 }
 
-func timeUfix16MsField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.001, unit: "s", hasSign: false, fieldType: "TIME_UFIX16_MS", description: desc,
+func timeUfix16MsField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.001, Unit: "s", HasSign: false, FieldType: "TIME_UFIX16_MS", Description: desc,
 	}
 }
 
-func timeUfix16CsField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, unit: "s", hasSign: false, fieldType: "TIME_UFIX16_CS", description: desc,
+func timeUfix16CsField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, Unit: "s", HasSign: false, FieldType: "TIME_UFIX16_CS", Description: desc,
 	}
 }
 
-func timeFix165csField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.05, unit: "s", hasSign: true, fieldType: "TIME_FIX16_5CS", description: desc,
+func timeFix165csField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.05, Unit: "s", HasSign: true, FieldType: "TIME_FIX16_5CS", Description: desc,
 	}
 }
 
-func timeFix16MinField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 60., unit: "s", hasSign: true, fieldType: "TIME_FIX16_MIN",
+func timeFix16MinField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 60., Unit: "s", HasSign: true, FieldType: "TIME_FIX16_MIN",
 	}
 }
 
-func timeUfix24MsField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 3, resolution: 0.001, unit: "s", hasSign: false, fieldType: "TIME_UFIX24_MS", description: desc,
+func timeUfix24MsField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 3, Resolution: 0.001, Unit: "s", HasSign: false, FieldType: "TIME_UFIX24_MS", Description: desc,
 	}
 }
 
 //nolint:unparam
-func timeUfix32SField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, unit: "s", hasSign: false, fieldType: "TIME_UFIX32_S", description: desc,
+func timeUfix32SField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, Unit: "s", HasSign: false, FieldType: "TIME_UFIX32_S", Description: desc,
 	}
 }
 
 //nolint:unparam
-func timeUfix32MsField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.001, unit: "s", hasSign: false, fieldType: "TIME_UFIX32_MS", description: desc,
+func timeUfix32MsField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.001, Unit: "s", HasSign: false, FieldType: "TIME_UFIX32_MS", Description: desc,
 	}
 }
 
-func timeField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.0001, unit: "s", hasSign: false, fieldType: "TIME",
-		description: "Seconds since midnight", rangeMin: 0, rangeMax: 86402,
+func timeField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.0001, Unit: "s", HasSign: false, FieldType: "TIME",
+		Description: "Seconds since midnight", RangeMin: 0, RangeMax: 86402,
 	}
 }
 
-func dateField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "d", hasSign: false, fieldType: "DATE",
+func dateField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "d", HasSign: false, FieldType: "DATE",
 	}
 }
 
-func variableField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: lenVariable, description: desc, fieldType: "VARIABLE",
+func variableField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: lenVariable, Description: desc, FieldType: "VARIABLE",
 	}
 }
 
-func keyValueField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: lenVariable, description: desc, fieldType: "KEY_VALUE",
+func keyValueField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: lenVariable, Description: desc, FieldType: "KEY_VALUE",
 	}
 }
 
-func energyUint32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, unit: "kWh", fieldType: "ENERGY_UINT32",
-	}
-}
-
-//nolint:unparam
-func powerI32OffsetField(nam string) pgnField {
-	return pgnField{
-		name: nam, hasSign: true, fieldType: "POWER_FIX32_OFFSET",
+func energyUint32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, Unit: "kWh", FieldType: "ENERGY_UINT32",
 	}
 }
 
 //nolint:unparam
-func powerI32VaOffsetField(nam string) pgnField {
-	return pgnField{
-		name: nam, hasSign: true, fieldType: "POWER_FIX32_VA_OFFSET",
+func powerI32OffsetField(nam string) PGNField {
+	return PGNField{
+		Name: nam, HasSign: true, FieldType: "POWER_FIX32_OFFSET",
 	}
 }
 
-func powerI32VarOffsetField(nam string) pgnField {
-	return pgnField{
-		name: nam, hasSign: true, fieldType: "POWER_FIX32_VAR_OFFSET",
+//nolint:unparam
+func powerI32VaOffsetField(nam string) PGNField {
+	return PGNField{
+		Name: nam, HasSign: true, FieldType: "POWER_FIX32_VA_OFFSET",
 	}
 }
 
-func powerU16Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "W", fieldType: "POWER_UINT16",
+func powerI32VarOffsetField(nam string) PGNField {
+	return PGNField{
+		Name: nam, HasSign: true, FieldType: "POWER_FIX32_VAR_OFFSET",
 	}
 }
 
-func powerU16VarField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, unit: "VAR", description: desc, fieldType: "POWER_UINT16_VAR",
+func powerU16Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "W", FieldType: "POWER_UINT16",
 	}
 }
 
-func powerI32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, hasSign: true, unit: "W", fieldType: "POWER_INT32",
+func powerU16VarField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, Unit: "VAR", Description: desc, FieldType: "POWER_UINT16_VAR",
 	}
 }
 
-func powerU32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, unit: "W", fieldType: "POWER_UINT32",
+func powerI32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, HasSign: true, Unit: "W", FieldType: "POWER_INT32",
 	}
 }
 
-//nolint:unused
-func powerU32VaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, unit: "VA", fieldType: "POWER_UINT32_VA",
-	}
-}
-
-func powerU32VarField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 1, unit: "VAR", fieldType: "POWER_UINT32_VAR",
-	}
-}
-
-func percentageU8Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 1, unit: "%", fieldType: "PERCENTAGE_UINT8",
+func powerU32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, Unit: "W", FieldType: "POWER_UINT32",
 	}
 }
 
 //nolint:unused
-func percentageU8HighresField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: .4, unit: "%", fieldType: "PERCENTAGE_UINT8_HIGHRES",
+func powerU32VaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, Unit: "VA", FieldType: "POWER_UINT32_VA",
 	}
 }
 
-func percentageI8Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 1, hasSign: true, unit: "%", fieldType: "PERCENTAGE_INT8",
+func powerU32VarField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 1, Unit: "VAR", FieldType: "POWER_UINT32_VAR",
 	}
 }
 
-func percentageI16Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: resPercentage, hasSign: true, unit: "%", fieldType: "PERCENTAGE_FIX16",
-	}
-}
-
-func rotationFix16Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: (1e-3 / 32.0), hasSign: true, unit: "rad/s", fieldType: "ROTATION_FIX16",
-	}
-}
-
-func rotationUfix16RPMField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.25, hasSign: false, unit: "rpm", fieldType: "ROTATION_UFIX16_RPM",
+func percentageU8Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 1, Unit: "%", FieldType: "PERCENTAGE_UINT8",
 	}
 }
 
 //nolint:unused
-func rotationUfix16RpmHighresField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.125, hasSign: false, unit: "rpm", fieldType: "ROTATION_UFIX16_RPM_HIGHRES",
+func percentageU8HighresField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: .4, Unit: "%", FieldType: "PERCENTAGE_UINT8_HIGHRES",
 	}
 }
 
-func rotationFix32Field(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: (1e-6 / 32.0), hasSign: true, unit: "rad/s", fieldType: "ROTATION_FIX32",
+func percentageI8Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 1, HasSign: true, Unit: "%", FieldType: "PERCENTAGE_INT8",
 	}
 }
 
-func pressureUfix16HPAField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 100, unit: "Pa", fieldType: "PRESSURE_UFIX16_HPA",
+func percentageI16Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: resPercentage, HasSign: true, Unit: "%", FieldType: "PERCENTAGE_FIX16",
+	}
+}
+
+func rotationFix16Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: (1e-3 / 32.0), HasSign: true, Unit: "rad/s", FieldType: "ROTATION_FIX16",
+	}
+}
+
+func rotationUfix16RPMField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.25, HasSign: false, Unit: "rpm", FieldType: "ROTATION_UFIX16_RPM",
 	}
 }
 
 //nolint:unused
-func pressureUint8KpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 500, unit: "Pa", fieldType: "PRESSURE_UINT8_KPA",
+func rotationUfix16RpmHighresField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.125, HasSign: false, Unit: "rpm", FieldType: "ROTATION_UFIX16_RPM_HIGHRES",
+	}
+}
+
+func rotationFix32Field(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: (1e-6 / 32.0), HasSign: true, Unit: "rad/s", FieldType: "ROTATION_FIX32",
+	}
+}
+
+func pressureUfix16HPAField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 100, Unit: "Pa", FieldType: "PRESSURE_UFIX16_HPA",
 	}
 }
 
 //nolint:unused
-func pressureUint82kpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 1, resolution: 2000, unit: "Pa", fieldType: "PRESSURE_UINT8_2KPA",
+func pressureUint8KpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 500, Unit: "Pa", FieldType: "PRESSURE_UINT8_KPA",
 	}
 }
 
-func pressureUfix16KpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1000, hasSign: false, unit: "Pa", fieldType: "PRESSURE_UFIX16_KPA",
+//nolint:unused
+func pressureUint82kpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 1, Resolution: 2000, Unit: "Pa", FieldType: "PRESSURE_UINT8_2KPA",
 	}
 }
 
-func pressureRateFix16PaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1, hasSign: true, unit: "Pa/hr", fieldType: "PRESSURE_RATE_FIX16_PA",
+func pressureUfix16KpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1000, HasSign: false, Unit: "Pa", FieldType: "PRESSURE_UFIX16_KPA",
 	}
 }
 
-func pressureFix16KpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 1000, hasSign: true, unit: "Pa", fieldType: "PRESSURE_FIX16_KPA",
+func pressureRateFix16PaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1, HasSign: true, Unit: "Pa/hr", FieldType: "PRESSURE_RATE_FIX16_PA",
 	}
 }
 
-func pressureFix32DpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.1, hasSign: true, unit: "Pa", fieldType: "PRESSURE_FIX32_DPA",
+func pressureFix16KpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 1000, HasSign: true, Unit: "Pa", FieldType: "PRESSURE_FIX16_KPA",
 	}
 }
 
-func pressureUfix32DpaField(nam string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, resolution: 0.1, hasSign: false, unit: "Pa", fieldType: "PRESSURE_UFIX32_DPA",
+func pressureFix32DpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.1, HasSign: true, Unit: "Pa", FieldType: "PRESSURE_FIX32_DPA",
 	}
 }
 
-func gainField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, hasSign: true, fieldType: "GAIN_FIX16", description: desc,
+func pressureUfix32DpaField(nam string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, Resolution: 0.1, HasSign: false, Unit: "Pa", FieldType: "PRESSURE_UFIX32_DPA",
 	}
 }
 
-func magneticFix16Field(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.01, hasSign: true, unit: "T", fieldType: "MAGNETIC_FIELD_FIX16",
-		description: desc,
+func gainField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, HasSign: true, FieldType: "GAIN_FIX16", Description: desc,
 	}
 }
 
-func angleFix16DdegField(nam, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 2, resolution: 0.1, hasSign: true, unit: "deg", fieldType: "ANGLE_FIX16_DDEG",
-		description: desc,
+func magneticFix16Field(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.01, HasSign: true, Unit: "T", FieldType: "MAGNETIC_FIELD_FIX16",
+		Description: desc,
 	}
 }
 
-func floatField(nam, unt, desc string) pgnField {
-	return pgnField{
-		name: nam, size: 8 * 4, hasSign: true, unit: unt, fieldType: "FLOAT", description: desc,
-		resolution: 1, rangeMin: -1 * math.MaxFloat32, rangeMax: math.MaxFloat32,
+func angleFix16DdegField(nam, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 2, Resolution: 0.1, HasSign: true, Unit: "deg", FieldType: "ANGLE_FIX16_DDEG",
+		Description: desc,
+	}
+}
+
+func floatField(nam, unt, desc string) PGNField {
+	return PGNField{
+		Name: nam, Size: 8 * 4, HasSign: true, Unit: unt, FieldType: "FLOAT", Description: desc,
+		Resolution: 1, RangeMin: -1 * math.MaxFloat32, RangeMax: math.MaxFloat32,
 	}
 }
 
 var (
-	immutPGNs []pgnInfo
-	pgnMap    map[uint32]pgnInfo
+	immutPGNs []PGNInfo
+	pgnMap    map[uint32]PGNInfo
 )
 
 func initPGNs() {
 	immutPGNs = createPGNList()
-	pgnMap = map[uint32]pgnInfo{}
+	pgnMap = map[uint32]PGNInfo{}
 	for _, pgn := range immutPGNs {
-		pgnMap[pgn.pgn] = pgn
+		pgnMap[pgn.PGN] = pgn
 	}
 }
 
 type pgnRange struct {
-	pgnStart   uint32
-	pgnEnd     uint32
-	pgnStep    uint32
-	who        string
-	packetType packetType
+	PGNStart   uint32
+	PGNEnd     uint32
+	PGNStep    uint32
+	Who        string
+	PacketType PacketType
 }
 
 var pgnRanges = []pgnRange{
-	{0xe800, 0xee00, 256, "ISO 11783", packetTypeSingle},
-	{0xef00, 0xef00, 256, "NMEA", packetTypeSingle},
-	{0xf000, 0xfeff, 1, "NMEA", packetTypeSingle},
-	{0xff00, 0xffff, 1, "Manufacturer", packetTypeSingle},
-	{0x1ed00, 0x1ee00, 256, "NMEA", packetTypeFast},
-	{0x1ef00, 0x1ef00, 256, "Manufacturer", packetTypeFast},
-	{0x1f000, 0x1feff, 1, "NMEA", packetTypeMixed},
-	{0x1ff00, 0x1ffff, 1, "Manufacturer", packetTypeFast},
+	{0xe800, 0xee00, 256, "ISO 11783", PacketTypeSingle},
+	{0xef00, 0xef00, 256, "NMEA", PacketTypeSingle},
+	{0xf000, 0xfeff, 1, "NMEA", PacketTypeSingle},
+	{0xff00, 0xffff, 1, "Manufacturer", PacketTypeSingle},
+	{0x1ed00, 0x1ee00, 256, "NMEA", PacketTypeFast},
+	{0x1ef00, 0x1ef00, 256, "Manufacturer", PacketTypeFast},
+	{0x1f000, 0x1feff, 1, "NMEA", PacketTypeMixed},
+	{0x1ff00, 0x1ffff, 1, "Manufacturer", PacketTypeFast},
 }
 
-func (ana *Analyzer) checkPGNs() error {
+func (ana *analyzerImpl) checkPGNs() error {
 	var i int
 	prevPRN := uint32(0)
 
-	for i = 0; i < len(ana.pgns); i++ {
+	for i = 0; i < len(ana.state.PGNs); i++ {
 		pgnRangeIndex := 0
-		prn := ana.pgns[i].pgn
-		var pgn *pgnInfo
+		prn := ana.state.PGNs[i].PGN
+		var pgn *PGNInfo
 
 		if prn < prevPRN {
-			return ana.Logger.Error("Internal error: PGN %d is not sorted correctly\n", prn)
+			return fmt.Errorf("Internal error: PGN %d is not sorted correctly", prn)
 		}
 
 		if prn < common.ActisenseBEM {
-			for prn > pgnRanges[pgnRangeIndex].pgnEnd && pgnRangeIndex < len(pgnRanges) {
+			for prn > pgnRanges[pgnRangeIndex].PGNEnd && pgnRangeIndex < len(pgnRanges) {
 				pgnRangeIndex++
 			}
-			if prn < pgnRanges[pgnRangeIndex].pgnStart || prn > pgnRanges[pgnRangeIndex].pgnEnd {
-				return ana.Logger.Error("Internal error: PGN %d is not part of a valid PRN range\n", prn)
+			if prn < pgnRanges[pgnRangeIndex].PGNStart || prn > pgnRanges[pgnRangeIndex].PGNEnd {
+				return fmt.Errorf("Internal error: PGN %d is not part of a valid PRN range", prn)
 			}
-			if pgnRanges[pgnRangeIndex].pgnStep == 256 && (prn&0xff) != 0 {
-				return ana.Logger.Error("Internal error: PGN %d (0x%x) is PDU1 and must have a PGN ending in 0x00\n", prn, prn)
+			if pgnRanges[pgnRangeIndex].PGNStep == 256 && (prn&0xff) != 0 {
+				return fmt.Errorf("Internal error: PGN %d (0x%x) is PDU1 and must have a PGN ending in 0x00", prn, prn)
 			}
-			if !(pgnRanges[pgnRangeIndex].packetType == ana.pgns[i].packetType ||
-				pgnRanges[pgnRangeIndex].packetType == packetTypeMixed ||
-				ana.pgns[i].packetType == packetTypeISOTP) {
-				return ana.Logger.Error("Internal error: PGN %d (0x%x) is in range 0x%x-0x%x and must have packet type %s\n",
+			if !(pgnRanges[pgnRangeIndex].PacketType == ana.state.PGNs[i].PacketType ||
+				pgnRanges[pgnRangeIndex].PacketType == PacketTypeMixed ||
+				ana.state.PGNs[i].PacketType == PacketTypeISOTP) {
+				return fmt.Errorf("Internal error: PGN %d (0x%x) is in range 0x%x-0x%x and must have packet type %s",
 					prn,
 					prn,
-					pgnRanges[pgnRangeIndex].pgnStart,
-					pgnRanges[pgnRangeIndex].pgnEnd,
-					pgnRanges[pgnRangeIndex].packetType)
+					pgnRanges[pgnRangeIndex].PGNStart,
+					pgnRanges[pgnRangeIndex].PGNEnd,
+					pgnRanges[pgnRangeIndex].PacketType)
 			}
 		}
 
-		if prn == prevPRN || ana.pgns[i].fallback {
+		if prn == prevPRN || ana.state.PGNs[i].Fallback {
 			continue
 		}
 		prevPRN = prn
-		pgn, _ = ana.searchForPgn(prevPRN)
-		if pgn != &ana.pgns[i] {
-			return ana.Logger.Error("Internal error: PGN %d is not found correctly\n", prevPRN)
+		pgn, _ = ana.SearchForPgn(prevPRN)
+		if pgn != &ana.state.PGNs[i] {
+			return fmt.Errorf("Internal error: PGN %d is not found correctly", prevPRN)
 		}
 	}
 
@@ -1207,27 +1208,27 @@ func (ana *Analyzer) checkPGNs() error {
  * Return the first Pgn entry for which the pgn is found.
  * There can be multiple (with differing 'match' fields).
  */
-func (ana *Analyzer) searchForPgn(pgn uint32) (*pgnInfo, int) {
+func (ana *analyzerImpl) SearchForPgn(pgn uint32) (*PGNInfo, int) {
 	start := 0
-	end := len(ana.pgns)
+	end := len(ana.state.PGNs)
 	var mid int
 
 	for start <= end {
 		mid = (start + end) / 2
-		if pgn == ana.pgns[mid].pgn {
+		if pgn == ana.state.PGNs[mid].PGN {
 			// Return the first one, unless it is the catch-all
-			for mid > 0 && pgn == ana.pgns[mid-1].pgn {
+			for mid > 0 && pgn == ana.state.PGNs[mid-1].PGN {
 				mid--
 			}
-			if ana.pgns[mid].fallback {
+			if ana.state.PGNs[mid].Fallback {
 				mid++
-				if pgn != ana.pgns[mid].pgn {
+				if pgn != ana.state.PGNs[mid].PGN {
 					return nil, -1
 				}
 			}
-			return &ana.pgns[mid], mid
+			return &ana.state.PGNs[mid], mid
 		}
-		if pgn < ana.pgns[mid].pgn {
+		if pgn < ana.state.PGNs[mid].PGN {
 			if mid == 0 {
 				return nil, -1
 			}
@@ -1243,121 +1244,121 @@ func (ana *Analyzer) searchForPgn(pgn uint32) (*pgnInfo, int) {
  * Return the last Pgn entry for which fallback == true && prn is smaller than requested.
  * This is slower, but is not used often.
  */
-func (ana *Analyzer) searchForUnknownPgn(pgnID uint32) (*pgnInfo, error) {
-	var fallback *pgnInfo
+func (ana *analyzerImpl) SearchForUnknownPgn(pgnID uint32) (*PGNInfo, error) {
+	var fallback *PGNInfo
 
-	for _, pgn := range ana.pgns {
-		if pgn.fallback {
+	for _, pgn := range ana.state.PGNs {
+		if pgn.Fallback {
 			pgnCopy := pgn
 			fallback = &pgnCopy
 		}
-		if pgn.pgn >= pgnID {
+		if pgn.PGN >= pgnID {
 			break
 		}
 	}
 	if fallback == nil {
-		return nil, ana.Logger.Abort("Cannot find catch-all PGN definition for PGN %d; internal definition error\n", pgnID)
+		return nil, fmt.Errorf("Cannot find catch-all PGN definition for PGN %d; internal definition error", pgnID)
 	}
-	ana.Logger.Debug("Found catch-all PGN %d for PGN %d\n", fallback.pgn, pgnID)
+	ana.Logger.Debugf("Found catch-all PGN %d for PGN %d", fallback.PGN, pgnID)
 	return fallback, nil
 }
 
-func (ana *Analyzer) getField(pgnID, field uint32) *pgnField {
-	pgn, _ := ana.searchForPgn(pgnID)
+func (ana *analyzerImpl) GetField(pgnID, field uint32) *PGNField {
+	pgn, _ := ana.SearchForPgn(pgnID)
 
 	if pgn == nil {
-		ana.Logger.Debug("PGN %d is unknown\n", pgnID)
+		ana.Logger.Debugf("PGN %d is unknown", pgnID)
 		return nil
 	}
-	if field < pgn.fieldCount {
-		return &pgn.fieldList[field]
+	if field < pgn.FieldCount {
+		return &pgn.FieldList[field]
 	}
-	ana.Logger.Debug("PGN %d does not have field %d\n", pgnID, field)
+	ana.Logger.Debugf("PGN %d does not have field %d", pgnID, field)
 	return nil
 }
 
 /*
  * Return the best match for this pgnId.
- * If all else fails, return an 'fallback' match-all PGN that
- * matches the fast/single frame, PDU1/PDU2 and proprietary/generic range.
+ * If all else fails, return an 'Fallback' match-all PGN that
+ * matches the fast/single frame, PDU1/PDU2 and Proprietary/generic range.
  */
-func (ana *Analyzer) getMatchingPgn(pgnID uint32, data []byte) (*pgnInfo, error) {
-	pgn, pgnIdx := ana.searchForPgn(pgnID)
+func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, error) {
+	pgn, pgnIdx := ana.SearchForPgn(pgnID)
 
 	if pgn == nil {
 		var err error
-		pgn, err = ana.searchForUnknownPgn(pgnID)
+		pgn, err = ana.SearchForUnknownPgn(pgnID)
 		if err != nil {
 			return nil, err
 		}
-		fallbackPGN := 0
+		FallbackPGN := 0
 		if pgn != nil {
-			fallbackPGN = int(pgn.pgn)
+			FallbackPGN = int(pgn.PGN)
 		}
-		ana.Logger.Debug("getMatchingPgn: Unknown PGN %d . fallback %d\n", pgnID, fallbackPGN)
+		ana.Logger.Debugf("GetMatchingPgn: Unknown PGN %d . Fallback %d", pgnID, FallbackPGN)
 		return pgn, nil
 	}
 
-	if !pgn.hasMatchFields {
-		ana.Logger.Debug("getMatchingPgn: PGN %d has no match fields, returning '%s'\n", pgnID, pgn.description)
+	if !pgn.HasMatchFields {
+		ana.Logger.Debugf("GetMatchingPgn: PGN %d has no match fields, returning '%s'", pgnID, pgn.Description)
 		return pgn, nil
 	}
 
 	// Here if we have a PGN but it must be matched to the list of match fields.
-	// This might end up without a solution, in that case return the catch-all fallback PGN.
+	// This might end up without a solution, in that case return the catch-all Fallback PGN.
 
-	for prn := pgn.pgn; pgn.pgn == prn; {
+	for prn := pgn.PGN; pgn.PGN == prn; {
 		matchedFixedField := true
 		hasFixedField := false
 
-		ana.Logger.Debug("getMatchingPgn: PGN %d matching with manufacturer specific '%s'\n", prn, pgn.description)
+		ana.Logger.Debugf("GetMatchingPgn: PGN %d matching with manufacturer specific '%s'", prn, pgn.Description)
 
 		// Iterate over fields
 		startBit := uint32(0)
-		for i := uint32(0); i < pgn.fieldCount; i++ {
-			field := &pgn.fieldList[i]
-			bits := field.size
+		for i := uint32(0); i < pgn.FieldCount; i++ {
+			field := &pgn.FieldList[i]
+			bits := field.Size
 
-			if field.unit != "" && field.unit[0] == '=' {
+			if field.Unit != "" && field.Unit[0] == '=' {
 				var value int64
 				var maxValue int64
 
 				hasFixedField = true
 				//nolint:errcheck
-				desiredValue, _ := strconv.ParseInt(field.unit[1:], 10, 64)
-				fieldSize := int(field.size)
-				if !extractNumber(field, data, int(startBit), fieldSize, &value, &maxValue, ana.Logger) || value != desiredValue {
-					ana.Logger.Debug("getMatchingPgn: PGN %d field '%s' value %d does not match %d\n",
+				desiredValue, _ := strconv.ParseInt(field.Unit[1:], 10, 64)
+				fieldSize := int(field.Size)
+				if !ExtractNumber(field, data, int(startBit), fieldSize, &value, &maxValue, ana.Logger) || value != desiredValue {
+					ana.Logger.Debugf("GetMatchingPgn: PGN %d field '%s' value %d does not match %d",
 						prn,
-						field.name,
+						field.Name,
 						value,
 						desiredValue)
 					matchedFixedField = false
 					break
 				}
-				ana.Logger.Debug(
-					"getMatchingPgn: PGN %d field '%s' value %d matches %d\n", prn, field.name, value, desiredValue)
+				ana.Logger.Debugf(
+					"GetMatchingPgn: PGN %d field '%s' value %d matches %d", prn, field.Name, value, desiredValue)
 			}
 			startBit += bits
 		}
 		if !hasFixedField {
-			ana.Logger.Debug("getMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'\n", prn, pgn.description)
+			ana.Logger.Debugf("GetMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'", prn, pgn.Description)
 			return pgn, nil
 		}
 		if matchedFixedField {
-			ana.Logger.Debug("getMatchingPgn: PGN %d selected manufacturer specific '%s'\n", prn, pgn.description)
+			ana.Logger.Debugf("GetMatchingPgn: PGN %d selected manufacturer specific '%s'", prn, pgn.Description)
 			return pgn, nil
 		}
 
 		pgnIdx++
-		pgn = &ana.pgns[pgnIdx]
+		pgn = &ana.state.PGNs[pgnIdx]
 	}
 
-	return ana.searchForUnknownPgn(pgnID)
+	return ana.SearchForUnknownPgn(pgnID)
 }
 
-func varLenFieldListToFixed(list []pgnField) [33]pgnField {
-	var out [33]pgnField
+func varLenFieldListToFixed(list []PGNField) [33]PGNField {
+	var out [33]PGNField
 	if len(list) > len(out) {
 		panic("input list too large")
 	}
@@ -1365,20 +1366,20 @@ func varLenFieldListToFixed(list []pgnField) [33]pgnField {
 	return out
 }
 
-func (ana *Analyzer) camelCase(upperCamelCase bool) {
+func (ana *analyzerImpl) camelCase(upperCamelCase bool) {
 	var haveEarlierSpareOrReserved bool
 
-	for i := 0; i < len(ana.pgns); i++ {
-		ana.pgns[i].camelDescription = camelize(ana.pgns[i].description, upperCamelCase, 0)
+	for i := 0; i < len(ana.state.PGNs); i++ {
+		ana.state.PGNs[i].CamelDescription = camelize(ana.state.PGNs[i].Description, upperCamelCase, 0)
 		haveEarlierSpareOrReserved = false
-		for j := 0; j < len(ana.pgns[i].fieldList) && ana.pgns[i].fieldList[j].name != ""; j++ {
-			name := ana.pgns[i].fieldList[j].name
+		for j := 0; j < len(ana.state.PGNs[i].FieldList) && ana.state.PGNs[i].FieldList[j].Name != ""; j++ {
+			name := ana.state.PGNs[i].FieldList[j].Name
 
 			var order int
 			if haveEarlierSpareOrReserved {
 				order = j + 1
 			}
-			ana.pgns[i].fieldList[j].camelName = camelize(name, upperCamelCase, order)
+			ana.state.PGNs[i].FieldList[j].CamelName = camelize(name, upperCamelCase, order)
 			if name == "Reserved" || name == "Spare" {
 				haveEarlierSpareOrReserved = true
 			}

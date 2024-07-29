@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,9 +21,8 @@ func main() {
 }
 
 func realMain() error {
-
 	if len(os.Args) != 2 {
-		return fmt.Errorf("need file/path/net to parse")
+		return errors.New("need file/path/net to parse")
 	}
 
 	path := os.Args[1]
@@ -46,33 +44,21 @@ func realMain() error {
 }
 
 func processData(in io.ReadCloser) error {
+	//nolint:errcheck
 	defer in.Close()
 
-	parser, err := analyzer.NewParser()
+	reader, err := analyzer.NewMessageReader(in)
 	if err != nil {
 		return err
 	}
 
-	reader := bufio.NewReader(in)
 	for {
-		line, _, err := reader.ReadLine()
+		msg, err := reader.Read()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
-		}
-		line = []byte(strings.TrimSpace(string(line)))
-		if len(line) == 0 {
-			continue
-		}
-		msg, err := parser.ParseMessage(line)
-
-		if err != nil {
-			return err
-		}
-		if msg == nil {
-			continue
 		}
 		md, err := json.MarshalIndent(msg, "", "  ")
 		if err != nil {
