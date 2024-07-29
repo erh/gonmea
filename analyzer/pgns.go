@@ -6,60 +6,60 @@ import (
 	"github.com/erh/gonmea/common"
 )
 
-func createPGNList() []pgnInfo {
+func createPGNList() []PGNInfo {
 	//nolint:lll,dupword
-	return []pgnInfo{
+	return []PGNInfo{
 		/* PDU1 (addressed) single-frame PGN range 0E800 to 0xEEFF (59392 - 61183) */
 
 		{
-			description: "0xE800-0xEEFF: Standardized single-frame addressed",
-			pgn:         0xe800,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{binaryField("Data", 8*8, "")},
-			fallback:    true,
-			explanation: "Standardized PGNs in PDU1 (addressed) single-frame PGN range 0xE800 to " +
+			Description: "0xE800-0xEEFF: Standardized single-frame addressed",
+			PGN:         0xe800,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{binaryField("Data", 8*8, "")},
+			Fallback:    true,
+			Explanation: "Standardized PGNs in PDU1 (addressed) single-frame PGN range 0xE800 to " +
 				"0xEE00 (59392 - 60928). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		/************ Protocol PGNs ************/
-		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_pgn_field_list.pdf */
+		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_PGN_field_list.pdf */
 		/* http://www.maretron.com/products/pdf/J2K100-Data_Sheet.pdf */
-		/* http://www.nmea.org/Assets/pgn059392.pdf */
+		/* http://www.nmea.org/Assets/PGN059392.pdf */
 		/* http://www8.garmin.com/manuals/GPSMAP4008_NMEA2000NetworkFundamentals.pdf */
 		/* http://www.furunousa.com/Furuno/Doc/0/8JT2BMDDIB249FCNUK64DKLV67/GP330B%20NMEA%20PGNs.pdf */
-		/* http://www.nmea.org/Assets/20140710%20nmea-2000-060928%20iso%20address%20claim%20pgn%20corrigendum.pdf */
+		/* http://www.nmea.org/Assets/20140710%20nmea-2000-060928%20iso%20address%20claim%20PGN%20corrigendum.pdf */
 		{
-			description: "ISO Acknowledgement",
-			pgn:         59392,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Acknowledgement",
+			PGN:         59392,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				lookupField("Control", 8*1, "ISO_CONTROL"),
 				uint8Field("Group Function"),
 				reservedField(24),
 				pgnPGNField("PGN", "Parameter Group Number of requested information"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This message is provided by ISO 11783 for a handshake mechanism between transmitting and receiving devices. " +
+			Interval: math.MaxUint16,
+			Explanation: "This message is provided by ISO 11783 for a handshake mechanism between transmitting and receiving devices. " +
 				"This message is the possible response to acknowledge the reception of a 'normal broadcast' message or the " +
 				"response to a specific command to indicate compliance or failure.",
 		},
 
 		{
-			description: "ISO Request",
-			pgn:         59904,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{pgnPGNField("PGN", "")},
-			interval:    math.MaxUint16,
-			explanation: "As defined by ISO, this message has a data length of 3 bytes with no padding added to complete the single " +
+			Description: "ISO Request",
+			PGN:         59904,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{pgnPGNField("PGN", "")},
+			Interval:    math.MaxUint16,
+			Explanation: "As defined by ISO, this message has a data length of 3 bytes with no padding added to Complete the single " +
 				"frame. The appropriate response to this message is based on the PGN being requested, and whether the receiver " +
 				"supports the requested PGN.",
 		},
 
-		/* For a good explanation of ISO 11783 Transport Protocol (as used in J1939) see
+		/* For a good Explanation of ISO 11783 Transport Protocol (as used in J1939) see
 		 * http://www.simmasoftware.com/j1939-presentation.pdf
 		 *
 		 * First: Transmit a RTS message to the specific address that says:
@@ -76,13 +76,13 @@ func createPGNList() []pgnInfo {
 		// ISO 11783 defines this PGN as part of the Transport Protocol method used for transmitting messages that have 9 or more data
 		// bytes. This PGN represents a single packet of a multipacket message.
 		{
-			description: "ISO Transport Protocol, Data Transfer",
-			pgn:         60160,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{uint8Field("SID"), binaryField("Data", 8*7, "")},
-			interval:    math.MaxUint16,
-			explanation: "ISO 11783 defines this PGN as part of the Transport Protocol method used for transmitting messages that have " +
+			Description: "ISO Transport Protocol, Data Transfer",
+			PGN:         60160,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{uint8Field("SID"), binaryField("Data", 8*7, "")},
+			Interval:    math.MaxUint16,
+			Explanation: "ISO 11783 defines this PGN as part of the Transport Protocol method used for transmitting messages that have " +
 				"9 or more data bytes. This PGN represents a single packet of a multipacket message.",
 		},
 
@@ -90,104 +90,104 @@ func createPGNList() []pgnInfo {
 		// 9 or more data bytes. This PGN's role in the transport process is determined by the group function value found in the first
 		// data byte of the PGN.''
 		{
-			description: "ISO Transport Protocol, Connection Management - Request To Send",
-			pgn:         60416,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Transport Protocol, Connection Management - Request To Send",
+			PGN:         60416,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				matchLookupField("Group Function Code", 8*1, "16", "ISO_COMMAND"),
 				simpleDescField("Message size", 8*2, "bytes"),
 				simpleDescField("Packets", 8*1, "packets"),
 				simpleDescField("Packets reply", 8*1, "packets sent in response to CTS"), // This one is still mysterious to me...
 				pgnPGNField("PGN", ""),
 			},
-			interval: math.MaxUint16,
-			url:      "https://embeddedflakes.com/j1939-transport-protocol/",
-			explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
+			Interval: math.MaxUint16,
+			URL:      "https://embeddedflakes.com/j1939-transport-protocol/",
+			Explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
 				"messages that have 9 or more data bytes. This PGN's role in the transport process is to prepare the receiver " +
 				"for the fact that this sender wants to transmit a long message. The receiver will respond with CTS.",
 		},
 
 		{
-			description: "ISO Transport Protocol, Connection Management - Clear To Send",
-			pgn:         60416,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Transport Protocol, Connection Management - Clear To Send",
+			PGN:         60416,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				matchLookupField("Group Function Code", 8*1, "17", "ISO_COMMAND"),
 				simpleDescField("Max packets", 8*1, "Number of frames that can be sent before another CTS is required"),
 				simpleDescField("Next SID", 8*1, "Number of next frame to be transmitted"),
 				reservedField(8 * 2),
 				pgnPGNField("PGN", ""),
 			},
-			interval: math.MaxUint16,
-			url:      "https://embeddedflakes.com/j1939-transport-protocol/",
-			explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
+			Interval: math.MaxUint16,
+			URL:      "https://embeddedflakes.com/j1939-transport-protocol/",
+			Explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
 				"messages that have 9 or more data bytes. This PGN's role in the transport process is to signal to the sender " +
 				"that the receive is ready to receive a number of frames.",
 		},
 
 		{
-			description: "ISO Transport Protocol, Connection Management - End Of Message",
-			pgn:         60416,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Transport Protocol, Connection Management - End Of Message",
+			PGN:         60416,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				matchLookupField("Group Function Code", 8*1, "19", "ISO_COMMAND"),
 				simpleDescField("Total message size", 8*2, "bytes"),
 				simpleDescField("Total number of frames received", 8*1, "Total number of of frames received"),
 				reservedField(8 * 1),
 				pgnPGNField("PGN", ""),
 			},
-			interval: math.MaxUint16,
-			url:      "https://embeddedflakes.com/j1939-transport-protocol/",
-			explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting messages that " +
+			Interval: math.MaxUint16,
+			URL:      "https://embeddedflakes.com/j1939-transport-protocol/",
+			Explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting messages that " +
 				"have 9 or more data bytes. This PGN's role in the transport process is to mark the end of the message.",
 		},
 
 		{
-			description: "ISO Transport Protocol, Connection Management - Broadcast Announce",
-			pgn:         60416,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Transport Protocol, Connection Management - Broadcast Announce",
+			PGN:         60416,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				matchLookupField("Group Function Code", 8*1, "32", "ISO_COMMAND"),
 				simpleDescField("Message size", 8*2, "bytes"),
 				simpleDescField("Packets", 8*1, "frames"),
 				reservedField(8 * 1),
 				pgnPGNField("PGN", ""),
 			},
-			interval: math.MaxUint16,
-			url:      "https://embeddedflakes.com/j1939-transport-protocol/",
-			explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
+			Interval: math.MaxUint16,
+			URL:      "https://embeddedflakes.com/j1939-transport-protocol/",
+			Explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
 				"messages that have 9 or more data bytes. This PGN's role in the transport process is to announce a broadcast " +
 				"of a long message spanning multiple frames.",
 		},
 
 		{
-			description: "ISO Transport Protocol, Connection Management - Abort",
-			pgn:         60416,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Transport Protocol, Connection Management - Abort",
+			PGN:         60416,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				matchLookupField("Group Function Code", 8*1, "255", "ISO_COMMAND"),
 				binaryField("Reason", 8*1, ""),
 				reservedField(8 * 3),
 				pgnPGNField("PGN", ""),
 			},
-			interval: math.MaxUint16,
-			url:      "https://embeddedflakes.com/j1939-transport-protocol/",
-			explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
+			Interval: math.MaxUint16,
+			URL:      "https://embeddedflakes.com/j1939-transport-protocol/",
+			Explanation: "ISO 11783 defines this group function PGN as part of the Transport Protocol method used for transmitting " +
 				"messages that have 9 or more data bytes. This PGN's role in the transport process is to announce an abort " +
 				"of a long message spanning multiple frames.",
 		},
 
 		{
-			description: "ISO Address Claim",
-			pgn:         60928,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "ISO Address Claim",
+			PGN:         60928,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				simpleDescField("Unique Number", 21, "ISO Identity Number"),
 				manufacturerField("", "", false),
 				simpleDescField("Device Instance Lower", 3, "ISO ECU Instance"),
@@ -204,8 +204,8 @@ func createPGNList() []pgnInfo {
 					"Field indicates whether the device is capable to claim arbitrary source "+
 						"address. Value is 1 for NMEA200 devices. Could be 0 for J1939 device claims"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This network management message is used to claim network address, reply to devices requesting the claimed " +
+			Interval: math.MaxUint16,
+			Explanation: "This network management message is used to claim network address, reply to devices requesting the claimed " +
 				"address, and to respond with device information (NAME) requested by the ISO Request or Complex Request Group " +
 				"Function. This PGN contains several fields that are requestable, either independently or in any combination.",
 		},
@@ -213,23 +213,23 @@ func createPGNList() []pgnInfo {
 		/* PDU1 (addressed) single-frame PGN range 0EF00 to 0xEFFF (61184 - 61439) */
 
 		{
-			description: "0xEF00: Manufacturer Proprietary single-frame addressed",
-			pgn:         61184,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
-			fallback:    true,
-			explanation: "Manufacturer proprietary PGNs in PDU1 (addressed) single-frame PGN 0xEF00 (61184). " +
+			Description: "0xEF00: Manufacturer Proprietary single-frame addressed",
+			PGN:         61184,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
+			Fallback:    true,
+			Explanation: "Manufacturer proprietary PGNs in PDU1 (addressed) single-frame PGN 0xEF00 (61184). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		/* The following probably have the wrong Proprietary ID */
 		{
-			description: "Seatalk: Wireless Keypad Light Control",
-			pgn:         61184,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Wireless Keypad Light Control",
+			PGN:         61184,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*1, "1", "Wireless Keypad Light Control"),
 				uint8Field("Variant"),
 				uint8Field("Wireless Setting"),
@@ -238,11 +238,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Wireless Keypad Control",
-			pgn:         61184,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Wireless Keypad Control",
+			PGN:         61184,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("PID"),
 				uint8Field("Variant"),
 				uint8Field("Beep Control"),
@@ -250,23 +250,23 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Victron Battery Register",
-			pgn:         61184,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("358"), uint16Field("Register Id"), simpleField("Payload", 8*4))),
+			Description: "Victron Battery Register",
+			PGN:         61184,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("358"), uint16Field("Register Id"), simpleField("Payload", 8*4))),
 		},
 
 		/* PDU2 non-addressed single-frame PGN range 0xF000 - 0xFEFF (61440 - 65279) */
 
 		{
-			description: "0xF000-0xFEFF: Standardized single-frame non-addressed",
-			pgn:         61440,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
-			fallback:    true,
-			explanation: "PGNs in PDU2 (non-addressed) single-frame PGN range 0xF000 to " +
+			Description: "0xF000-0xFEFF: Standardized single-frame non-addressed",
+			PGN:         61440,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
+			Fallback:    true,
+			Explanation: "PGNs in PDU2 (non-addressed) single-frame PGN range 0xF000 to " +
 				"0xFEFF (61440 - 65279). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
@@ -274,11 +274,11 @@ func createPGNList() []pgnInfo {
 		/* Maretron ACM 100 manual documents PGN 65001-65030 */
 
 		{
-			description: "Bus #1 Phase C Basic AC Quantities",
-			pgn:         65001,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Bus #1 Phase C Basic AC Quantities",
+			PGN:         65001,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -287,11 +287,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Bus #1 Phase B Basic AC Quantities",
-			pgn:         65002,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Bus #1 Phase B Basic AC Quantities",
+			PGN:         65002,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -300,11 +300,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Bus #1 Phase A Basic AC Quantities",
-			pgn:         65003,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Bus #1 Phase A Basic AC Quantities",
+			PGN:         65003,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -313,11 +313,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Bus #1 Average Basic AC Quantities",
-			pgn:         65004,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Bus #1 Average Basic AC Quantities",
+			PGN:         65004,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -326,19 +326,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Total AC Energy",
-			pgn:         65005,
-			complete:    packetStatusResolutionUnknown,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{energyUint32Field("Total Energy Export"), energyUint32Field("Total Energy Import")},
+			Description: "Utility Total AC Energy",
+			PGN:         65005,
+			Complete:    PacketStatusResolutionUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{energyUint32Field("Total Energy Export"), energyUint32Field("Total Energy Import")},
 		},
 
 		{
-			description: "Utility Phase C AC Reactive Power",
-			pgn:         65006,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase C AC Reactive Power",
+			PGN:         65006,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerU16VarField("Reactive Power", ""),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -347,19 +347,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Phase C AC Power",
-			pgn:         65007,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Utility Phase C AC Power",
+			PGN:         65007,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Utility Phase C Basic AC Quantities",
-			pgn:         65008,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase C Basic AC Quantities",
+			PGN:         65008,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -368,11 +368,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Phase B AC Reactive Power",
-			pgn:         65009,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase B AC Reactive Power",
+			PGN:         65009,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerU16VarField("Reactive Power", ""),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -381,19 +381,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Phase B AC Power",
-			pgn:         65010,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Utility Phase B AC Power",
+			PGN:         65010,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Utility Phase B Basic AC Quantities",
-			pgn:         65011,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase B Basic AC Quantities",
+			PGN:         65011,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -402,11 +402,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Phase A AC Reactive Power",
-			pgn:         65012,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase A AC Reactive Power",
+			PGN:         65012,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -415,19 +415,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Phase A AC Power",
-			pgn:         65013,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Utility Phase A AC Power",
+			PGN:         65013,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Utility Phase A Basic AC Quantities",
-			pgn:         65014,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Phase A Basic AC Quantities",
+			PGN:         65014,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -436,11 +436,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Total AC Reactive Power",
-			pgn:         65015,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Total AC Reactive Power",
+			PGN:         65015,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -449,19 +449,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Utility Total AC Power",
-			pgn:         65016,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Utility Total AC Power",
+			PGN:         65016,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Utility Average Basic AC Quantities",
-			pgn:         65017,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Utility Average Basic AC Quantities",
+			PGN:         65017,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -470,19 +470,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Total AC Energy",
-			pgn:         65018,
-			complete:    packetStatusResolutionUnknown,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{energyUint32Field("Total Energy Export"), energyUint32Field("Total Energy Import")},
+			Description: "Generator Total AC Energy",
+			PGN:         65018,
+			Complete:    PacketStatusResolutionUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{energyUint32Field("Total Energy Export"), energyUint32Field("Total Energy Import")},
 		},
 
 		{
-			description: "Generator Phase C AC Reactive Power",
-			pgn:         65019,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase C AC Reactive Power",
+			PGN:         65019,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -491,19 +491,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Phase C AC Power",
-			pgn:         65020,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VarOffsetField("Apparent Power")},
+			Description: "Generator Phase C AC Power",
+			PGN:         65020,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VarOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Generator Phase C Basic AC Quantities",
-			pgn:         65021,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase C Basic AC Quantities",
+			PGN:         65021,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -512,11 +512,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Phase B AC Reactive Power",
-			pgn:         65022,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase B AC Reactive Power",
+			PGN:         65022,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -525,19 +525,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Phase B AC Power",
-			pgn:         65023,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Generator Phase B AC Power",
+			PGN:         65023,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Generator Phase B Basic AC Quantities",
-			pgn:         65024,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase B Basic AC Quantities",
+			PGN:         65024,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -546,11 +546,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Phase A AC Reactive Power",
-			pgn:         65025,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase A AC Reactive Power",
+			PGN:         65025,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -559,19 +559,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Phase A AC Power",
-			pgn:         65026,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Generator Phase A AC Power",
+			PGN:         65026,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Generator Phase A Basic AC Quantities",
-			pgn:         65027,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Phase A Basic AC Quantities",
+			PGN:         65027,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -580,11 +580,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Total AC Reactive Power",
-			pgn:         65028,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Total AC Reactive Power",
+			PGN:         65028,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				powerI32VarOffsetField("Reactive Power"),
 				powerFactorU16Field(),
 				lookupField("Power Factor Lagging", 2, "POWER_FACTOR"),
@@ -593,19 +593,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Generator Total AC Power",
-			pgn:         65029,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
+			Description: "Generator Total AC Power",
+			PGN:         65029,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{powerI32OffsetField("Real Power"), powerI32VaOffsetField("Apparent Power")},
 		},
 
 		{
-			description: "Generator Average Basic AC Quantities",
-			pgn:         65030,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Generator Average Basic AC Quantities",
+			PGN:         65030,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
 				voltageU16VField("Line-Neutral AC RMS Voltage"),
 				frequencyField("AC Frequency", 1/128.0),
@@ -614,13 +614,13 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "ISO Commanded Address",
-			pgn:         65240,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeISOTP,
+			Description: "ISO Commanded Address",
+			PGN:         65240,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeISOTP,
 			/* ISO 11783 defined this message to provide a mechanism for assigning a network address to a node. The NAME information in
 			   the data portion of the message must match the name information of the node whose network address is to be set. */
-			fieldList: [33]pgnField{
+			FieldList: [33]PGNField{
 				binaryField("Unique Number", 21, "ISO Identity Number"),
 				manufacturerField("Manufacturer Code", "", false),
 				simpleDescField("Device Instance Lower", 3, "ISO ECU Instance"),
@@ -638,31 +638,31 @@ func createPGNList() []pgnInfo {
 		/* proprietary PDU2 (non addressed) single-frame range 0xFF00 to 0xFFFF (65280 - 65535) */
 
 		{
-			description: "0xFF00-0xFFFF: Manufacturer Proprietary single-frame non-addressed",
-			pgn:         65280,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
-			fallback:    true,
-			explanation: "Manufacturer proprietary PGNs in PDU2 (non-addressed) single-frame PGN range 0xFF00 to " +
+			Description: "0xFF00-0xFFFF: Manufacturer Proprietary single-frame non-addressed",
+			PGN:         65280,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
+			Fallback:    true,
+			Explanation: "Manufacturer proprietary PGNs in PDU2 (non-addressed) single-frame PGN range 0xFF00 to " +
 				"0xFFFF (65280 - 65535). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		{
-			description: "Furuno: Heave",
-			pgn:         65280,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1855"), distanceFix32MmField("Heave", ""), reservedField(8*2))),
+			Description: "Furuno: Heave",
+			PGN:         65280,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1855"), distanceFix32MmField("Heave", ""), reservedField(8*2))),
 		},
 
 		{
-			description: "Maretron: Proprietary DC Breaker Current",
-			pgn:         65284,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Proprietary DC Breaker Current",
+			PGN:         65284,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				uint8Field("Bank Instance"),
 				uint8Field("Indicator Number"),
 				currentUfix16DaField("Breaker Current"),
@@ -670,31 +670,31 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Airmar: Boot State Acknowledgment",
-			pgn:         65285,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("135"), lookupField("Boot State", 3, "BOOT_STATE"), reservedField(45))),
-			url:         "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Description: "Airmar: Boot State Acknowledgment",
+			PGN:         65285,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("135"), lookupField("Boot State", 3, "BOOT_STATE"), reservedField(45))),
+			URL:         "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Lowrance: Temperature",
-			pgn:         65285,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("140"),
+			Description: "Lowrance: Temperature",
+			PGN:         65285,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("140"),
 				lookupField("Temperature Source", 8*1, "TEMPERATURE_SOURCE"),
 				temperatureField("Actual Temperature"),
 				reservedField(8*3))),
 		},
 
 		{
-			description: "Chetco: Dimmer",
-			pgn:         65286,
-			complete:    packetStatusIncompleteLookup,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("409"),
+			Description: "Chetco: Dimmer",
+			PGN:         65286,
+			Complete:    PacketStatusInCompleteLookup,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("409"),
 				instanceField(),
 				uint8Field("Dimmer1"),
 				uint8Field("Dimmer2"),
@@ -704,43 +704,43 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Airmar: Boot State Request",
-			pgn:         65286,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("135"), reservedField(8*6))),
-			url:         "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Description: "Airmar: Boot State Request",
+			PGN:         65286,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("135"), reservedField(8*6))),
+			URL:         "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Access Level",
-			pgn:         65287,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Access Level",
+			PGN:         65287,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("Format Code"),
 				lookupField("Access Level", 3, "ACCESS_LEVEL"),
 				reservedField(5),
 				uint32DescField(
 					"Access Seed/Key",
 					"When transmitted, it provides a seed for an unlock operation. It is used to provide the key during PGN 126208."))),
-			url: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Simnet: Configure Temperature Sensor",
-			pgn:         65287,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: Configure Temperature Sensor",
+			PGN:         65287,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		{
-			description: "Seatalk: Alarm",
-			pgn:         65288,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Alarm",
+			PGN:         65288,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("SID", 8*1, ""),
 				lookupField("Alarm Status", 8*1, "SEATALK_ALARM_STATUS"),
 				lookupField("Alarm ID", 8*1, "SEATALK_ALARM_ID"),
@@ -749,137 +749,137 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Trim Tab Sensor Calibration",
-			pgn:         65289,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: Trim Tab Sensor Calibration",
+			PGN:         65289,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		{
-			description: "Simnet: Paddle Wheel Speed Configuration",
-			pgn:         65290,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: Paddle Wheel Speed Configuration",
+			PGN:         65290,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		{
-			description: "Simnet: Clear Fluid Level Warnings",
-			pgn:         65292,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: Clear Fluid Level Warnings",
+			PGN:         65292,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		{
-			description: "Simnet: LGC-2000 Configuration",
-			pgn:         65293,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: LGC-2000 Configuration",
+			PGN:         65293,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		{
-			description: "Diverse Yacht Services: Load Cell",
-			pgn:         65293,
-			complete:    packetStatusResolutionUnknown,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("641"), instanceField(), reservedField(8*1), uint32Field("Load Cell"))),
+			Description: "Diverse Yacht Services: Load Cell",
+			PGN:         65293,
+			Complete:    PacketStatusResolutionUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("641"), instanceField(), reservedField(8*1), uint32Field("Load Cell"))),
 		},
 
 		{
-			description: "Simnet: AP Unknown 1",
-			pgn:         65302,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AP Unknown 1",
+			PGN:         65302,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
 				uint8Field("B"),
 				uint16Field("C"),
 				uint8Field("D"),
 				reservedField(8*1))),
-			interval:    1000,
-			explanation: "Seen as sent by AC-42 only so far.",
+			Interval:    1000,
+			Explanation: "Seen as sent by AC-42 only so far.",
 		},
 
 		{
-			description: "Simnet: Device Status",
-			pgn:         65305,
-			complete:    packetStatusLookupsUnknown,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Device Status",
+			PGN:         65305,
+			Complete:    PacketStatusLookupsUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
 				matchLookupField("Report", 8*1, "2", "SIMNET_DEVICE_REPORT"),
 				lookupField("Status", 8*1, "SIMNET_AP_STATUS"),
 				spareField(8*3))),
-			interval:    1000,
-			explanation: "This PGN is reported by an Autopilot Computer (AC/NAC)",
+			Interval:    1000,
+			Explanation: "This PGN is reported by an Autopilot Computer (AC/NAC)",
 		},
 
 		{
-			description: "Simnet: Device Status Request",
-			pgn:         65305,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Device Status Request",
+			PGN:         65305,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
 				matchLookupField("Report", 8*1, "3", "SIMNET_DEVICE_REPORT"),
 				spareField(8*4))),
-			interval: 1000,
-			explanation: "This PGN is sent by an active AutoPilot head controller (AP, MFD, Triton2)." +
+			Interval: 1000,
+			Explanation: "This PGN is sent by an active AutoPilot head controller (AP, MFD, Triton2)." +
 				" It is used by the AC (AutoPilot Controller) to verify that there is an active controller." +
 				" If this PGN is not sent regularly the AC may report an error and go to standby.",
 		},
 
 		{
-			description: "Simnet: Pilot Mode",
-			pgn:         65305,
-			complete:    packetStatusLookupsUnknown,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Pilot Mode",
+			PGN:         65305,
+			Complete:    PacketStatusLookupsUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
 				matchLookupField("Report", 8*1, "10", "SIMNET_DEVICE_REPORT"),
 				bitlookupField("Mode", 8*2, "SIMNET_AP_MODE_BITFIELD"),
 				spareField(8*2))),
-			interval:    1000,
-			explanation: "This PGN is reported by an Autopilot Computer (AC/NAC)",
+			Interval:    1000,
+			Explanation: "This PGN is reported by an Autopilot Computer (AC/NAC)",
 		},
 
 		{
-			description: "Simnet: Device Mode Request",
-			pgn:         65305,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Device Mode Request",
+			PGN:         65305,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
 				matchLookupField("Report", 8*1, "11", "SIMNET_DEVICE_REPORT"),
 				spareField(8*4))),
-			interval: 1000,
-			explanation: "This PGN is sent by an active AutoPilot head controller (AP, MFD, Triton2)." +
+			Interval: 1000,
+			Explanation: "This PGN is sent by an active AutoPilot head controller (AP, MFD, Triton2)." +
 				" It is used by the AC (AutoPilot Controller) to verify that there is an active controller." +
 				" If this PGN is not sent regularly the AC may report an error and go to standby.",
 		},
 
 		{
-			description: "Simnet: Sailing Processor Status",
-			pgn:         65305,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Sailing Processor Status",
+			PGN:         65305,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
 				matchLookupField("Report", 8*1, "23", "SIMNET_DEVICE_REPORT"),
 				binaryField("Data", 8*4, ""))),
-			interval:    1000,
-			explanation: "This PGN has been seen to be reported by a Sailing Processor.",
+			Interval:    1000,
+			Explanation: "This PGN has been seen to be reported by a Sailing Processor.",
 		},
 
 		{
-			description: "Navico: Wireless Battery Status",
-			pgn:         65309,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "Navico: Wireless Battery Status",
+			PGN:         65309,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				uint8Field("Status"),
 				percentageU8Field("Battery Status"),
 				percentageU8Field("Battery Charge Status"),
@@ -887,35 +887,35 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Navico: Wireless Signal Status",
-			pgn:         65312,
-			complete:    packetStatusFieldsUnknown,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("275"), uint8Field("Unknown"), percentageU8Field("Signal Strength"), reservedField(8*4))),
+			Description: "Navico: Wireless Signal Status",
+			PGN:         65312,
+			Complete:    PacketStatusFieldsUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("275"), uint8Field("Unknown"), percentageU8Field("Signal Strength"), reservedField(8*4))),
 		},
 
 		{
-			description: "Simnet: AP Unknown 2",
-			pgn:         65340,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AP Unknown 2",
+			PGN:         65340,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
 				uint8Field("B"),
 				uint8Field("C"),
 				uint8Field("D"),
 				uint8Field("E"),
 				reservedField(8*1))),
-			interval:    1000,
-			explanation: "Seen as sent by AC-42 only so far.",
+			Interval:    1000,
+			Explanation: "Seen as sent by AC-42 only so far.",
 		},
 
 		{
-			description: "Simnet: Autopilot Angle",
-			pgn:         65341,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Autopilot Angle",
+			PGN:         65341,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				reservedField(8*2),
 				lookupField("Mode", 8*1, "SIMNET_AP_MODE"),
 				reservedField(8*1),
@@ -923,22 +923,22 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Pilot Wind Datum",
-			pgn:         65345,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Pilot Wind Datum",
+			PGN:         65345,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				angleU16Field("Wind Datum", ""),
 				angleU16Field("Rolling Average Wind Angle", ""),
 				reservedField(8*2))),
 		},
 
 		{
-			description: "Simnet: Magnetic Field",
-			pgn:         65350,
-			complete:    packetStatusIncomplete | packetStatusMissingcompanyFields,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Simnet: Magnetic Field",
+			PGN:         65350,
+			Complete:    PacketStatusInComplete | PacketStatusMissingcompanyFields,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				angleI16Field("A", ""),
 				percentageU8Field("B"),
 				angleI16Field("C", ""),
@@ -948,11 +948,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Pilot Heading",
-			pgn:         65359,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Pilot Heading",
+			PGN:         65359,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("SID", 8*1, ""),
 				angleU16Field("Heading True", ""),
 				angleU16Field("Heading Magnetic", ""),
@@ -960,11 +960,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Pilot Locked Heading",
-			pgn:         65360,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Pilot Locked Heading",
+			PGN:         65360,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("SID", 8*1, ""),
 				angleU16Field("Target Heading True", ""),
 				angleU16Field("Target Heading Magnetic", ""),
@@ -972,22 +972,22 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Silence Alarm",
-			pgn:         65361,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Silence Alarm",
+			PGN:         65361,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				lookupField("Alarm ID", 8*1, "SEATALK_ALARM_ID"),
 				lookupField("Alarm Group", 8*1, "SEATALK_ALARM_GROUP"),
 				reservedField(32))),
 		},
 
 		{
-			description: "Seatalk: Keypad Message",
-			pgn:         65371,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Keypad Message",
+			PGN:         65371,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("Proprietary ID"),
 				uint8Field("First key"),
 				uint8Field("Second key"),
@@ -999,11 +999,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SeaTalk: Keypad Heartbeat",
-			pgn:         65374,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "SeaTalk: Keypad Heartbeat",
+			PGN:         65374,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("Proprietary ID"),
 				uint8Field("Variant"),
 				uint8Field("Status"),
@@ -1011,11 +1011,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk: Pilot Mode",
-			pgn:         65379,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk: Pilot Mode",
+			PGN:         65379,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("Pilot Mode", 8*2, ""),
 				binaryField("Sub Mode", 8*2, ""),
 				binaryField("Pilot Mode Data", 8*1, ""),
@@ -1023,88 +1023,88 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Airmar: Depth Quality Factor",
-			pgn:         65408,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Depth Quality Factor",
+			PGN:         65408,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("SID"),
 				lookupField("Depth Quality Factor", 4, "AIRMAR_DEPTH_QUALITY_FACTOR"),
 				reservedField(36))),
-			url: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Speed Pulse Count",
-			pgn:         65409,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Speed Pulse Count",
+			PGN:         65409,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("SID"),
 				timeUfix16MsField("Duration of interval", ""),
 				uint16Field("Number of pulses received"),
 				reservedField(8*1))),
-			url: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Device Information",
-			pgn:         65410,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Device Information",
+			PGN:         65410,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("SID"),
 				temperatureField("Internal Device Temperature"),
 				voltageU1610mvField("Supply Voltage"),
 				reservedField(8*1))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Simnet: AP Unknown 3",
-			pgn:         65420,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AP Unknown 3",
+			PGN:         65420,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
 				uint8Field("B"),
 				uint8Field("C"),
 				uint8Field("D"),
 				uint8Field("E"),
 				reservedField(8*1))),
-			interval:    1000,
-			explanation: "Seen as sent by AC-42 only so far.",
+			Interval:    1000,
+			Explanation: "Seen as sent by AC-42 only so far.",
 		},
 
 		{
-			description: "Simnet: Autopilot Mode",
-			pgn:         65480,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
+			Description: "Simnet: Autopilot Mode",
+			PGN:         65480,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
 
 		/* PDU1 (addressed) fast-packet PGN range 0x1ED00 to 0x1EE00 (126208 - 126464) */
 		/* Only 0x1ED00 and 0x1EE00 seem to be used? */
 		{
-			description: "0x1ED00 - 0x1EE00: Standardized fast-packet addressed",
-			pgn:         0x1ed00,
-			complete:    packetStatusIncompleteLookup,
-			packetType:  packetTypeFast,
-			fieldList:   [33]pgnField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
-			fallback:    true,
-			explanation: "Standardized PGNs in PDU1 (addressed) fast-packet PGN range 0x1ED00 to " +
+			Description: "0x1ED00 - 0x1EE00: Standardized fast-packet addressed",
+			PGN:         0x1ed00,
+			Complete:    PacketStatusInCompleteLookup,
+			PacketType:  PacketTypeFast,
+			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
+			Fallback:    true,
+			Explanation: "Standardized PGNs in PDU1 (addressed) fast-packet PGN range 0x1ED00 to " +
 				"0x1EE00 (65536 - 126464). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		{
-			description: "NMEA - Request group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Request group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "0", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Requested PGN"),
 				timeUfix32MsField("Transmission interval", ""),
@@ -1113,21 +1113,21 @@ func createPGNList() []pgnInfo {
 				fieldIndex("Parameter", "Parameter index"),
 				variableField("Value", "Parameter value"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Request variation of this group function PGN. The receiver shall respond by sending the requested " +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Request variation of this group function PGN. The receiver shall respond by sending the requested " +
 				"PGN, at the desired transmission interval.",
-			url:             "http://www.nmea.org/Assets/20140109%20nmea-2000-corrigendum-tc201401031%20pgn%20126208.pdf",
-			repeatingField1: 5,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
+			URL:             "http://www.nmea.org/Assets/20140109%20nmea-2000-corrigendum-tc201401031%20PGN%20126208.pdf",
+			RepeatingField1: 5,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "NMEA - Command group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Command group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "1", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				lookupField("Priority", 4, "PRIORITY"),
@@ -1136,20 +1136,20 @@ func createPGNList() []pgnInfo {
 				fieldIndex("Parameter", "Parameter index"),
 				variableField("Value", "Parameter value"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Command variation of this group function PGN. This instructs the receiver to modify its internal " +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Command variation of this group function PGN. This instructs the receiver to modify its internal " +
 				"state for the passed parameters. The receiver shall reply with an Acknowledge reply.",
-			repeatingField1: 5,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
+			RepeatingField1: 5,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "NMEA - Acknowledge group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Acknowledge group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "2", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				lookupField("PGN error code", 4, "PGN_ERROR_CODE"),
@@ -1157,20 +1157,20 @@ func createPGNList() []pgnInfo {
 				uint8Field("Number of Parameters"),
 				lookupField("Parameter", 4, "PARAMETER_FIELD"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Acknowledge variation of this group function PGN. When a device receives a Command, it will " +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Acknowledge variation of this group function PGN. When a device receives a Command, it will " +
 				"attempt to perform the command (change its parameters) and reply positively or negatively.",
-			repeatingField1: 5,
-			repeatingCount1: 1,
-			repeatingStart1: 6,
+			RepeatingField1: 5,
+			RepeatingCount1: 1,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "NMEA - Read Fields group function",
-			pgn:         126208,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Read Fields group function",
+			PGN:         126208,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "3", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				manufacturerProprietaryFields1(),
@@ -1183,26 +1183,26 @@ func createPGNList() []pgnInfo {
 				variableField("Selection Value", ""),
 				fieldIndex("Parameter", "Parameter index"),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Read Fields variation of this group function PGN. The receiver shall respond by sending a Read " +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Read Fields variation of this group function PGN. The receiver shall respond by sending a Read " +
 				"Reply variation of this PGN, containing the desired values." +
 				" This PGN is special as it contains two sets of repeating fields, and the fields that contain the information " +
 				"how many repetitions there are do not have a fixed offset in the PGN as the fields 3 to 5 are only present if " +
 				"field 2 is for a proprietary PGN",
-			repeatingField1: 7,
-			repeatingCount1: 2,
-			repeatingStart1: 9,
-			repeatingField2: 8,
-			repeatingCount2: 1,
-			repeatingStart2: 11,
+			RepeatingField1: 7,
+			RepeatingCount1: 2,
+			RepeatingStart1: 9,
+			RepeatingField2: 8,
+			RepeatingCount2: 1,
+			RepeatingStart2: 11,
 		},
 
 		{
-			description: "NMEA - Read Fields reply group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Read Fields reply group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "4", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				manufacturerProprietaryFields1(),
@@ -1216,25 +1216,25 @@ func createPGNList() []pgnInfo {
 				fieldIndex("Parameter", "Parameter index"),
 				variableField("Value", ""),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Read Fields Reply variation of this group function PGN. The receiver is responding to a Read Fields request." +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Read Fields Reply variation of this group function PGN. The receiver is responding to a Read Fields request." +
 				" This PGN is special as it contains two sets of repeating fields, and the fields that contain the information how many " +
 				"repetitions there are do not have a fixed offset in the PGN as the fields 3 to 5 are only present if field 2 is for a " +
 				"proprietary PGN",
-			repeatingField1: 7,
-			repeatingCount1: 2,
-			repeatingStart1: 9,
-			repeatingField2: 8,
-			repeatingCount2: 2,
-			repeatingStart2: 11,
+			RepeatingField1: 7,
+			RepeatingCount1: 2,
+			RepeatingStart1: 9,
+			RepeatingField2: 8,
+			RepeatingCount2: 2,
+			RepeatingStart2: 11,
 		},
 
 		{
-			description: "NMEA - Write Fields group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Write Fields group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "5", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				manufacturerProprietaryFields1(),
@@ -1248,26 +1248,26 @@ func createPGNList() []pgnInfo {
 				fieldIndex("Parameter", "Parameter index"),
 				variableField("Value", ""),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Write Fields variation of this group function PGN. The receiver shall modify internal state and " +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Write Fields variation of this group function PGN. The receiver shall modify internal state and " +
 				"reply with a Write Fields Reply message." +
 				" This PGN is special as it contains two sets of repeating fields, and the fields that contain the information " +
 				"how many repetitions there are do not have a fixed offset in the PGN as the fields 3 to 5 are only present if " +
 				"field 2 is for a proprietary PGN",
-			repeatingField1: 7,
-			repeatingCount1: 2,
-			repeatingStart1: 9,
-			repeatingField2: 8,
-			repeatingCount2: 2,
-			repeatingStart2: 11,
+			RepeatingField1: 7,
+			RepeatingCount1: 2,
+			RepeatingStart1: 9,
+			RepeatingField2: 8,
+			RepeatingCount2: 2,
+			RepeatingStart2: 11,
 		},
 
 		{
-			description: "NMEA - Write Fields reply group function",
-			pgn:         126208,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "NMEA - Write Fields reply group function",
+			PGN:         126208,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "6", "GROUP_FUNCTION"),
 				pgnPGNField("PGN", "Commanded PGN"),
 				manufacturerProprietaryFields1(),
@@ -1281,53 +1281,53 @@ func createPGNList() []pgnInfo {
 				fieldIndex("Parameter", "Parameter index"),
 				variableField("Value", ""),
 			},
-			interval: math.MaxUint16,
-			explanation: "This is the Write Fields Reply variation of this group function PGN. The receiver is responding to a Write Fields request." +
+			Interval: math.MaxUint16,
+			Explanation: "This is the Write Fields Reply variation of this group function PGN. The receiver is responding to a Write Fields request." +
 				" This PGN is special as it contains two sets of repeating fields, and the fields that contain the information how many " +
 				"repetitions there are do not have a fixed offset in the PGN as the fields 3 to 5 are only present if field 2 is for a " +
 				"proprietary PGN",
-			repeatingField1: 7,
-			repeatingCount1: 2,
-			repeatingStart1: 9,
-			repeatingField2: 8,
-			repeatingCount2: 2,
-			repeatingStart2: 11,
+			RepeatingField1: 7,
+			RepeatingCount1: 2,
+			RepeatingStart1: 9,
+			RepeatingField2: 8,
+			RepeatingCount2: 2,
+			RepeatingStart2: 11,
 		},
 
 		/************ RESPONSE TO REQUEST PGNS **************/
 
 		{
-			description:     "PGN List (Transmit and Receive)",
-			pgn:             126464,
-			complete:        packetStatusComplete,
-			packetType:      packetTypeFast,
-			fieldList:       [33]pgnField{lookupField("Function Code", 8*1, "PGN_LIST_FUNCTION"), pgnPGNField("PGN", "")},
-			interval:        math.MaxUint16,
-			repeatingField1: math.MaxUint8,
-			repeatingCount1: 1,
-			repeatingStart1: 2,
+			Description:     "PGN List (Transmit and Receive)",
+			PGN:             126464,
+			Complete:        PacketStatusComplete,
+			PacketType:      PacketTypeFast,
+			FieldList:       [33]PGNField{lookupField("Function Code", 8*1, "PGN_LIST_FUNCTION"), pgnPGNField("PGN", "")},
+			Interval:        math.MaxUint16,
+			RepeatingField1: math.MaxUint8,
+			RepeatingCount1: 1,
+			RepeatingStart1: 2,
 		},
 
 		/* proprietary PDU1 (addressed) fast-packet PGN range 0x1EF00 to 0x1EFFF (126720 - 126975) */
 
 		{
-			description: "0x1EF00-0x1EFFF: Manufacturer Proprietary fast-packet addressed",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*221, ""))),
-			fallback:    true,
-			explanation: "Manufacturer Proprietary PGNs in PDU1 (addressed) fast-packet PGN range 0x1EF00 to " +
+			Description: "0x1EF00-0x1EFFF: Manufacturer Proprietary fast-packet addressed",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*221, ""))),
+			Fallback:    true,
+			Explanation: "Manufacturer Proprietary PGNs in PDU1 (addressed) fast-packet PGN range 0x1EF00 to " +
 				"0x1EFFF (126720 - 126975). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		{
-			description: "Seatalk1: Pilot Mode",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk1: Pilot Mode",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
 				matchField("command", 8*1, "132", "0x84"),
 				binaryField("Unknown 1", 8*3, ""),
@@ -1338,11 +1338,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Media Control",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Media Control",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchField("Proprietary ID", 8*1, "3", "Media Control"),
 				uint8Field("Unknown"),
 				uint8Field("Source ID"),
@@ -1350,11 +1350,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Sirius Control",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Sirius Control",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchField("Proprietary ID", 8*1, "30", "Sirius Control"),
 				uint8Field("Unknown"),
 				uint8Field("Source ID"),
@@ -1362,40 +1362,40 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Request Status",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("419"), matchLookupField("Proprietary ID", 8*1, "1", "FUSION_MESSAGE_ID"), uint8Field("Unknown"))),
+			Description: "Fusion: Request Status",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("419"), matchLookupField("Proprietary ID", 8*1, "1", "FUSION_MESSAGE_ID"), uint8Field("Unknown"))),
 		},
 
 		{
-			description: "Fusion: Set Source",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Set Source",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "2", "FUSION_MESSAGE_ID"),
 				uint8Field("Unknown"),
 				uint8Field("Source ID"))),
 		},
 
 		{
-			description: "Fusion: Set Mute",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Set Mute",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "23", "FUSION_MESSAGE_ID"),
 				lookupField("Command", 8*1, "FUSION_MUTE_COMMAND"))),
 		},
 
 		{
-			description: "Fusion: Set Zone Volume",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Set Zone Volume",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "24", "FUSION_MESSAGE_ID"),
 				uint8Field("Unknown"),
 				uint8Field("Zone"),
@@ -1403,11 +1403,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Set All Volumes",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Set All Volumes",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "25", "FUSION_MESSAGE_ID"),
 				uint8Field("Unknown"),
 				uint8Field("Zone1"),
@@ -1418,11 +1418,11 @@ func createPGNList() []pgnInfo {
 
 		/* Seatalk1 code from http://thomasknauf.de/rap/seatalk2.htm */
 		{
-			description: "Seatalk1: Keystroke",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk1: Keystroke",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
 				matchField("command", 8*1, "134", "0x86"),
 				uint8Field("device"),
@@ -1435,11 +1435,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk1: Device Identification",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk1: Device Identification",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
 				matchField("command", 8*1, "144", "0x90"),
 				reservedField(8*1),
@@ -1447,11 +1447,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk1: Display Brightness",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk1: Display Brightness",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "3212", "0x0c8c"),
 				lookupField("Group", 8*1, "SEATALK_NETWORK_GROUP"),
 				binaryField("Unknown 1", 8*1, ""),
@@ -1461,11 +1461,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Seatalk1: Display Color",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "Seatalk1: Display Color",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "3212", "0x0c8c"),
 				lookupField("Group", 8*1, "SEATALK_NETWORK_GROUP"),
 				binaryField("Unknown 1", 8*1, ""),
@@ -1475,25 +1475,25 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Airmar: Attitude Offset",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Attitude Offset",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "32", "AIRMAR_COMMAND"),
 				angleI16Field("Azimuth offset", "Positive: sensor rotated to port, negative: sensor rotated to starboard"),
 				angleI16Field("Pitch offset", "Positive: sensor tilted to bow, negative: sensor tilted to stern"),
 				angleI16Field("Roll offset", "Positive: sensor tilted to port, negative: sensor tilted to starboard"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Calibrate Compass",
-			pgn:         126720,
-			complete:    packetStatusFieldsUnknown,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Calibrate Compass",
+			PGN:         126720,
+			Complete:    PacketStatusFieldsUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "33", "AIRMAR_COMMAND"),
 				lookupField("Calibrate Function", 8*1, "AIRMAR_CALIBRATE_FUNCTION"),
 				lookupField("Calibration Status", 8*1, "AIRMAR_CALIBRATE_STATUS"),
@@ -1508,165 +1508,165 @@ func createPGNList() []pgnInfo {
 				timeFix165csField("Pitch and Roll damping", "default 30, range 0 to 200"),
 				timeFix165csField("Compass/Rate gyro damping",
 					"default -30, range -2400 to 2400, negative indicates rate gyro is to be used in compass calculations"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: True Wind Options",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: True Wind Options",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "34", "AIRMAR_COMMAND"),
 				lookupFieldDesc("COG substitution for HDG", 2, "YES_NO", "Allow use of COG when HDG not available?"),
 				reservedField(22))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/PB200UserManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/PB200UserManual.pdf",
 		},
 
 		{
-			description: "Airmar: Simulate Mode",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Simulate Mode",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "35", "AIRMAR_COMMAND"),
 				lookupField("Simulate Mode", 2, "OFF_ON"),
 				reservedField(22))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Calibrate Depth",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Calibrate Depth",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "40", "AIRMAR_COMMAND"),
 				speedU16DmField("Speed of Sound Mode", "actual allowed range is 1350.0 to 1650.0 m/s"),
 				reservedField(8))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Calibrate Speed",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Calibrate Speed",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "41", "AIRMAR_COMMAND"),
 				uint8DescField("Number of pairs of data points", "actual range is 0 to 25. 254=restore default speed curve"),
 				frequencyField("Input frequency", 0.1),
 				speedU16CmField("Output speed"))),
-			repeatingField1: 5,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
-			interval:        math.MaxUint16,
-			url:             "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			RepeatingField1: 5,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			URL:             "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Calibrate Temperature",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Calibrate Temperature",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "42", "AIRMAR_COMMAND"),
 				lookupField("Temperature instance", 2, "AIRMAR_TEMPERATURE_INSTANCE"),
 				reservedField(6),
 				temperatureDeltaFix16Field("Temperature offset", "actual range is -9.999 to +9.999 K"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Speed Filter None",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Speed Filter None",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "43", "AIRMAR_COMMAND"),
 				matchField("Filter type", 4, "0", "No filter"),
 				reservedField(4),
 				timeUfix16CsField("Sample interval", "Interval of time between successive samples of the paddlewheel pulse accumulator"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Speed Filter IIR",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Speed Filter IIR",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "43", "AIRMAR_COMMAND"),
 				matchField("Filter type", 4, "1", "IIR filter"),
 				reservedField(4),
 				timeUfix16CsField("Sample interval", "Interval of time between successive samples of the paddlewheel pulse accumulator"),
 				timeUfix16CsField("Filter duration", "Duration of filter, must be bigger than the sample interval"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Temperature Filter None",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Temperature Filter None",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "44", "AIRMAR_COMMAND"),
 				matchField("Filter type", 4, "0", "No filter"),
 				reservedField(4),
 				timeUfix16CsField("Sample interval", "Interval of time between successive samples of the water temperature thermistor"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Temperature Filter IIR",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Temperature Filter IIR",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "44", "AIRMAR_COMMAND"),
 				matchField("Filter type", 4, "1", "IIR filter"),
 				reservedField(4),
 				timeUfix16CsField("Sample interval", "Interval of time between successive samples of the water temperature thermistor"),
 				timeUfix16CsField("Filter duration", "Duration of filter, must be bigger than the sample interval"))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: NMEA 2000 options",
-			pgn:         126720,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: NMEA 2000 options",
+			PGN:         126720,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "46", "AIRMAR_COMMAND"),
 				lookupField("Transmission Interval", 2, "AIRMAR_TRANSMISSION_INTERVAL"),
 				reservedField(22))),
-			interval: math.MaxUint16,
-			url:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			Interval: math.MaxUint16,
+			URL:      "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Airmar: Addressable Multi-Frame",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("135"), uint8Field("Proprietary ID"))),
+			Description: "Airmar: Addressable Multi-Frame",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("135"), uint8Field("Proprietary ID"))),
 		},
 
 		{
-			description: "Maretron: Slave Response",
-			pgn:         126720,
-			complete:    packetStatusLookupsUnknown,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Slave Response",
+			PGN:         126720,
+			Complete:    PacketStatusLookupsUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				simpleDescField("Product code", 8*2, "0x1b2=SSC200"),
 				uint16Field("Software code"),
 				uint8DescField("Command", "0x50=Deviation calibration result"),
@@ -1674,11 +1674,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Garmin: Day Mode",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("229"),
+			Description: "Garmin: Day Mode",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
 				matchField("Unknown ID 2", 8*1, "5", "Always 5"),
 				matchField("Unknown ID 3", 8*1, "5", "Always 5"),
@@ -1690,11 +1690,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Garmin: Night Mode",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("229"),
+			Description: "Garmin: Night Mode",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
 				matchField("Unknown ID 2", 8*1, "5", "Always 5"),
 				matchField("Unknown ID 3", 8*1, "5", "Always 5"),
@@ -1706,11 +1706,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Garmin: Color mode",
-			pgn:         126720,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("229"),
+			Description: "Garmin: Color mode",
+			PGN:         126720,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
 				matchField("Unknown ID 2", 8*1, "5", "Always 5"),
 				matchField("Unknown ID 3", 8*1, "5", "Always 5"),
@@ -1723,23 +1723,23 @@ func createPGNList() []pgnInfo {
 
 		/* PDU2 (non addressed) mixed single/fast packet PGN range 0x1F000 to 0x1FEFF (126976 - 130815) */
 		{
-			description: "0x1F000-0x1FEFF: Standardized mixed single/fast packet non-addressed",
-			pgn:         126976,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeMixed,
-			fieldList:   [33]pgnField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
-			fallback:    true,
-			explanation: "Standardized PGNs in PDU2 (non-addressed) mixed single/fast packet PGN range 0x1F000 to " +
+			Description: "0x1F000-0x1FEFF: Standardized mixed single/fast packet non-addressed",
+			PGN:         126976,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeMixed,
+			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
+			Fallback:    true,
+			Explanation: "Standardized PGNs in PDU2 (non-addressed) mixed single/fast packet PGN range 0x1F000 to " +
 				"0x1FEFF (126976 - 130815). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		{
-			description: "Alert",
-			pgn:         126983,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert",
+			PGN:         126983,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1765,11 +1765,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Alert Response",
-			pgn:         126984,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert Response",
+			PGN:         126984,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1786,11 +1786,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Alert Text",
-			pgn:         126985,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert Text",
+			PGN:         126985,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1807,11 +1807,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Alert Configuration",
-			pgn:         126986,
-			complete:    packetStatusIncomplete | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert Configuration",
+			PGN:         126986,
+			Complete:    PacketStatusInComplete | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1832,11 +1832,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Alert Threshold",
-			pgn:         126987,
-			complete:    packetStatusResolutionUnknown | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert Threshold",
+			PGN:         126987,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1852,17 +1852,17 @@ func createPGNList() []pgnInfo {
 				uint8Field("Threshold Data Format"),
 				simpleField("Threshold Level", 8*8),
 			},
-			repeatingField1: 10,
-			repeatingCount1: 4,
-			repeatingStart1: 11,
+			RepeatingField1: 10,
+			RepeatingCount1: 4,
+			RepeatingStart1: 11,
 		},
 
 		{
-			description: "Alert Value",
-			pgn:         126988,
-			complete:    packetStatusResolutionUnknown | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Alert Value",
+			PGN:         126988,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
 				lookupField("Alert Category", 4, "ALERT_CATEGORY"),
 				uint8Field("Alert System"),
@@ -1877,37 +1877,37 @@ func createPGNList() []pgnInfo {
 				uint8Field("Value Data Format"),
 				simpleField("Value Data", 8*8),
 			},
-			repeatingField1: 10,
-			repeatingCount1: 3,
-			repeatingStart1: 11,
+			RepeatingField1: 10,
+			RepeatingCount1: 3,
+			RepeatingStart1: 11,
 		},
 
 		/* http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf */
 		{
-			description: "System Time",
-			pgn:         126992,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "System Time",
+			PGN:         126992,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Source", 4, "SYSTEM_TIME"),
 				reservedField(4),
 				dateField("Date"),
 				timeField("Time"),
 			},
-			interval: 1000,
-			explanation: "The purpose of this PGN is twofold: To provide a regular transmission of UTC time and date. To provide " +
+			Interval: 1000,
+			Explanation: "The purpose of this PGN is twofold: To provide a regular transmission of UTC time and date. To provide " +
 				"synchronism for measurement data.",
 		},
 
-		/* http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20pgn%20corrigendum.pdf */
+		/* http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20PGN%20corrigendum.pdf */
 		/* http://www.nmea.org/Assets/20190624%20NMEA%20Heartbeat%20Information%20Amendment%20AT%2020190623HB.pdf */
 		{
-			description: "Heartbeat",
-			pgn:         126993,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Heartbeat",
+			PGN:         126993,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				timeUfix16MsField(
 					"Data transmit offset",
 					"Offset in transmit time from time of request command: 0x0 = transmit immediately, 0xFFFF = Do not change offset."),
@@ -1917,7 +1917,7 @@ func createPGNList() []pgnInfo {
 				lookupField("Equipment Status", 2, "EQUIPMENT_STATUS"),
 				reservedField(34),
 			},
-			explanation: "Reception of this PGN confirms that a device is still present on the network.  Reception of this PGN may also be used to " +
+			Explanation: "Reception of this PGN confirms that a device is still present on the network.  Reception of this PGN may also be used to " +
 				"maintain an address to NAME association table within the receiving device.  The transmission interval may be used by the " +
 				"receiving unit to determine the time-out value for the connection supervision.  The value contained in Field 1 of this " +
 				"PGN " +
@@ -1931,15 +1931,15 @@ func createPGNList() []pgnInfo {
 				"of this PGN provide information which can be used to distinguish short duration disturbances from permanent failures. See " +
 				"ISO 11898 -1 Sections 6.12, 6.13, 6.14, 13.1.1, 13.1.4, 13.1.4.3 and Figure 16 ( node status transition diagram) for " +
 				"additional context.",
-			url: "http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20pgn%20corrigendum.pdf",
+			URL: "http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20PGN%20corrigendum.pdf",
 		},
 
 		{
-			description: "Product Information",
-			pgn:         126996,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Product Information",
+			PGN:         126996,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				versionField("NMEA 2000 Version"),
 				uint16Field("Product Code"),
 				stringFixField("Model ID", 8*32),
@@ -1949,39 +1949,39 @@ func createPGNList() []pgnInfo {
 				uint8Field("Certification Level"),
 				uint8Field("Load Equivalency"),
 			},
-			interval: math.MaxUint16,
-			explanation: "Provides product information onto the network that could be important for determining quality of data coming " +
+			Interval: math.MaxUint16,
+			Explanation: "Provides product information onto the network that could be important for determining quality of data coming " +
 				"from this product.",
 		},
 
 		{
-			description: "Configuration Information",
-			pgn:         126998,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Configuration Information",
+			PGN:         126998,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				stringlauField("Installation Description #1"),
 				stringlauField("Installation Description #2"),
 				stringlauField("Manufacturer Information"),
 			},
-			interval: math.MaxUint16,
-			explanation: "Free-form alphanumeric fields describing the installation (e.g., starboard engine room location) of the " +
+			Interval: math.MaxUint16,
+			Explanation: "Free-form alphanumeric fields describing the installation (e.g., starboard engine room location) of the " +
 				"device and installation notes (e.g., calibration data).",
 		},
 
 		/************ PERIODIC DATA PGNs **************/
-		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_pgn_field_list.pdf */
+		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_PGN_field_list.pdf */
 		/* http://www.maretron.com/support/manuals/USB100UM_1.2.pdf */
 		/* http://www8.garmin.com/manuals/GPSMAP4008_NMEA2000NetworkFundamentals.pdf */
 
-		/* http://www.nmea.org/Assets/20130906%20nmea%202000%20%20man%20overboard%20notification%20%28mob%29%20pgn%20127233%20amendment.pdf
+		/* http://www.nmea.org/Assets/20130906%20nmea%202000%20%20man%20overboard%20notification%20%28mob%29%20PGN%20127233%20amendment.pdf
 		 */
 		{
-			description: "Man Overboard Notification",
-			pgn:         127233,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Man Overboard Notification",
+			PGN:         127233,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint32DescField("MOB Emitter ID", "Identifier for each MOB emitter, unique to the vessel"),
 				lookupField("Man Overboard Status", 3, "MOB_STATUS"),
@@ -2001,7 +2001,7 @@ func createPGNList() []pgnInfo {
 				lookupField("MOB Emitter Battery Low Status", 3, "LOW_BATTERY"),
 				reservedField(5),
 			},
-			explanation: "The MOB PGN is intended to provide notification from a MOB monitoring system. The included position information may be " +
+			Explanation: "The MOB PGN is intended to provide notification from a MOB monitoring system. The included position information may be " +
 				"that of the vessel or the MOB device itself as identified in field “X”, position source. Additional information may " +
 				"include the current state of the MOB device, time of activation, and MOB device battery status.\n" +
 				"This PGN may be used to set a MOB waypoint, or to initiate an alert process.\n" +
@@ -2029,11 +2029,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Heading/Track control",
-			pgn:         127237,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Heading/Track control",
+			PGN:         127237,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Rudder Limit Exceeded", 2, "YES_NO"),
 				lookupField("Off-Heading Limit Exceeded", 2, "YES_NO"),
 				lookupField("Off-Track Limit Exceeded", 2, "YES_NO"),
@@ -2053,16 +2053,16 @@ func createPGNList() []pgnInfo {
 				distanceFix16MField("Off-Track Limit", ""),
 				angleU16Field("Vessel Heading", ""),
 			},
-			interval: 250,
+			Interval: 250,
 		},
 
 		/* http://www.maretron.com/support/manuals/RAA100UM_1.0.pdf */
 		{
-			description: "Rudder",
-			pgn:         127245,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Rudder",
+			PGN:         127245,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				lookupField("Direction Order", 3, "DIRECTION_RUDDER"),
 				reservedField(5),
@@ -2070,18 +2070,18 @@ func createPGNList() []pgnInfo {
 				angleI16Field("Position", ""),
 				reservedField(8 * 2),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		/* NMEA + Simrad AT10 */
 		/* http://www.maretron.com/support/manuals/SSC200UM_1.7.pdf */
 		/* molly_rose_E80start.kees */
 		{
-			description: "Vessel Heading",
-			pgn:         127250,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Vessel Heading",
+			PGN:         127250,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				angleU16Field("Heading", ""),
 				angleI16Field("Deviation", ""),
@@ -2089,51 +2089,51 @@ func createPGNList() []pgnInfo {
 				lookupField("Reference", 2, "DIRECTION_REFERENCE"),
 				reservedField(6),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		/* http://www.maretron.com/support/manuals/SSC200UM_1.7.pdf */
 		/* Lengths observed from Simrad RC42 */
 		{
-			description: "Rate of Turn",
-			pgn:         127251,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{uint8Field("SID"), rotationFix32Field("Rate"), reservedField(8 * 3)},
-			interval:    100,
+			Description: "Rate of Turn",
+			PGN:         127251,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{uint8Field("SID"), rotationFix32Field("Rate"), reservedField(8 * 3)},
+			Interval:    100,
 		},
 
 		{
-			description: "Heave",
-			pgn:         127252,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{uint8Field("SID"), distanceFix16CmField("Heave", ""), reservedField(8 * 5)},
+			Description: "Heave",
+			PGN:         127252,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{uint8Field("SID"), distanceFix16CmField("Heave", ""), reservedField(8 * 5)},
 		},
 
 		{
-			description: "Attitude",
-			pgn:         127257,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Attitude",
+			PGN:         127257,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				angleI16Field("Yaw", ""),
 				angleI16Field("Pitch", ""),
 				angleI16Field("Roll", ""),
 				reservedField(8 * 1),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		/* NMEA + Simrad AT10 */
 		/* http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf */
 		{
-			description: "Magnetic Variation",
-			pgn:         127258,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Magnetic Variation",
+			PGN:         127258,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Source", 4, "MAGNETIC_VARIATION"),
 				reservedField(4),
@@ -2141,7 +2141,7 @@ func createPGNList() []pgnInfo {
 				angleI16Field("Variation", ""),
 				reservedField(8 * 2),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		/* Engine group PGNs all derived PGN Numbers from              */
@@ -2149,29 +2149,29 @@ func createPGNList() []pgnInfo {
 		/* http://www.floscan.com/html/blue/NMEA2000.php               */
 		/* http://www.osukl.com/wp-content/uploads/2015/04/3155-UM.pdf */
 		{
-			description: "Engine Parameters, Rapid Update",
-			pgn:         127488,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Engine Parameters, Rapid Update",
+			PGN:         127488,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				lookupField("Instance", 8*1, "ENGINE_INSTANCE"),
 				rotationUfix16RPMField("Speed"),
 				pressureUfix16HPAField("Boost Pressure"),
 				simpleSignedField("Tilt/Trim", 8*1),
 				reservedField(8 * 2),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		// http://www.osukl.com/wp-content/uploads/2015/04/3155-UM.pdf
 		// samples/susteranna-actisense-serial.raw:
 		//   2016-04-09T16:41:39.628Z,2,127489,16,255,26,00,2f,06,ff,ff,e3,73,65,05,ff,7f,72,10,00,00,ff,ff,ff,ff,ff,06,00,00,00,7f,7f
 		{
-			description: "Engine Parameters, Dynamic",
-			pgn:         127489,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Engine Parameters, Dynamic",
+			PGN:         127489,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Instance", 8*1, "ENGINE_INSTANCE"),
 				pressureUfix16HPAField("Oil pressure"),
 				temperatureHighField("Oil temperature"),
@@ -2187,15 +2187,15 @@ func createPGNList() []pgnInfo {
 				percentageI8Field("Engine Load"),
 				percentageI8Field("Engine Torque"),
 			},
-			interval: 500,
+			Interval: 500,
 		},
 
 		{
-			description: "Electric Drive Status, Dynamic",
-			pgn:         127490,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Electric Drive Status, Dynamic",
+			PGN:         127490,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Inverter/Motor Identifier"),
 				simpleField("Operating Mode", 4),
 				reservedField(4),
@@ -2205,16 +2205,16 @@ func createPGNList() []pgnInfo {
 				temperatureField("Gear Temperature"),
 				uint16Field("Shaft Torque"),
 			},
-			explanation: "This PGN is used to report status of Electric Drive Status control and can be used with Command Group " +
+			Explanation: "This PGN is used to report status of Electric Drive Status control and can be used with Command Group " +
 				"Function (PGN Electric propulsion motor status) to command equipment. ",
 		},
 
 		{
-			description: "Electric Energy Storage Status, Dynamic",
-			pgn:         127491,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Electric Energy Storage Status, Dynamic",
+			PGN:         127491,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Energy Storage Identifier"),
 				uint8Field("State of Charge"),
 				timeUfix16MinField("Time Remaining", "Time remaining at current rate of discharge"),
@@ -2226,15 +2226,15 @@ func createPGNList() []pgnInfo {
 				simpleField("Cooling System Status", 4),
 				simpleField("Heating System Status", 4),
 			},
-			explanation: "This PGN is used to provide electric propulsion motor status and relevant data.",
+			Explanation: "This PGN is used to provide electric propulsion motor status and relevant data.",
 		},
 
 		{
-			description: "Transmission Parameters, Dynamic",
-			pgn:         127493,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Transmission Parameters, Dynamic",
+			PGN:         127493,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				lookupField("Instance", 8, "ENGINE_INSTANCE"),
 				lookupField("Transmission Gear", 2, "GEAR_STATUS"),
 				reservedField(6),
@@ -2243,15 +2243,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Discrete Status 1"),
 				reservedField(8 * 1),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		{
-			description: "Electric Drive Information",
-			pgn:         127494,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Electric Drive Information",
+			PGN:         127494,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Inverter/Motor Identifier"),
 				simpleField("Motor Type", 4),
 				reservedField(4),
@@ -2266,15 +2266,15 @@ func createPGNList() []pgnInfo {
 				voltageU16100mvField("Motor DC-Voltage Cut Off Threshold"),
 				timeUfix32SField("Drive/Motor Hours", ""),
 			},
-			explanation: "This PGN is used to provide information about electric motor specifications and ratings.",
+			Explanation: "This PGN is used to provide information about electric motor specifications and ratings.",
 		},
 
 		{
-			description: "Electric Energy Storage Information",
-			pgn:         127495,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Electric Energy Storage Information",
+			PGN:         127495,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Energy Storage Identifier"),
 				simpleField("Motor Type", 4),
 				reservedField(4),
@@ -2292,59 +2292,59 @@ func createPGNList() []pgnInfo {
 				uint8Field("Maximum Charge (SOC)"),
 				uint8Field("Minimum Charge (SOC)"),
 			},
-			explanation: "This PGN is used to provide the status on power storage sources such as batteries." +
+			Explanation: "This PGN is used to provide the status on power storage sources such as batteries." +
 				"This PGN is new in v3.0 and has not been observed yet; field lengths and precisions are guesses.",
 		},
 
 		{
-			description: "Trip Parameters, Vessel",
-			pgn:         127496,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Trip Parameters, Vessel",
+			PGN:         127496,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				timeUfix32MsField("Time to Empty", ""),
 				lengthUfix32CmField("Distance to Empty", ""),
 				volumeUfix16LField("Estimated Fuel Remaining"),
 				timeUfix32MsField("Trip Run Time", ""),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Trip Parameters, Engine",
-			pgn:         127497,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Trip Parameters, Engine",
+			PGN:         127497,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Instance", 8*1, "ENGINE_INSTANCE"),
 				volumeUfix16LField("Trip Fuel Used"),
 				volumetricFlowField("Fuel Rate, Average"),
 				volumetricFlowField("Fuel Rate, Economy"),
 				volumetricFlowField("Instantaneous Fuel Economy"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Engine Parameters, Static",
-			pgn:         127498,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Engine Parameters, Static",
+			PGN:         127498,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Instance", 8*1, "ENGINE_INSTANCE"),
 				rotationUfix16RPMField("Rated Engine Speed"),
 				stringFixField("VIN", 8*17),
 				stringFixField("Software ID", 8*32),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Load Controller Connection State/Control",
-			pgn:         127500,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Load Controller Connection State/Control",
+			PGN:         127500,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Sequence ID"),
 				uint8Field("Connection ID"),
 				uint8Field("State"),
@@ -2354,15 +2354,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("TimeON"),
 				uint8Field("TimeOFF"),
 			},
-			url: "https://github.com/canboat/canboat/issues/366",
+			URL: "https://github.com/canboat/canboat/issues/366",
 		},
 
 		{
-			description: "Binary Switch Bank Status",
-			pgn:         127501,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Binary Switch Bank Status",
+			PGN:         127501,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				lookupField("Indicator1", 2, "OFF_ON"),
 				lookupField("Indicator2", 2, "OFF_ON"),
@@ -2396,11 +2396,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Switch Bank Control",
-			pgn:         127502,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Switch Bank Control",
+			PGN:         127502,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				lookupField("Switch1", 2, "OFF_ON"),
 				lookupField("Switch2", 2, "OFF_ON"),
@@ -2435,11 +2435,11 @@ func createPGNList() []pgnInfo {
 
 		/* http://www.nmea.org/Assets/nmea-2000-corrigendum-1-2010-1.pdf */
 		{
-			description: "AC Input Status",
-			pgn:         127503,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AC Input Status",
+			PGN:         127503,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("Number of Lines"),
 				simpleField("Line", 2),
@@ -2453,19 +2453,19 @@ func createPGNList() []pgnInfo {
 				powerU32VarField("Reactive Power"),
 				powerFactorU8Field(),
 			},
-			interval:        1500,
-			repeatingField1: 2,
-			repeatingCount1: 10,
-			repeatingStart1: 3,
+			Interval:        1500,
+			RepeatingField1: 2,
+			RepeatingCount1: 10,
+			RepeatingStart1: 3,
 		},
 
 		/* http://www.nmea.org/Assets/nmea-2000-corrigendum-1-2010-1.pdf */
 		{
-			description: "AC Output Status",
-			pgn:         127504,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AC Output Status",
+			PGN:         127504,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("Number of Lines"),
 				lookupField("Line", 2, "LINE"),
@@ -2479,35 +2479,35 @@ func createPGNList() []pgnInfo {
 				powerU32VarField("Reactive Power"),
 				powerFactorU8Field(),
 			},
-			interval:        1500,
-			repeatingField1: 2,
-			repeatingCount1: 10,
-			repeatingStart1: 3,
+			Interval:        1500,
+			RepeatingField1: 2,
+			RepeatingCount1: 10,
+			RepeatingStart1: 3,
 		},
 
 		/* http://www.maretron.com/support/manuals/TLA100UM_1.2.pdf */
 		/* Observed from EP65R */
 		{
-			description: "Fluid Level",
-			pgn:         127505,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Fluid Level",
+			PGN:         127505,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				simpleField("Instance", 4),
 				lookupField("Type", 4, "TANK_TYPE"),
 				percentageI16Field("Level"),
 				volumeUfix32DlField("Capacity"),
 				reservedField(8 * 1),
 			},
-			interval: 2500,
+			Interval: 2500,
 		},
 
 		{
-			description: "DC Detailed Status",
-			pgn:         127506,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "DC Detailed Status",
+			PGN:         127506,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("DC Type", 8*1, "DC_SOURCE"),
@@ -2517,16 +2517,16 @@ func createPGNList() []pgnInfo {
 				voltageU1610mvField("Ripple Voltage"),
 				electricChargeUfix16Ah("Remaining capacity"),
 			},
-			interval: 1500,
+			Interval: 1500,
 		},
 
 		// http://www.osukl.com/wp-content/uploads/2015/04/3155-UM.pdf
 		{
-			description: "Charger Status",
-			pgn:         127507,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Charger Status",
+			PGN:         127507,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("Battery Instance"),
 				lookupField("Operating State", 4, "CHARGER_STATE"),
@@ -2536,30 +2536,30 @@ func createPGNList() []pgnInfo {
 				reservedField(4),
 				timeUfix16MinField("Equalization Time Remaining", ""),
 			},
-			interval: 1500,
+			Interval: 1500,
 		},
 
 		{
-			description: "Battery Status",
-			pgn:         127508,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Battery Status",
+			PGN:         127508,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				voltageU1610mvField("Voltage"),
 				currentFix16DaField("Current"),
 				temperatureField("Temperature"),
 				uint8Field("SID"),
 			},
-			interval: 1500,
+			Interval: 1500,
 		},
 
 		{
-			description: "Inverter Status",
-			pgn:         127509,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Inverter Status",
+			PGN:         127509,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("AC Instance"),
 				uint8Field("DC Instance"),
@@ -2567,20 +2567,20 @@ func createPGNList() []pgnInfo {
 				lookupField("Inverter Enable", 2, "OFF_ON"),
 				reservedField(2),
 			},
-			interval: 1500,
-			url:      "https://web.archive.org/web/20140913025729/https://www.nmea.org/Assets/20140102%20nmea-2000-127509%20pgn%20corrigendum.pdf",
-			explanation: "The NMEA wrote in the link in the URL that this PGN is obsolete and superceded by PGN 127751, but that PGN reference is " +
+			Interval: 1500,
+			URL:      "https://web.archive.org/web/20140913025729/https://www.nmea.org/Assets/20140102%20nmea-2000-127509%20PGN%20corrigendum.pdf",
+			Explanation: "The NMEA wrote in the link in the URL that this PGN is obsolete and superceded by PGN 127751, but that PGN reference is " +
 				"obviously incorrect. They probably meant PGN 127511. " +
 				"The other interesting thing is that this PGN is only four bytes long but still referenced as a Fast PGN, which matches " +
 				"various sources; see github issue #428.",
 		},
 
 		{
-			description: "Charger Configuration Status",
-			pgn:         127510,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Charger Configuration Status",
+			PGN:         127510,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("Battery Instance"),
 				lookupField("Charger Enable/Disable", 2, "OFF_ON"),
@@ -2597,15 +2597,15 @@ func createPGNList() []pgnInfo {
 				lookupField("Over Charge Enable/Disable", 2, "OFF_ON"),
 				timeUfix16MinField("Equalize Time", ""),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Inverter Configuration Status",
-			pgn:         127511,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Inverter Configuration Status",
+			PGN:         127511,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("AC Instance"),
 				uint8Field("DC Instance"),
@@ -2616,16 +2616,16 @@ func createPGNList() []pgnInfo {
 				uint8Field("Load Sense Power Threshold"),
 				uint8Field("Load Sense Interval"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AGS Configuration Status",
-			pgn:         127512,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{instanceField(), uint8Field("Generator Instance"), uint8Field("AGS Mode"), reservedField(8 * 5)},
-			interval:    math.MaxUint16,
+			Description: "AGS Configuration Status",
+			PGN:         127512,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{instanceField(), uint8Field("Generator Instance"), uint8Field("AGS Mode"), reservedField(8 * 5)},
+			Interval:    math.MaxUint16,
 		},
 
 		/* #143, @ksltd writes that it is definitely 10 bytes and that
@@ -2637,14 +2637,14 @@ func createPGNList() []pgnInfo {
 		 * The Supports Equalization is 2 bits, Battery Type, Chemistry and
 		 * Nominal voltage are all 4 bits. Capacity and Peukert are both 2 bytes.
 		 * but this only adds up to 8 bytes... Maybe the 10 was as this is transmitted
-		 * as FAST pgn?
+		 * as FAST PGN?
 		 */
 		{
-			description: "Battery Configuration Status",
-			pgn:         127513,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Battery Configuration Status",
+			PGN:         127513,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				instanceField(),
 				lookupField("Battery Type", 4, "BATTERY_TYPE"),
 				lookupField("Supports Equalization", 2, "YES_NO"),
@@ -2656,15 +2656,15 @@ func createPGNList() []pgnInfo {
 				peukertField("Peukert Exponent"),
 				percentageI8Field("Charge Efficiency Factor"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AGS Status",
-			pgn:         127514,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "AGS Status",
+			PGN:         127514,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				instanceField(),
 				uint8Field("Generator Instance"),
 				uint8Field("AGS Operating State"),
@@ -2673,15 +2673,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Generator Off Reason"),
 				reservedField(8 * 2),
 			},
-			interval: 1500,
+			Interval: 1500,
 		},
 
 		{
-			description: "AC Power / Current - Phase A",
-			pgn:         127744,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "AC Power / Current - Phase A",
+			PGN:         127744,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Connection Number"),
 				currentUfix16DaField("AC RMS Current"),
@@ -2690,11 +2690,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "AC Power / Current - Phase B",
-			pgn:         127745,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "AC Power / Current - Phase B",
+			PGN:         127745,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Connection Number"),
 				currentUfix16DaField("AC RMS Current"),
@@ -2703,11 +2703,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "AC Power / Current - Phase C",
-			pgn:         127746,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "AC Power / Current - Phase C",
+			PGN:         127746,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Connection Number"),
 				currentUfix16DaField("AC RMS Current"),
@@ -2716,11 +2716,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Converter Status",
-			pgn:         127750,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Converter Status",
+			PGN:         127750,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				binaryField("SID", 8*1, ""),
 				uint8Field("Connection Number"),
 				lookupField("Operating State", 8*1, "CONVERTER_STATE"),
@@ -2733,11 +2733,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "DC Voltage/Current",
-			pgn:         127751,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "DC Voltage/Current",
+			PGN:         127751,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				binaryField("SID", 8*1, ""),
 				uint8Field("Connection Number"),
 				voltageU16100mvField("DC Voltage"),
@@ -2747,39 +2747,39 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Leeway Angle",
-			pgn:         128000,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{uint8Field("SID"), angleI16Field("Leeway Angle", ""), reservedField(8 * 5)},
-			url:         "https://www.nmea.org/Assets/20170204%20nmea%202000%20leeway%20pgn%20final.pdf",
-			explanation: "This PGN provides the Nautical Leeway Angle. Nautical leeway angle is defined as the angle between the " +
+			Description: "Leeway Angle",
+			PGN:         128000,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{uint8Field("SID"), angleI16Field("Leeway Angle", ""), reservedField(8 * 5)},
+			URL:         "https://www.nmea.org/Assets/20170204%20nmea%202000%20leeway%20PGN%20final.pdf",
+			Explanation: "This PGN provides the Nautical Leeway Angle. Nautical leeway angle is defined as the angle between the " +
 				"direction a vessel is heading (pointing) and the direction it is actually travelling (tracking thru the " +
 				"water). It is commonly provided by dual-axis speed sensors.",
 		},
 
 		{
-			description: "Vessel Acceleration",
-			pgn:         128001,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Vessel Acceleration",
+			PGN:         128001,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleSignedField("Longitudinal Acceleration", 16),
 				simpleSignedField("Transverse Acceleration", 16),
 				simpleSignedField("Vertical Acceleration", 16),
 				reservedField(8 * 1),
 			},
-			explanation: "The Vessel Acceleration PGN transmits the acceleration of the vessel in all three axes, ahead/astern, " +
+			Explanation: "The Vessel Acceleration PGN transmits the acceleration of the vessel in all three axes, ahead/astern, " +
 				"port/starboard, and up/down.",
 		},
 
 		{
-			description: "Electric Drive Status, Rapid Update",
-			pgn:         128002,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Electric Drive Status, Rapid Update",
+			PGN:         128002,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Inverter/Motor Controller"),
 				simpleField("Active Motor Mode", 2),
 				simpleField("Brake Mode", 2),
@@ -2788,15 +2788,15 @@ func createPGNList() []pgnInfo {
 				voltageU16100mvField("Motor DC Voltage"),
 				currentFix16DaField("Motor DC Current"),
 			},
-			explanation: "This PGN is used to provide the Electric Propulsion Drive System Status.",
+			Explanation: "This PGN is used to provide the Electric Propulsion Drive System Status.",
 		},
 
 		{
-			description: "Electric Energy Storage Status, Rapid Update",
-			pgn:         128003,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Electric Energy Storage Status, Rapid Update",
+			PGN:         128003,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Energy Storage Identifier"),
 				simpleField("Battery Status", 2),
 				simpleField("Isolation Status", 2),
@@ -2805,15 +2805,15 @@ func createPGNList() []pgnInfo {
 				currentFix16DaField("Battery Current"),
 				reservedField(8 * 2),
 			},
-			explanation: "Electric Energy Storage Status message provides important energy storage information global at a rapid update rate.",
+			Explanation: "Electric Energy Storage Status message provides important energy storage information global at a rapid update rate.",
 		},
 
 		{
-			description: "Thruster Control Status",
-			pgn:         128006,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Thruster Control Status",
+			PGN:         128006,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Identifier"),
 				lookupField("Direction Control", 4, "THRUSTER_DIRECTION_CONTROL"),
@@ -2827,11 +2827,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Thruster Information",
-			pgn:         128007,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Thruster Information",
+			PGN:         128007,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Identifier"),
 				lookupField("Motor Type", 4, "THRUSTER_MOTOR_TYPE"),
 				reservedField(4),
@@ -2842,11 +2842,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Thruster Motor Status",
-			pgn:         128008,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Thruster Motor Status",
+			PGN:         128008,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Identifier"),
 				bitlookupField("Motor Events", 8*1, "THRUSTER_MOTOR_EVENTS"),
@@ -2858,11 +2858,11 @@ func createPGNList() []pgnInfo {
 
 		/* http://www.maretron.com/support/manuals/DST100UM_1.2.pdf */
 		{
-			description: "Speed",
-			pgn:         128259,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Speed",
+			PGN:         128259,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				speedU16CmField("Speed Water Referenced"),
 				speedU16CmField("Speed Ground Referenced"),
@@ -2870,45 +2870,45 @@ func createPGNList() []pgnInfo {
 				simpleField("Speed Direction", 4),
 				reservedField(12),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		/* http://www.maretron.com/support/manuals/DST100UM_1.2.pdf */
 		{
-			description: "Water Depth",
-			pgn:         128267,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Water Depth",
+			PGN:         128267,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lengthUfix32CmField("Depth", "Depth below transducer"),
 				distanceFix16MmField("Offset", "Distance between transducer and surface (positive) or keel (negative)"),
 				lengthUfix8DamField("Range", "Max measurement range"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		/* http://www.nmea.org/Assets/nmea-2000-digital-interface-white-paper.pdf */
 		{
-			description: "Distance Log",
-			pgn:         128275,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Distance Log",
+			PGN:         128275,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				dateField("Date"),
 				timeField("Time"),
 				lengthUfix32MField("Log", "Total cumulative distance"),
 				lengthUfix32MField("Trip Log", "Distance since last reset"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Tracked Target Data",
-			pgn:         128520,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Tracked Target Data",
+			PGN:         128520,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleDescField("Target ID #", 8*1, "Number of route, waypoint, event, mark, etc."),
 				lookupField("Track Status", 2, "TRACKING"),
@@ -2925,15 +2925,15 @@ func createPGNList() []pgnInfo {
 				timeField("UTC of Fix"),
 				stringFixField("Name", 8*common.FastPacketMaxSize),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Elevator Car Status",
-			pgn:         128538,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Elevator Car Status",
+			PGN:         128538,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Elevator Car ID"),
 				uint8Field("Elevator Car Usage"),
@@ -2967,18 +2967,18 @@ func createPGNList() []pgnInfo {
 				simpleField("Elevator Motor rotation control Status", 2),
 				reservedField(4),
 			},
-			explanation: "This PGN provides the status information of an elevator car. This includes the elevator car id and type, " +
+			Explanation: "This PGN provides the status information of an elevator car. This includes the elevator car id and type, " +
 				"sensors for load and weight limits, smoke detection, door status, motor status, and brake status. Also " +
 				"provided are weight and speed measurements, current and destination deck location, proximity switch status, " +
 				"inertial measurement unit status and Emergency button and buzzer status.",
 		},
 
 		{
-			description: "Elevator Motor Control",
-			pgn:         128768,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Elevator Motor Control",
+			PGN:         128768,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Elevator Car ID"),
 				uint8Field("Elevator Car Usage"),
@@ -2986,16 +2986,16 @@ func createPGNList() []pgnInfo {
 				simpleField("Motor Rotational Control Status", 2),
 				reservedField(2 + 8*4),
 			},
-			explanation: "This PGN provides the status of an elevator motor controller. Settings of the elevator motor controller may " +
+			Explanation: "This PGN provides the status of an elevator motor controller. Settings of the elevator motor controller may " +
 				"be changed using the NMEA Command Group Function.",
 		},
 
 		{
-			description: "Elevator Deck Push Button",
-			pgn:         128769,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Elevator Deck Push Button",
+			PGN:         128769,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Elevator Call Button ID"),
 				uint8Field("Deck Button ID"),
@@ -3003,15 +3003,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Elevator Car Button Selection"),
 				reservedField(8 * 3),
 			},
-			explanation: "Transmit data of Deck controller to Elevator Main controller.",
+			Explanation: "Transmit data of Deck controller to Elevator Main controller.",
 		},
 
 		{
-			description: "Windlass Control Status",
-			pgn:         128776,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Windlass Control Status",
+			PGN:         128776,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Windlass ID"),
 				lookupField("Windlass Direction Control", 2, "WINDLASS_DIRECTION"),
@@ -3027,15 +3027,15 @@ func createPGNList() []pgnInfo {
 				bitlookupField("Windlass Control Events", 4, "WINDLASS_CONTROL"),
 				reservedField(12),
 			},
-			url: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
+			URL: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
 		},
 
 		{
-			description: "Anchor Windlass Operating Status",
-			pgn:         128777,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Anchor Windlass Operating Status",
+			PGN:         128777,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Windlass ID"),
 				lookupField("Windlass Direction Control", 2, "WINDLASS_DIRECTION"),
@@ -3047,15 +3047,15 @@ func createPGNList() []pgnInfo {
 				lookupField("Anchor Docking Status", 2, "DOCKING_STATUS"),
 				bitlookupField("Windlass Operating Events", 6, "WINDLASS_OPERATION"),
 			},
-			url: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
+			URL: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
 		},
 
 		{
-			description: "Anchor Windlass Monitoring Status",
-			pgn:         128778,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Anchor Windlass Monitoring Status",
+			PGN:         128778,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Windlass ID"),
 				bitlookupField("Windlass Monitoring Events", 8, "WINDLASS_MONITORING"),
@@ -3064,15 +3064,15 @@ func createPGNList() []pgnInfo {
 				timeUfix16MinField("Total Motor Time", ""),
 				reservedField(8 * 1),
 			},
-			url: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
+			URL: "https://www.nmea.org/Assets/20190613%20windlass%20amendment,%20128776,%20128777,%20128778.pdf",
 		},
 
 		{
-			description: "Linear Actuator Control/Status",
-			pgn:         128780,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Linear Actuator Control/Status",
+			PGN:         128780,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Actuator Identifier"),
 				uint8Field("Commanded Device Position"),
 				uint8Field("Device Position"),
@@ -3080,7 +3080,7 @@ func createPGNList() []pgnInfo {
 				uint8Field("Direction of Travel"),
 				reservedField(8 * 2),
 			},
-			explanation: "Actuator is a broad description of any device that embodies moving an object between two fixed limits, such as raising or " +
+			Explanation: "Actuator is a broad description of any device that embodies moving an object between two fixed limits, such as raising or " +
 				"lowering an outboard engine assembly. In the context of this PGN, the word \"Device\" refers to the object being moved. " +
 				"In " +
 				"the case of multiple Actuators per controller, the Actuator Identifier field specifies which Actuator the PGN message is " +
@@ -3090,20 +3090,20 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Position, Rapid Update",
-			pgn:         129025,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{latitudeI32Field("Latitude"), longitudeI32Field("Longitude")},
-			interval:    100,
+			Description: "Position, Rapid Update",
+			PGN:         129025,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{latitudeI32Field("Latitude"), longitudeI32Field("Longitude")},
+			Interval:    100,
 		},
 
 		{
-			description: "COG & SOG, Rapid Update",
-			pgn:         129026,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "COG & SOG, Rapid Update",
+			PGN:         129026,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("COG Reference", 2, "DIRECTION_REFERENCE"),
 				reservedField(6),
@@ -3111,31 +3111,31 @@ func createPGNList() []pgnInfo {
 				speedU16CmField("SOG"),
 				reservedField(8 * 2),
 			},
-			interval: 250,
-			url:      "http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf",
+			Interval: 250,
+			URL:      "http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf",
 		},
 
 		{
-			description: "Position Delta, Rapid Update",
-			pgn:         129027,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Position Delta, Rapid Update",
+			PGN:         129027,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleField("Time Delta", 8*2),
 				simpleSignedField("Latitude Delta", 8*2),
 				simpleSignedField("Longitude Delta", 8*2),
 				reservedField(8 * 1),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		{
-			description: "Altitude Delta, Rapid Update",
-			pgn:         129028,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Altitude Delta, Rapid Update",
+			PGN:         129028,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleSignedField("Time Delta", 8*2),
 				simpleField("GNSS Quality", 2),
@@ -3144,16 +3144,16 @@ func createPGNList() []pgnInfo {
 				angleU16Field("COG", ""),
 				simpleSignedField("Altitude Delta", 8*2),
 			},
-			interval: 100,
+			Interval: 100,
 		},
 
 		/* http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf */
 		{
-			description: "GNSS Position Data",
-			pgn:         129029,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Position Data",
+			PGN:         129029,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				dateField("Date"),
 				timeField("Time"),
@@ -3173,27 +3173,27 @@ func createPGNList() []pgnInfo {
 				simpleField("Reference Station ID", 12),
 				timeUfix16CsField("Age of DGNSS Corrections", ""),
 			},
-			interval:        1000,
-			repeatingField1: 15,
-			repeatingCount1: 3,
-			repeatingStart1: 16,
+			Interval:        1000,
+			RepeatingField1: 15,
+			RepeatingCount1: 3,
+			RepeatingStart1: 16,
 		},
 
 		{
-			description: "Time & Date",
-			pgn:         129033,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{dateField("Date"), timeField("Time"), timeFix16MinField("Local Offset")},
-			interval:    1000,
+			Description: "Time & Date",
+			PGN:         129033,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{dateField("Date"), timeField("Time"), timeFix16MinField("Local Offset")},
+			Interval:    1000,
 		},
 
 		{
-			description: "AIS Class A Position Report",
-			pgn:         129038,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class A Position Report",
+			PGN:         129038,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3217,16 +3217,16 @@ func createPGNList() []pgnInfo {
 				reservedField(5),
 				uint8Field("Sequence ID"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Class B Position Report",
-			pgn:         129039,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class B Position Report",
+			PGN:         129039,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3253,16 +3253,16 @@ func createPGNList() []pgnInfo {
 				lookupField("AIS communication state", 1, "AIS_COMMUNICATION_STATE"),
 				reservedField(15),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Class B Extended Position Report",
-			pgn:         129040,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class B Extended Position Report",
+			PGN:         129040,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3291,16 +3291,16 @@ func createPGNList() []pgnInfo {
 				lookupField("AIS Transceiver information", 5, "AIS_TRANSCEIVER"),
 				reservedField(5),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Aids to Navigation (AtoN) Report",
-			pgn:         129041,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Aids to Navigation (AtoN) Report",
+			PGN:         129041,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3325,16 +3325,16 @@ func createPGNList() []pgnInfo {
 				reservedField(3),
 				stringlauField("AtoN Name"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Datum",
-			pgn:         129044,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Datum",
+			PGN:         129044,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				stringFixDescField("Local Datum",
 					8*4,
 					"defined in IHO Publication S-60, Appendices B and C. First three chars are datum ID as per IHO tables."+
@@ -3348,15 +3348,15 @@ func createPGNList() []pgnInfo {
 						" First three chars are datum ID as per IHO tables."+
 						" Fourth char is local datum subdivision code."),
 			},
-			interval: 10000,
+			Interval: 10000,
 		},
 
 		{
-			description: "User Datum",
-			pgn:         129045,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "User Datum",
+			PGN:         129045,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				distanceFix32CmField("Delta X", "Delta shift in X axis from WGS 84"),
 				distanceFix32CmField("Delta Y", "Delta shift in Y axis from WGS 84"),
 				distanceFix32CmField("Delta Z", "Delta shift in Z axis from WGS 84"),
@@ -3384,15 +3384,15 @@ func createPGNList() []pgnInfo {
 						" First three chars are datum ID as per IHO tables."+
 						" Fourth char is local datum subdivision code."),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Cross Track Error",
-			pgn:         129283,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Cross Track Error",
+			PGN:         129283,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("XTE mode", 4, "RESIDUAL_MODE"),
 				reservedField(2),
@@ -3400,15 +3400,15 @@ func createPGNList() []pgnInfo {
 				distanceFix32CmField("XTE", ""),
 				reservedField(8 * 2),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Navigation Data",
-			pgn:         129284,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Navigation Data",
+			PGN:         129284,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lengthUfix32CmField("Distance to Waypoint", ""),
 				lookupField("Course/Bearing reference", 2, "DIRECTION_REFERENCE"),
@@ -3425,15 +3425,15 @@ func createPGNList() []pgnInfo {
 				longitudeI32Field("Destination Longitude"),
 				speedI16CmField("Waypoint Closing Velocity"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Navigation - Route/WP Information",
-			pgn:         129285,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Navigation - Route/WP Information",
+			PGN:         129285,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint16Field("Start RPS#"),
 				uint16Field("nItems"),
 				uint16Field("Database ID"),
@@ -3448,18 +3448,18 @@ func createPGNList() []pgnInfo {
 				latitudeI32Field("WP Latitude"),
 				longitudeI32Field("WP Longitude"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 4,
-			repeatingStart1: 10,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 4,
+			RepeatingStart1: 10,
 		},
 
 		{
-			description: "Set & Drift, Rapid Update",
-			pgn:         129291,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Set & Drift, Rapid Update",
+			PGN:         129291,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Set Reference", 2, "DIRECTION_REFERENCE"),
 				reservedField(6),
@@ -3467,30 +3467,30 @@ func createPGNList() []pgnInfo {
 				speedU16CmField("Drift"),
 				reservedField(8 * 2),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Navigation - Route / Time to+from Mark",
-			pgn:         129301,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Navigation - Route / Time to+from Mark",
+			PGN:         129301,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				timeFix32MsField("Time to mark", "negative = elapsed since event, positive = time to go"),
 				lookupField("Mark Type", 4, "MARK_TYPE"),
 				reservedField(4),
 				uint32Field("Mark ID"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Bearing and Distance between two Marks",
-			pgn:         129302,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Bearing and Distance between two Marks",
+			PGN:         129302,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Bearing Reference", 2, "DIRECTION_REFERENCE"),
 				lookupField("Calculation Type", 2, "BEARING_MODE"),
@@ -3502,17 +3502,17 @@ func createPGNList() []pgnInfo {
 				uint32Field("Origin Mark ID"),
 				uint32Field("Destination Mark ID"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		/* http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf */
 		/* Haven't seen this yet (no way to send PGN 059904 yet) so lengths unknown */
 		{
-			description: "GNSS Control Status",
-			pgn:         129538,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Control Status",
+			PGN:         129538,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleDescField("SV Elevation Mask", 8*2, "Will not use SV below this elevation"),
 				dilutionOfPrecisionUfix16Field("PDOP Mask", "Will not report position above this PDOP"),
 				dilutionOfPrecisionUfix16Field("PDOP Switch", "Will report 2D position above this PDOP"),
@@ -3525,16 +3525,16 @@ func createPGNList() []pgnInfo {
 				lookupField("Use Antenna Altitude for 2D Mode", 2, "YES_NO"),
 				reservedField(6),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		/* http://www.maretron.com/support/manuals/GPS100UM_1.2.pdf */
 		{
-			description: "GNSS DOPs",
-			pgn:         129539,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "GNSS DOPs",
+			PGN:         129539,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Desired Mode", 3, "GNSS_MODE"),
 				lookupField("Actual Mode", 3, "GNSS_MODE"),
@@ -3543,15 +3543,15 @@ func createPGNList() []pgnInfo {
 				dilutionOfPrecisionFix16Field("VDOP", "Vertical dilution of precision"),
 				dilutionOfPrecisionFix16Field("TDOP", "Time dilution of precision"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "GNSS Sats in View",
-			pgn:         129540,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Sats in View",
+			PGN:         129540,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Range Residual Mode", 2, "RANGE_RESIDUAL_MODE"),
 				reservedField(6),
@@ -3564,18 +3564,18 @@ func createPGNList() []pgnInfo {
 				lookupField("Status", 4, "SATELLITE_STATUS"),
 				reservedField(4),
 			},
-			interval:        1000,
-			repeatingField1: 4,
-			repeatingCount1: 7,
-			repeatingStart1: 5,
+			Interval:        1000,
+			RepeatingField1: 4,
+			RepeatingCount1: 7,
+			RepeatingStart1: 5,
 		},
 
 		{
-			description: "GPS Almanac Data",
-			pgn:         129541,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GPS Almanac Data",
+			PGN:         129541,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("PRN"),
 				uint16Field("GPS Week number"),
 				binaryField("SV Health Bits", 8*1, ""),
@@ -3611,15 +3611,15 @@ func createPGNList() []pgnInfo {
 				signedAlmanacParameterField("Clock Parameter 2", 11, math.Pow(2, -38), "s/s", "'a~f1~' in table 20-VI in ICD-GPS-200"),
 				reservedField(2),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GNSS Pseudorange Noise Statistics",
-			pgn:         129542,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Pseudorange Noise Statistics",
+			PGN:         129542,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("RMS of Position Uncertainty"),
 				uint8Field("STD of Major axis"),
@@ -3629,15 +3629,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("STD of Lon Error"),
 				uint8Field("STD of Alt Error"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "GNSS RAIM Output",
-			pgn:         129545,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS RAIM Output",
+			PGN:         129545,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleField("Integrity flag", 4),
 				reservedField(4),
@@ -3649,30 +3649,30 @@ func createPGNList() []pgnInfo {
 				uint8Field("Estimate of pseudorange bias"),
 				uint8Field("Std Deviation of bias"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GNSS RAIM Settings",
-			pgn:         129546,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "GNSS RAIM Settings",
+			PGN:         129546,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Radial Position Error Maximum Threshold"),
 				uint8Field("Probability of False Alarm"),
 				uint8Field("Probability of Missed Detection"),
 				uint8Field("Pseudorange Residual Filtering Time Constant"),
 				reservedField(8 * 4),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GNSS Pseudorange Error Statistics",
-			pgn:         129547,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Pseudorange Error Statistics",
+			PGN:         129547,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("RMS Std Dev of Range Inputs"),
 				uint8Field("Std Dev of Major error ellipse"),
@@ -3682,15 +3682,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Std Dev Lon Error"),
 				uint8Field("Std Dev Alt Error"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "DGNSS Corrections",
-			pgn:         129549,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "DGNSS Corrections",
+			PGN:         129549,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("Reference Station ID"),
 				uint16Field("Reference Station Type"),
@@ -3703,15 +3703,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("UDRE"),
 				uint8Field("IOD"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GNSS Differential Correction Receiver Interface",
-			pgn:         129550,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Differential Correction Receiver Interface",
+			PGN:         129550,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Channel"),
 				uint8Field("Frequency"),
 				uint8Field("Serial Interface Bit Rate"),
@@ -3719,15 +3719,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Differential Source"),
 				uint8Field("Differential Operation Mode"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GNSS Differential Correction Receiver Signal",
-			pgn:         129551,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GNSS Differential Correction Receiver Signal",
+			PGN:         129551,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint8Field("Channel"),
 				uint8Field("Signal Strength"),
@@ -3743,15 +3743,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Time since Last Sat Differential Sync"),
 				uint8Field("Satellite Service ID No."),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "GLONASS Almanac Data",
-			pgn:         129556,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "GLONASS Almanac Data",
+			PGN:         129556,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8DescField("PRN", "Satellite ID number"),
 				uint16DescField("NA", "Calendar day count within the four year period beginning with the previous leap year"),
 				reservedField(2),
@@ -3767,18 +3767,18 @@ func createPGNList() []pgnInfo {
 				simpleDescField("(tau)cA", 28, "System time scale correction"),
 				simpleDescField("(tau)nA", 12, "Course value of the time scale shift"),
 			},
-			explanation: "Almanac data for GLONASS products. The alamant contains satellite vehicle course orbital parameters. These " +
+			Explanation: "Almanac data for GLONASS products. The alamant contains satellite vehicle course orbital parameters. These " +
 				"parameters are described in the GLONASS ICS Section 4.5 Table 4.3. See URL.",
-			url:      "https://www.unavco.org/help/glossary/docs/ICD_GLONASS_5.1_%282008%29_en.pdf",
-			interval: math.MaxUint16,
+			URL:      "https://www.unavco.org/help/glossary/docs/ICD_GLONASS_5.1_%282008%29_en.pdf",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS DGNSS Broadcast Binary Message",
-			pgn:         129792,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS DGNSS Broadcast Binary Message",
+			PGN:         129792,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				simpleField("Repeat Indicator", 2),
 				mmsiField("Source ID"),
@@ -3792,16 +3792,16 @@ func createPGNList() []pgnInfo {
 				uint16Field("Number of Bits in Binary Data Field"),
 				binaryField("Binary Data", lenVariable, ""),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS UTC and Date Report",
-			pgn:         129793,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS UTC and Date Report",
+			PGN:         129793,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3820,17 +3820,17 @@ func createPGNList() []pgnInfo {
 				lookupField("GNSS type", 4, "POSITION_FIX_DEVICE"),
 				spareField(8 * 1),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		/* http://www.navcen.uscg.gov/enav/ais/AIS_messages.htm */
 		{
-			description: "AIS Class A Static and Voyage Related Data",
-			pgn:         129794,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class A Static and Voyage Related Data",
+			PGN:         129794,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3853,16 +3853,16 @@ func createPGNList() []pgnInfo {
 				lookupField("AIS Transceiver information", 5, "AIS_TRANSCEIVER"),
 				reservedField(3),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Addressed Binary Message",
-			pgn:         129795,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Addressed Binary Message",
+			PGN:         129795,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -3876,16 +3876,16 @@ func createPGNList() []pgnInfo {
 				uint16Field("Number of Bits in Binary Data Field"),
 				binaryField("Binary Data", lenVariable, ""),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Acknowledge",
-			pgn:         129796,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Acknowledge",
+			PGN:         129796,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -3898,16 +3898,16 @@ func createPGNList() []pgnInfo {
 				binaryField("Sequence Number for ID n", 2, "reserved"),
 				reservedField(6),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Binary Broadcast Message",
-			pgn:         129797,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Binary Broadcast Message",
+			PGN:         129797,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				uint32Field("Source ID"),
@@ -3917,16 +3917,16 @@ func createPGNList() []pgnInfo {
 				uint16Field("Number of Bits in Binary Data Field"),
 				binaryField("Binary Data", lenVariable, ""),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS SAR Aircraft Position Report",
-			pgn:         129798,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS SAR Aircraft Position Report",
+			PGN:         129798,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -3946,16 +3946,16 @@ func createPGNList() []pgnInfo {
 				lookupField("DTE", 1, "AVAILABLE"),
 				reservedField(7),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Radio Frequency/Mode/Power",
-			pgn:         129799,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Radio Frequency/Mode/Power",
+			PGN:         129799,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				radioFrequencyField("Rx Frequency", 10),
 				radioFrequencyField("Tx Frequency", 10),
 				uint8Field("Radio Channel"),
@@ -3963,15 +3963,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Mode"),
 				uint8Field("Channel Bandwidth"),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS UTC/Date Inquiry",
-			pgn:         129800,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS UTC/Date Inquiry",
+			PGN:         129800,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -3979,16 +3979,16 @@ func createPGNList() []pgnInfo {
 				reservedField(3),
 				mmsiField("Destination ID"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Addressed Safety Related Message",
-			pgn:         129801,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Addressed Safety Related Message",
+			PGN:         129801,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4000,16 +4000,16 @@ func createPGNList() []pgnInfo {
 				reservedField(7),
 				stringFixField("Safety Related Text", 8*117),
 			},
-			interval: math.MaxUint16,
-			url:      "https://navcen.uscg.gov/ais-addressed-safety-related-message12",
+			Interval: math.MaxUint16,
+			URL:      "https://navcen.uscg.gov/ais-addressed-safety-related-message12",
 		},
 
 		{
-			description: "AIS Safety Related Broadcast Message",
-			pgn:         129802,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Safety Related Broadcast Message",
+			PGN:         129802,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4017,16 +4017,16 @@ func createPGNList() []pgnInfo {
 				reservedField(3),
 				stringFixField("Safety Related Text", 8*162),
 			},
-			interval: math.MaxUint16,
-			url:      "https://www.navcen.uscg.gov/ais-safety-related-broadcast-message14",
+			Interval: math.MaxUint16,
+			URL:      "https://www.navcen.uscg.gov/ais-safety-related-broadcast-message14",
 		},
 
 		{
-			description: "AIS Interrogation",
-			pgn:         129803,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Interrogation",
+			PGN:         129803,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4047,16 +4047,16 @@ func createPGNList() []pgnInfo {
 				reservedField(4),
 				uint8Field("SID"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Assignment Mode Command",
-			pgn:         129804,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Assignment Mode Command",
+			PGN:         129804,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4069,16 +4069,16 @@ func createPGNList() []pgnInfo {
 				uint16Field("Offset B"),
 				uint16Field("Increment B"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Data Link Management Message",
-			pgn:         129805,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Data Link Management Message",
+			PGN:         129805,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4089,19 +4089,19 @@ func createPGNList() []pgnInfo {
 				uint8Field("Timeout"),
 				uint16Field("Increment"),
 			},
-			url:             "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval:        math.MaxUint16,
-			repeatingField1: 255,
-			repeatingCount1: 4,
-			repeatingStart1: 6,
+			URL:             "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval:        math.MaxUint16,
+			RepeatingField1: 255,
+			RepeatingCount1: 4,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "AIS Channel Management",
-			pgn:         129806,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Channel Management",
+			PGN:         129806,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4123,16 +4123,16 @@ func createPGNList() []pgnInfo {
 				reservedField(2),
 				uint8Field("Transitional Zone Size"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Class B Group Assignment",
-			pgn:         129807,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class B Group Assignment",
+			PGN:         129807,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("Source ID"),
@@ -4151,8 +4151,8 @@ func createPGNList() []pgnInfo {
 				lookupField("Reporting Interval", 4, "REPORTING_INTERVAL"),
 				simpleField("Quiet Time", 4),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		/* http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf */
@@ -4168,11 +4168,11 @@ func createPGNList() []pgnInfo {
 		 */
 
 		{
-			description: "DSC Distress Call Information",
-			pgn:         129808,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "DSC Distress Call Information",
+			PGN:         129808,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("DSC Format", 8*1, "DSC_FORMAT"),
 				matchField("DSC Category", 8*1, "112", "Distress"),
 				decimalField("DSC Message Address", 8*5, "MMSI, Geographic Area or blank"),
@@ -4196,19 +4196,19 @@ func createPGNList() []pgnInfo {
 				lookupField("DSC Expansion Field Symbol", 8*1, "DSC_EXPANSION_DATA"),
 				stringlauField("DSC Expansion Field Data"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 255,
-			repeatingCount1: 2,
-			repeatingStart1: 21,
-			url:             "http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf",
+			Interval:        math.MaxUint16,
+			RepeatingField1: 255,
+			RepeatingCount1: 2,
+			RepeatingStart1: 21,
+			URL:             "http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf",
 		},
 
 		{
-			description: "DSC Call Information",
-			pgn:         129808,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "DSC Call Information",
+			PGN:         129808,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("DSC Format Symbol", 8*1, "DSC_FORMAT"),
 				lookupField("DSC Category Symbol", 8*1, "DSC_CATEGORY"),
 				decimalField("DSC Message Address", 8*5, "MMSI, Geographic Area or blank"),
@@ -4232,19 +4232,19 @@ func createPGNList() []pgnInfo {
 				lookupField("DSC Expansion Field Symbol", 8*1, "DSC_EXPANSION_DATA"),
 				stringlauField("DSC Expansion Field Data"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 255,
-			repeatingCount1: 2,
-			repeatingStart1: 21,
-			url:             "http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf",
+			Interval:        math.MaxUint16,
+			RepeatingField1: 255,
+			RepeatingCount1: 2,
+			RepeatingStart1: 21,
+			URL:             "http://www.nmea.org/Assets/2000_20150328%20dsc%20technical%20corrigendum%20database%20version%202.100.pdf",
 		},
 
 		{
-			description: "AIS Class B static data (msg 24 Part A)",
-			pgn:         129809,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class B static data (msg 24 Part A)",
+			PGN:         129809,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -4253,16 +4253,16 @@ func createPGNList() []pgnInfo {
 				reservedField(3),
 				uint8Field("Sequence ID"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "AIS Class B static data (msg 24 Part B)",
-			pgn:         129810,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "AIS Class B static data (msg 24 Part B)",
+			PGN:         129810,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				mmsiField("User ID"),
@@ -4280,16 +4280,16 @@ func createPGNList() []pgnInfo {
 				reservedField(3),
 				uint8Field("Sequence ID"),
 			},
-			url:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
-			interval: math.MaxUint16,
+			URL:      "https://www.itu.int/rec/R-REC-M.1371-5-201402-I/en",
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Loran-C TD Data",
-			pgn:         130052,
-			complete:    packetStatusResolutionUnknown | packetStatusNotSeen | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Loran-C TD Data",
+			PGN:         130052,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusNotSeen | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleSignedField("Group Repetition Interval (GRI)", 8*4),
 				simpleSignedField("Master Range", 8*4),
 				simpleSignedField("V Secondary TD", 8*4),
@@ -4306,15 +4306,15 @@ func createPGNList() []pgnInfo {
 				lookupField("Mode", 4, "RESIDUAL_MODE"),
 				reservedField(4),
 			},
-			interval: 0,
+			Interval: 0,
 		},
 
 		{
-			description: "Loran-C Range Data",
-			pgn:         130053,
-			complete:    packetStatusResolutionUnknown | packetStatusNotSeen | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Loran-C Range Data",
+			PGN:         130053,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusNotSeen | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleSignedField("Group Repetition Interval (GRI)", 8*4),
 				simpleSignedField("Master Range", 8*4),
 				simpleSignedField("V Secondary Range", 8*4),
@@ -4331,30 +4331,30 @@ func createPGNList() []pgnInfo {
 				lookupField("Mode", 4, "RESIDUAL_MODE"),
 				reservedField(4),
 			},
-			interval: 0,
+			Interval: 0,
 		},
 
 		{
-			description: "Loran-C Signal Data",
-			pgn:         130054,
-			complete:    packetStatusResolutionUnknown | packetStatusNotSeen | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Loran-C Signal Data",
+			PGN:         130054,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusNotSeen | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleSignedField("Group Repetition Interval (GRI)", 8*4),
 				stringFixField("Station identifier", 8*1),
 				signaltonoiseratioFix16Field("Station SNR", ""),
 				simpleSignedField("Station ECD", 8*4),
 				simpleSignedField("Station ASF", 8*4),
 			},
-			interval: 0,
+			Interval: 0,
 		},
 
 		{
-			description: "Label",
-			pgn:         130060,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Label",
+			PGN:         130060,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Hardware Channel ID", 8),
 				simpleField("PGN", 24),
 				simpleField("Data Source Instance Field Number", 8),
@@ -4367,11 +4367,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Channel Source Configuration",
-			pgn:         130061,
-			complete:    packetStatusResolutionUnknown | packetStatusNotSeen | packetStatusIntervalUnknown,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Channel Source Configuration",
+			PGN:         130061,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusNotSeen | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Data Source Channel ID"),
 				simpleField("Source Selection Status", 2),
 				reservedField(2),
@@ -4384,15 +4384,15 @@ func createPGNList() []pgnInfo {
 				uint8Field("Secondary Enumeration Field Value"),
 				uint8Field("Parameter Field Number"),
 			},
-			interval: 0,
+			Interval: 0,
 		},
 
 		{
-			description: "Route and WP Service - Database List",
-			pgn:         130064,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Database List",
+			PGN:         130064,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start Database ID"),
 				uint8Field("nItems"),
 				uint8Field("Number of Databases Available"),
@@ -4406,18 +4406,18 @@ func createPGNList() []pgnInfo {
 				uint16Field("Number of WPs in Database"),
 				uint16Field("Number of Bytes in Database"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 9,
-			repeatingStart1: 4,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 9,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Route and WP Service - Route List",
-			pgn:         130065,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Route List",
+			PGN:         130065,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start Route ID"),
 				uint8Field("nItems"),
 				uint8Field("Number of Routes in Database"),
@@ -4428,18 +4428,18 @@ func createPGNList() []pgnInfo {
 				simpleField("WP Identification Method", 2),
 				simpleField("Route Status", 2),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 5,
-			repeatingStart1: 5,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 5,
+			RepeatingStart1: 5,
 		},
 
 		{
-			description: "Route and WP Service - Route/WP-List Attributes",
-			pgn:         130066,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Route/WP-List Attributes",
+			PGN:         130066,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Database ID"),
 				uint8Field("Route ID"),
 				stringlauField("Route/WP-List Name"),
@@ -4454,15 +4454,15 @@ func createPGNList() []pgnInfo {
 				uint16Field("XTE Limit for the Route"),
 				reservedField(2),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Route and WP Service - Route - WP Name & Position",
-			pgn:         130067,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Route - WP Name & Position",
+			PGN:         130067,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
 				uint8Field("nItems"),
 				uint16Field("Number of WPs in the Route/WP-List"),
@@ -4473,18 +4473,18 @@ func createPGNList() []pgnInfo {
 				latitudeI32Field("WP Latitude"),
 				longitudeI32Field("WP Longitude"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 4,
-			repeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 4,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "Route and WP Service - Route - WP Name",
-			pgn:         130068,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Route - WP Name",
+			PGN:         130068,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
 				uint8Field("nItems"),
 				uint16Field("Number of WPs in the Route/WP-List"),
@@ -4493,18 +4493,18 @@ func createPGNList() []pgnInfo {
 				uint8Field("WP ID"),
 				stringlauField("WP Name"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "Route and WP Service - XTE Limit & Navigation Method",
-			pgn:         130069,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - XTE Limit & Navigation Method",
+			PGN:         130069,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
 				uint8Field("nItems"),
 				uint16Field("Number of WPs with a specific XTE Limit or Nav. Method"),
@@ -4515,18 +4515,18 @@ func createPGNList() []pgnInfo {
 				simpleField("Nav. Method in the leg after WP", 4),
 				reservedField(4),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 6,
-			repeatingStart1: 4,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 6,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Route and WP Service - WP Comment",
-			pgn:         130070,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - WP Comment",
+			PGN:         130070,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start ID"),
 				uint8Field("nItems"),
 				uint16Field("Number of WPs with Comments"),
@@ -4535,18 +4535,18 @@ func createPGNList() []pgnInfo {
 				uint8Field("WP ID / RPS#"),
 				stringlauField("Comment"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "Route and WP Service - Route Comment",
-			pgn:         130071,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Route Comment",
+			PGN:         130071,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start Route ID"),
 				uint8Field("nItems"),
 				uint16Field("Number of Routes with Comments"),
@@ -4554,36 +4554,36 @@ func createPGNList() []pgnInfo {
 				uint8Field("Route ID"),
 				stringlauField("Comment"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 5,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 5,
 		},
 
 		{
-			description: "Route and WP Service - Database Comment",
-			pgn:         130072,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Database Comment",
+			PGN:         130072,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start Database ID"),
 				uint8Field("nItems"),
 				uint16Field("Number of Databases with Comments"),
 				uint8Field("Database ID"),
 				stringlauField("Comment"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 4,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Route and WP Service - Radius of Turn",
-			pgn:         130073,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - Radius of Turn",
+			PGN:         130073,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
 				uint8Field("nItems"),
 				uint16Field("Number of WPs with a specific Radius of Turn"),
@@ -4592,18 +4592,18 @@ func createPGNList() []pgnInfo {
 				uint8Field("RPS#"),
 				uint16Field("Radius of Turn"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "Route and WP Service - WP List - WP Name & Position",
-			pgn:         130074,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Route and WP Service - WP List - WP Name & Position",
+			PGN:         130074,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("Start WP ID"),
 				uint8Field("nItems"),
 				uint16Field("Number of valid WPs in the WP-List"),
@@ -4614,52 +4614,52 @@ func createPGNList() []pgnInfo {
 				latitudeI32Field("WP Latitude"),
 				longitudeI32Field("WP Longitude"),
 			},
-			interval:        math.MaxUint16,
-			repeatingField1: 2,
-			repeatingCount1: 4,
-			repeatingStart1: 6,
+			Interval:        math.MaxUint16,
+			RepeatingField1: 2,
+			RepeatingCount1: 4,
+			RepeatingStart1: 6,
 		},
 
 		{
-			description: "Wind Data",
-			pgn:         130306,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Wind Data",
+			PGN:         130306,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				speedU16CmField("Wind Speed"),
 				angleU16Field("Wind Angle", ""),
 				lookupField("Reference", 3, "WIND_REFERENCE"),
 				reservedField(5 + 8*2),
 			},
-			interval: 100,
-			url:      "http://askjackrabbit.typepad.com/ask_jack_rabbit/page/7/",
+			Interval: 100,
+			URL:      "http://askjackrabbit.typepad.com/ask_jack_rabbit/page/7/",
 		},
 
 		/* Water temperature, Transducer Measurement */
 		{
-			description: "Environmental Parameters (obsolete)",
-			pgn:         130310,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Environmental Parameters (obsolete)",
+			PGN:         130310,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				temperatureField("Water Temperature"),
 				temperatureField("Outside Ambient Air Temperature"),
 				pressureUfix16HPAField("Atmospheric Pressure"),
 				reservedField(8 * 1),
 			},
-			explanation: "This PGN was succeeded by PGN 130310, but it should no longer be generated and separate PGNs in " +
+			Explanation: "This PGN was succeeded by PGN 130310, but it should no longer be generated and separate PGNs in " +
 				"range 130312..130315 should be used",
-			interval: 500,
+			Interval: 500,
 		},
 
 		{
-			description: "Environmental Parameters",
-			pgn:         130311,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Environmental Parameters",
+			PGN:         130311,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				lookupField("Temperature Source", 6, "TEMPERATURE_SOURCE"),
 				lookupField("Humidity Source", 2, "HUMIDITY_SOURCE"),
@@ -4667,17 +4667,17 @@ func createPGNList() []pgnInfo {
 				percentageI16Field("Humidity"),
 				pressureUfix16HPAField("Atmospheric Pressure"),
 			},
-			explanation: "This PGN was introduced as a better version of PGN 130310, but it should no longer be generated and separate " +
+			Explanation: "This PGN was introduced as a better version of PGN 130310, but it should no longer be generated and separate " +
 				"PGNs in range 130312..130315 should be used",
-			interval: 500,
+			Interval: 500,
 		},
 
 		{
-			description: "Temperature",
-			pgn:         130312,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Temperature",
+			PGN:         130312,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "TEMPERATURE_SOURCE"),
@@ -4685,15 +4685,15 @@ func createPGNList() []pgnInfo {
 				temperatureField("Set Temperature"),
 				reservedField(8 * 1),
 			},
-			interval: 2000,
+			Interval: 2000,
 		},
 
 		{
-			description: "Humidity",
-			pgn:         130313,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Humidity",
+			PGN:         130313,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "HUMIDITY_SOURCE"),
@@ -4701,45 +4701,45 @@ func createPGNList() []pgnInfo {
 				percentageI16Field("Set Humidity"),
 				reservedField(8 * 1),
 			},
-			interval: 2000,
+			Interval: 2000,
 		},
 
 		{
-			description: "Actual Pressure",
-			pgn:         130314,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Actual Pressure",
+			PGN:         130314,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "PRESSURE_SOURCE"),
 				pressureFix32DpaField("Pressure"),
 				reservedField(8 * 1),
 			},
-			interval: 2000,
+			Interval: 2000,
 		},
 
 		{
-			description: "Set Pressure",
-			pgn:         130315,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Set Pressure",
+			PGN:         130315,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "PRESSURE_SOURCE"),
 				pressureUfix32DpaField("Pressure"),
 				reservedField(8 * 1),
 			},
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Temperature Extended Range",
-			pgn:         130316,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Temperature Extended Range",
+			PGN:         130316,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "TEMPERATURE_SOURCE"),
@@ -4749,11 +4749,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Tide Station Data",
-			pgn:         130320,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Tide Station Data",
+			PGN:         130320,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Mode", 4, "RESIDUAL_MODE"),
 				lookupField("Tide Tendency", 2, "TIDE"),
 				reservedField(2),
@@ -4766,15 +4766,15 @@ func createPGNList() []pgnInfo {
 				stringlauField("Station ID"),
 				stringlauField("Station Name"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Salinity Station Data",
-			pgn:         130321,
-			complete:    packetStatusComplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Salinity Station Data",
+			PGN:         130321,
+			Complete:    PacketStatusComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Mode", 4, "RESIDUAL_MODE"),
 				reservedField(4),
 				dateField("Measurement Date"),
@@ -4786,15 +4786,15 @@ func createPGNList() []pgnInfo {
 				stringlauField("Station ID"),
 				stringlauField("Station Name"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Current Station Data",
-			pgn:         130322,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Current Station Data",
+			PGN:         130322,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
 				reservedField(4),
 				dateField("Measurement Date"),
@@ -4808,15 +4808,15 @@ func createPGNList() []pgnInfo {
 				stringlauField("Station ID"),
 				stringlauField("Station Name"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Meteorological Station Data",
-			pgn:         130323,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Meteorological Station Data",
+			PGN:         130323,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
 				reservedField(4),
 				dateField("Measurement Date"),
@@ -4833,15 +4833,15 @@ func createPGNList() []pgnInfo {
 				stringlauField("Station ID"),
 				stringlauField("Station Name"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Moored Buoy Station Data",
-			pgn:         130324,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Moored Buoy Station Data",
+			PGN:         130324,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
 				reservedField(4),
 				dateField("Measurement Date"),
@@ -4861,15 +4861,15 @@ func createPGNList() []pgnInfo {
 				temperatureField("Water Temperature"),
 				stringFixField("Station ID", 8*8),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Lighting System Settings",
-			pgn:         130330,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting System Settings",
+			PGN:         130330,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Global Enable", 2),
 				lookupField("Default Settings/Command", 3, "LIGHTING_COMMAND"),
 				reservedField(3),
@@ -4883,15 +4883,15 @@ func createPGNList() []pgnInfo {
 				simpleField("Controller Capabilities", 8),
 				simpleField("Identify Device", 32),
 			},
-			explanation: "This PGN provides a lighting controller settings and number of supported capabilities.",
+			Explanation: "This PGN provides a lighting controller settings and number of supported capabilities.",
 		},
 
 		{
-			description: "Payload Mass",
-			pgn:         130560,
-			complete:    packetStatusResolutionUnknown | packetStatusNotSeen | packetStatusIntervalUnknown,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Payload Mass",
+			PGN:         130560,
+			Complete:    PacketStatusResolutionUnknown | PacketStatusNotSeen | PacketStatusIntervalUnknown,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				simpleField("Measurement Status", 3),
 				reservedField(5),
@@ -4899,15 +4899,15 @@ func createPGNList() []pgnInfo {
 				uint32Field("Payload Mass"),
 				reservedField(8 * 1),
 			},
-			interval: 0,
+			Interval: 0,
 		},
 
 		{
-			description: "Lighting Zone",
-			pgn:         130561,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Zone",
+			PGN:         130561,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Zone Index", 8),
 				stringlauField("Zone Name"),
 				simpleField("Red Component", 8),
@@ -4923,17 +4923,17 @@ func createPGNList() []pgnInfo {
 				lookupField("Zone Enabled", 2, "OFF_ON"),
 				reservedField(6),
 			},
-			interval: math.MaxUint16,
-			explanation: "This PGN is used to report or configure a name for a given zone. A zone is a grouping of devices that are " +
+			Interval: math.MaxUint16,
+			Explanation: "This PGN is used to report or configure a name for a given zone. A zone is a grouping of devices that are " +
 				"controlled by a Scene. This PGN is only sent upon request.",
 		},
 
 		{
-			description: "Lighting Scene",
-			pgn:         130562,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Scene",
+			PGN:         130562,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Scene Index", 8),
 				stringlauField("Zone Name"),
 				simpleField("Control", 8),
@@ -4947,18 +4947,18 @@ func createPGNList() []pgnInfo {
 				simpleField("Program Rate", 8),
 				simpleField("Program Color Sequence Rate", 8),
 			},
-			repeatingCount1: 8,
-			repeatingStart1: 5,
-			repeatingField1: 4,
-			explanation:     "A Lighting Scene is a sequence of zone program configurations.",
+			RepeatingCount1: 8,
+			RepeatingStart1: 5,
+			RepeatingField1: 4,
+			Explanation:     "A Lighting Scene is a sequence of zone program configurations.",
 		},
 
 		{
-			description: "Lighting Device",
-			pgn:         130563,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Device",
+			PGN:         130563,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Device ID", 32),
 				simpleField("Device Capabilities", 8),
 				simpleField("Color Capabilities", 8),
@@ -4978,34 +4978,34 @@ func createPGNList() []pgnInfo {
 				lookupField("Enabled", 2, "OFF_ON"),
 				reservedField(6),
 			},
-			explanation: "This PGN is used to provide status and capabilities of a lighting device. A lighting device may be a virtual " +
+			Explanation: "This PGN is used to provide status and capabilities of a lighting device. A lighting device may be a virtual " +
 				"device connected to a lighting controller or physical device on the network.",
 		},
 
 		{
-			description: "Lighting Device Enumeration",
-			pgn:         130564,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Device Enumeration",
+			PGN:         130564,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Index of First Device", 16),
 				simpleField("Total Number of Devices", 16),
 				simpleField("Number of Devices", 16),
 				simpleField("Device ID", 32),
 				simpleField("Status", 8),
 			},
-			repeatingCount1: 2,
-			repeatingStart1: 4,
-			repeatingField1: 3,
-			explanation:     "This PGN allows for enumeration of the lighting devices on the controller.",
+			RepeatingCount1: 2,
+			RepeatingStart1: 4,
+			RepeatingField1: 3,
+			Explanation:     "This PGN allows for enumeration of the lighting devices on the controller.",
 		},
 
 		{
-			description: "Lighting Color Sequence",
-			pgn:         130565,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Color Sequence",
+			PGN:         130565,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Sequence Index", 8),
 				simpleField("Color Count", 8),
 				simpleField("Color Index", 8),
@@ -5015,29 +5015,29 @@ func createPGNList() []pgnInfo {
 				simpleField("Color Temperature", 16),
 				simpleField("Intensity", 8),
 			},
-			repeatingCount1: 5,
-			repeatingStart1: 3,
-			repeatingField1: 2,
-			explanation:     "Sequences could be 1 to (PGN Lighting – System Configuration) Max Color Sequence Color Count colors.",
+			RepeatingCount1: 5,
+			RepeatingStart1: 3,
+			RepeatingField1: 2,
+			Explanation:     "Sequences could be 1 to (PGN Lighting – System Configuration) Max Color Sequence Color Count colors.",
 		},
 
 		{
-			description: "Lighting Program",
-			pgn:         130566,
-			complete:    packetStatusPDFOnly,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Lighting Program",
+			PGN:         130566,
+			Complete:    PacketStatusPDFOnly,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				simpleField("Program ID", 8),
 				stringlauField("Name of Program"),
 				stringlauField("Description"),
 				simpleField("Program Capabilities", 4),
 				reservedField(4),
 			},
-			explanation: "This PGN describes an available program on the controller. Can be a built in required NMEA one or a custom " +
+			Explanation: "This PGN describes an available program on the controller. Can be a built in required NMEA one or a custom " +
 				"vendor program.",
 		},
 
-		/* http://www.nmea.org/Assets/20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20pgn%20130567.pdf
+		/* http://www.nmea.org/Assets/20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20PGN%20130567.pdf
 
 		   This PGN may be requested or used to command and configure a number of Watermaker controls. The Command Group Function PGN
 		   126208 is used perform the following: start/stop a production, start/stop rinse or flush operation, start/stop low and high
@@ -5046,11 +5046,11 @@ func createPGNList() []pgnInfo {
 
 		*/
 		{
-			description: "Watermaker Input Setting and Status",
-			pgn:         130567,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Watermaker Input Setting and Status",
+			PGN:         130567,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Watermaker Operating State", 6, "WATERMAKER_STATE"),
 				lookupField("Production Start/Stop", 2, "YES_NO"),
 				lookupField("Rinse Start/Stop", 2, "YES_NO"),
@@ -5075,16 +5075,16 @@ func createPGNList() []pgnInfo {
 				volumetricFlowField("Brine Water Flow"),
 				timeUfix32SField("Run Time", ""),
 			},
-			url: "http://www.nmea.org/Assets/" +
-				"20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20pgn%20130567.pdf",
+			URL: "http://www.nmea.org/Assets/" +
+				"20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20PGN%20130567.pdf",
 		},
 
 		{
-			description: "Current Status and File",
-			pgn:         130569,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Current Status and File",
+			PGN:         130569,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Zone", 8*1, "ENTERTAINMENT_ZONE"),
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
 				uint8DescField("Number", "Source number per type"),
@@ -5103,15 +5103,15 @@ func createPGNList() []pgnInfo {
 				uint8DescField("Delete Favorite Number", "Used to command AV to delete current station as favorite"),
 				uint16Field("Total Number of Tracks"),
 			},
-			url: "https://www.nmea.org/Assets/20160725%20corrigenda%20pgn%20130569%20published.pdf",
+			URL: "https://www.nmea.org/Assets/20160725%20corrigenda%20PGN%20130569%20published.pdf",
 		},
 
 		{
-			description: "Library Data File",
-			pgn:         130570,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Library Data File",
+			PGN:         130570,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
 				uint8DescField("Number", "Source number per type"),
 				uint32DescField("ID", "Unique file ID"),
@@ -5130,15 +5130,15 @@ func createPGNList() []pgnInfo {
 				stringlauField("Album Name"),
 				stringlauField("Station Name"),
 			},
-			url: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
+			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
 		},
 
 		{
-			description: "Library Data Group",
-			pgn:         130571,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Library Data Group",
+			PGN:         130571,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
 				uint8DescField("Number", "Source number per type"),
 				lookupField("Type", 8*1, "ENTERTAINMENT_TYPE"),
@@ -5152,18 +5152,18 @@ func createPGNList() []pgnInfo {
 				stringlauField("Name"),
 				stringlauField("Artist"),
 			},
-			repeatingField1: 7,
-			repeatingCount1: 3,
-			repeatingStart1: 9,
-			url:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
+			RepeatingField1: 7,
+			RepeatingCount1: 3,
+			RepeatingStart1: 9,
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
 		},
 
 		{
-			description: "Library Data Search",
-			pgn:         130572,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Library Data Search",
+			PGN:         130572,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
 				uint8DescField("Number", "Source number per type"),
 				uint32DescField("Group ID", "Unique group ID"),
@@ -5174,15 +5174,15 @@ func createPGNList() []pgnInfo {
 				lookupField("Group type 3", 8*1, "ENTERTAINMENT_GROUP"),
 				stringlauField("Group name 3"),
 			},
-			url: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
+			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
 		},
 
 		{
-			description: "Supported Source Data",
-			pgn:         130573,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Supported Source Data",
+			PGN:         130573,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint16DescField("ID offset", "First ID in this PGN"),
 				uint16DescField("ID count", "Number of IDs in this PGN"),
 				uint16DescField("Total ID count", "Total IDs in group"),
@@ -5197,45 +5197,45 @@ func createPGNList() []pgnInfo {
 				bitlookupField("Repeat support", 2, "ENTERTAINMENT_REPEAT_BITFIELD"),
 				bitlookupField("Shuffle support", 2, "ENTERTAINMENT_SHUFFLE_BITFIELD"),
 			},
-			repeatingField1: 2,
-			repeatingCount1: 10,
-			repeatingStart1: 4,
-			url:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
+			RepeatingField1: 2,
+			RepeatingCount1: 10,
+			RepeatingStart1: 4,
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
 		},
 
 		{
-			description: "Supported Zone Data",
-			pgn:         130574,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Supported Zone Data",
+			PGN:         130574,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8DescField("First zone ID", "First Zone in this PGN"),
 				uint8DescField("Zone count", "Number of Zones in this PGN"),
 				uint8DescField("Total zone count", "Total Zones supported by this device"),
 				lookupField("Zone ID", 8*1, "ENTERTAINMENT_ZONE"),
 				stringlauField("Name"),
 			},
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 4,
-			url:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 4,
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
 		},
 
 		{
-			description: "Small Craft Status",
-			pgn:         130576,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList:   [33]pgnField{percentageI8Field("Port trim tab"), percentageI8Field("Starboard trim tab"), reservedField(8 * 6)},
-			interval:    200,
+			Description: "Small Craft Status",
+			PGN:         130576,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList:   [33]PGNField{percentageI8Field("Port trim tab"), percentageI8Field("Starboard trim tab"), reservedField(8 * 6)},
+			Interval:    200,
 		},
 
 		{
-			description: "Direction Data",
-			pgn:         130577,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Direction Data",
+			PGN:         130577,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Data Mode", 4, "RESIDUAL_MODE"),
 				lookupField("COG Reference", 2, "DIRECTION_REFERENCE"),
 				reservedField(2),
@@ -5247,15 +5247,15 @@ func createPGNList() []pgnInfo {
 				angleU16Field("Set", ""),
 				speedU16CmField("Drift"),
 			},
-			interval: 1000,
+			Interval: 1000,
 		},
 
 		{
-			description: "Vessel Speed Components",
-			pgn:         130578,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Vessel Speed Components",
+			PGN:         130578,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				speedI16MmField("Longitudinal Speed, Water-referenced"),
 				speedI16MmField("Transverse Speed, Water-referenced"),
 				speedI16MmField("Longitudinal Speed, Ground-referenced"),
@@ -5263,15 +5263,15 @@ func createPGNList() []pgnInfo {
 				speedI16MmField("Stern Speed, Water-referenced"),
 				speedI16MmField("Stern Speed, Ground-referenced"),
 			},
-			interval: 250,
+			Interval: 250,
 		},
 
 		{
-			description: "System Configuration",
-			pgn:         130579,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "System Configuration",
+			PGN:         130579,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				lookupField("Power", 2, "YES_NO"),
 				lookupField("Default Settings", 2, "ENTERTAINMENT_DEFAULT_SETTINGS"),
 				lookupField("Tuner regions", 4, "ENTERTAINMENT_REGIONS"),
@@ -5282,11 +5282,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "System Configuration (deprecated)",
-			pgn:         130580,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "System Configuration (deprecated)",
+			PGN:         130580,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Power", 2, "YES_NO"),
 				lookupField("Default Settings", 2, "ENTERTAINMENT_DEFAULT_SETTINGS"),
 				lookupField("Tuner regions", 4, "ENTERTAINMENT_REGIONS"),
@@ -5295,28 +5295,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Zone Configuration (deprecated)",
-			pgn:         130581,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Zone Configuration (deprecated)",
+			PGN:         130581,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8DescField("First zone ID", "First Zone in this PGN"),
 				uint8DescField("Zone count", "Number of Zones in this PGN"),
 				uint8DescField("Total zone count", "Total Zones supported by this device"),
 				lookupField("Zone ID", 8*1, "ENTERTAINMENT_ZONE"),
 				stringlauField("Zone name"),
 			},
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 4,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Zone Volume",
-			pgn:         130582,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Zone Volume",
+			PGN:         130582,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				lookupField("Zone ID", 8*1, "ENTERTAINMENT_ZONE"),
 				percentageU8Field("Volume"),
 				lookupFieldDesc("Volume change", 2, "ENTERTAINMENT_VOLUME_CONTROL", "Write only"),
@@ -5328,28 +5328,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Available Audio EQ presets",
-			pgn:         130583,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Available Audio EQ presets",
+			PGN:         130583,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8DescField("First preset", "First preset in this PGN"),
 				uint8Field("Preset count"),
 				uint8Field("Total preset count"),
 				lookupField("Preset type", 8*1, "ENTERTAINMENT_EQ"),
 				stringlauField("Preset name"),
 			},
-			repeatingField1: 2,
-			repeatingCount1: 2,
-			repeatingStart1: 4,
+			RepeatingField1: 2,
+			RepeatingCount1: 2,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Available Bluetooth addresses",
-			pgn:         130584,
-			complete:    packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Available Bluetooth addresses",
+			PGN:         130584,
+			Complete:    PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8DescField("First address", "First address in this PGN"),
 				uint8Field("Address count"),
 				uint8Field("Total address count"),
@@ -5358,17 +5358,17 @@ func createPGNList() []pgnInfo {
 				stringlauField("Device name"),
 				percentageU8Field("Signal strength"),
 			},
-			repeatingField1: 2,
-			repeatingCount1: 4,
-			repeatingStart1: 4,
+			RepeatingField1: 2,
+			RepeatingCount1: 4,
+			RepeatingStart1: 4,
 		},
 
 		{
-			description: "Bluetooth source status",
-			pgn:         130585,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeSingle,
-			fieldList: [33]pgnField{
+			Description: "Bluetooth source status",
+			PGN:         130585,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeSingle,
+			FieldList: [33]PGNField{
 				uint8Field("Source number"),
 				lookupField("Status", 4, "BLUETOOTH_SOURCE_STATUS"),
 				lookupField("Forget device", 2, "YES_NO"),
@@ -5378,11 +5378,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Zone Configuration",
-			pgn:         130586,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Zone Configuration",
+			PGN:         130586,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				lookupField("Zone ID", 8*1, "ENTERTAINMENT_ZONE"),
 				percentageU8Field("Volume limit"),
 				percentageI8Field("Fade"),
@@ -5402,23 +5402,23 @@ func createPGNList() []pgnInfo {
 		/* proprietary PDU2 (non addressed) fast packet PGN range 0x1FF00 to 0x1FFFF (130816 - 131071) */
 
 		{
-			description: "0x1FF00-0x1FFFF: Manufacturer Specific fast-packet non-addressed",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   [33]pgnField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
-			fallback:    true,
-			explanation: "This definition is used for Manufacturer Specific PGNs in PDU2 (non-addressed) fast-packet PGN range 0x1FF00 to " +
+			Description: "0x1FF00-0x1FFFF: Manufacturer Specific fast-packet non-addressed",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
+			Fallback:    true,
+			Explanation: "This definition is used for Manufacturer Specific PGNs in PDU2 (non-addressed) fast-packet PGN range 0x1FF00 to " +
 				"0x1FFFF (130816 - 131071). " +
 				"When this is shown during analysis it means the PGN is not reverse engineered yet.",
 		},
 
 		{
-			description: "SonicHub: Init #2",
-			pgn:         130816,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Init #2",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "1", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5427,28 +5427,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: AM Radio",
-			pgn:         130816,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: AM Radio",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "4", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
 				lookupField("Item", 8*1, "SONICHUB_TUNING"),
 				radioFrequencyField("Frequency", 1),
 				simpleField("Noise level", 2),  // Not sure about this
-				simpleField("Signal level", 4), // ... and this, doesn't make complete sense compared to display
+				simpleField("Signal level", 4), // ... and this, doesn't make Complete sense compared to display
 				reservedField(2),
 				stringlzField("Text", 8*32))),
 		},
 
 		{
-			description: "SonicHub: Zone info",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Zone info",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "5", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5456,11 +5456,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Source",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Source",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "6", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5468,11 +5468,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Source List",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Source List",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "8", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5482,11 +5482,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Control",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Control",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "9", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5494,28 +5494,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: FM Radio",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: FM Radio",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "12", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
 				lookupField("Item", 8*1, "SONICHUB_TUNING"),
 				radioFrequencyField("Frequency", 1),
 				simpleField("Noise level", 2),  // Not sure about this
-				simpleField("Signal level", 4), // ... and this, doesn't make complete sense compared to display
+				simpleField("Signal level", 4), // ... and this, doesn't make Complete sense compared to display
 				reservedField(2),
 				stringlzField("Text", 8*32))),
 		},
 
 		{
-			description: "SonicHub: Playlist",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Playlist",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "13", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5528,11 +5528,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Track",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Track",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "14", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5541,11 +5541,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Artist",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Artist",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "15", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5554,11 +5554,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Album",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Album",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "16", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5567,11 +5567,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Menu Item",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Menu Item",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "19", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5583,11 +5583,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Zones",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Zones",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "20", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5595,11 +5595,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Max Volume",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Max Volume",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "23", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5608,11 +5608,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Volume",
-			pgn:         130816,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Volume",
+			PGN:         130816,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "24", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5621,22 +5621,22 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Init #1",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Init #1",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "25", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"))),
 		},
 
 		{
-			description: "SonicHub: Position",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Position",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "48", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5644,11 +5644,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "SonicHub: Init #3",
-			pgn:         130816,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "SonicHub: Init #3",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "50", "SONICHUB_COMMAND"),
 				lookupField("Control", 8*1, "SONICHUB_CONTROL"),
@@ -5657,11 +5657,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simrad: Text Message",
-			pgn:         130816,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simrad: Text Message",
+			PGN:         130816,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "50", "SIMNET_COMMAND"),
 				uint8Field("A"),
@@ -5673,11 +5673,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Navico: Product Information",
-			pgn:         130817,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("275"),
+			Description: "Navico: Product Information",
+			PGN:         130817,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("275"),
 				uint16Field("Product Code"),
 				stringFixField("Model", 8*32),
 				uint8Field("A"),
@@ -5689,11 +5689,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Lowrance: Product Information",
-			pgn:         130817,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("140"),
+			Description: "Lowrance: Product Information",
+			PGN:         130817,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("140"),
 				uint16Field("Product Code"),
 				stringFixField("Model", 8*32),
 				uint8Field("A"),
@@ -5705,45 +5705,45 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Reprogram Data",
-			pgn:         130818,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), uint16Field("Version"), uint16Field("Sequence"), binaryField("Data", 8*217, ""))),
+			Description: "Simnet: Reprogram Data",
+			PGN:         130818,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), uint16Field("Version"), uint16Field("Sequence"), binaryField("Data", 8*217, ""))),
 		},
 
 		{
-			description: "Simnet: Request Reprogram",
-			pgn:         130819,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Request Reprogram",
+			PGN:         130819,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Simnet: Reprogram Status",
-			pgn:         130820,
-			complete:    packetStatusFieldLengthsUnknown | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*1), uint8Field("Status"), reservedField(8*3))),
+			Description: "Simnet: Reprogram Status",
+			PGN:         130820,
+			Complete:    PacketStatusFieldLengthsUnknown | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*1), uint8Field("Status"), reservedField(8*3))),
 		},
 
 		/* M/V Dirona */
 		{
-			description: "Furuno: Unknown 130820",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("1855"), uint8Field("A"), uint8Field("B"), uint8Field("C"), uint8Field("D"), uint8Field("E"))),
+			Description: "Furuno: Unknown 130820",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("1855"), uint8Field("A"), uint8Field("B"), uint8Field("C"), uint8Field("D"), uint8Field("E"))),
 		},
 
 		/* Fusion */
 		{
-			description: "Fusion: Source Name",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Source Name",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "2", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("Source ID"),
@@ -5754,11 +5754,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Track Info",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Track Info",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "4", "FUSION_MESSAGE_ID"),
 				uint16Field("A"),
 				lookupField("Transport", 4, "ENTERTAINMENT_PLAY_STATUS"),
@@ -5774,11 +5774,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Track",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Track",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "5", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				simpleField("B", 8*5),
@@ -5786,11 +5786,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Artist",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Artist",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "6", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				simpleField("B", 8*5),
@@ -5798,11 +5798,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Album",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Album",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "7", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				simpleField("B", 8*5),
@@ -5810,22 +5810,22 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Unit Name",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Unit Name",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "33", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				stringlzField("Name", 8*14))),
 		},
 
 		{
-			description: "Fusion: Zone Name",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Zone Name",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "45", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("Number"),
@@ -5833,11 +5833,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Play Progress",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Play Progress",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "9", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5845,11 +5845,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: AM/FM Station",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: AM/FM Station",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "11", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				lookupField("AM/FM", 8*1, "FUSION_RADIO_SOURCE"),
@@ -5860,11 +5860,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: VHF",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: VHF",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "12", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5873,11 +5873,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Squelch",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Squelch",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "13", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5885,11 +5885,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Scan",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Scan",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "14", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5898,11 +5898,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Menu Item",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Menu Item",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "17", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5916,11 +5916,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Replay",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Replay",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "20", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				lookupField("Mode", 8*1, "FUSION_REPLAY_MODE"),
@@ -5934,11 +5934,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Mute",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Mute",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "23", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				lookupField("Mute", 8*1, "FUSION_MUTE_COMMAND"))),
@@ -5946,11 +5946,11 @@ func createPGNList() []pgnInfo {
 
 		// Range: 0 to +24
 		{
-			description: "Fusion: Sub Volume",
-			pgn:         130820,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Sub Volume",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "26", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("Zone 1"),
@@ -5961,11 +5961,11 @@ func createPGNList() []pgnInfo {
 
 		// Range: -15 to +15
 		{
-			description: "Fusion: Tone",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Tone",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "27", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -5975,11 +5975,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Volume",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Volume",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "29", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				uint8Field("Zone 1"),
@@ -5989,55 +5989,55 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Fusion: Power State",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: Power State",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "32", "FUSION_MESSAGE_ID"),
 				uint8Field("A"),
 				lookupField("State", 8*1, "FUSION_POWER_STATE"))),
 		},
 
 		{
-			description: "Fusion: SiriusXM Channel",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: SiriusXM Channel",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "36", "FUSION_MESSAGE_ID"),
 				simpleField("A", 8*4),
 				stringlzField("Channel", 8*12))),
 		},
 
 		{
-			description: "Fusion: SiriusXM Title",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: SiriusXM Title",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "37", "FUSION_MESSAGE_ID"),
 				simpleField("A", 8*4),
 				stringlzField("Title", 8*12))),
 		},
 
 		{
-			description: "Fusion: SiriusXM Artist",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: SiriusXM Artist",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "38", "FUSION_MESSAGE_ID"),
 				simpleField("A", 8*4),
 				stringlzField("Artist", 8*12))),
 		},
 
 		{
-			description: "Fusion: SiriusXM Genre",
-			pgn:         130820,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("419"),
+			Description: "Fusion: SiriusXM Genre",
+			PGN:         130820,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "40", "FUSION_MESSAGE_ID"),
 				simpleField("A", 8*4),
 				stringlzField("Genre", 8*12))),
@@ -6046,20 +6046,20 @@ func createPGNList() []pgnInfo {
 		// NAC-3 sends this once a second, with (decoded) data like this:
 		// \r\n1720.0,3,0.0,0.1,0.0,1.8,0.00,358.0,0.00,359.9,0.36,0.09,4.1,4.0,0,1.71,0.0,0.50,0.90,51.00,17.10,4.00,-7.43,231.28,4.06,1.8,0.00,0.0,0.0,0.0,0.0,
 		{
-			description: "Navico: ASCII Data",
-			pgn:         130821,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("275"), simpleField("A", 8*1), stringFixField("Message", 8*256))),
+			Description: "Navico: ASCII Data",
+			PGN:         130821,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("275"), simpleField("A", 8*1), stringFixField("Message", 8*256))),
 		},
 
 		/* M/V Dirona */
 		{
-			description: "Furuno: Unknown 130821",
-			pgn:         130821,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1855"),
+			Description: "Furuno: Unknown 130821",
+			PGN:         130821,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1855"),
 				uint8Field("SID"),
 				uint8Field("A"),
 				uint8Field("B"),
@@ -6073,19 +6073,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Navico: Unknown 1",
-			pgn:         130822,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*231, ""))),
+			Description: "Navico: Unknown 1",
+			PGN:         130822,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*231, ""))),
 		},
 
 		{
-			description: "Maretron: Proprietary Temperature High Range",
-			pgn:         130823,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Proprietary Temperature High Range",
+			PGN:         130823,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				uint8Field("SID"),
 				instanceField(),
 				lookupField("Source", 8*1, "TEMPERATURE_SOURCE"),
@@ -6094,28 +6094,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "B&G: key-value data",
-			pgn:         130824,
-			complete:    packetStatusLookupsUnknown,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("381"),
+			Description: "B&G: key-value data",
+			PGN:         130824,
+			Complete:    PacketStatusLookupsUnknown,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("381"),
 				lookupFieldtypeField("Key", 12, "BANDG_KEY_VALUE"),
 				simpleDescField("Length", 4, "Length of field 6"),
 				keyValueField("Value", "Data value"))),
-			repeatingField1: math.MaxUint8,
-			repeatingCount1: 3,
-			repeatingStart1: 4,
-			interval:        1000,
-			explanation:     "Contains any number of key/value pairs, sent by various B&G devices such as MFDs and Sailing Processors.",
+			RepeatingField1: math.MaxUint8,
+			RepeatingCount1: 3,
+			RepeatingStart1: 4,
+			Interval:        1000,
+			Explanation:     "Contains any number of key/value pairs, sent by various B&G devices such as MFDs and Sailing Processors.",
 		},
 
 		/* M/V Dirona */
 		{
-			description: "Maretron: Annunciator",
-			pgn:         130824,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Annunciator",
+			PGN:         130824,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				uint8Field("Field 4"),
 				uint8Field("Field 5"),
 				uint16Field("Field 6"),
@@ -6124,20 +6124,20 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Navico: Unknown 2",
-			pgn:         130825,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*10, ""))),
+			Description: "Navico: Unknown 2",
+			PGN:         130825,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*10, ""))),
 		},
 
 		/* Uwe Lovas has seen this from EP-70R */
 		{
-			description: "Lowrance: unknown",
-			pgn:         130827,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("140"),
+			Description: "Lowrance: unknown",
+			PGN:         130827,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("140"),
 				uint8Field("A"),
 				uint8Field("B"),
 				uint8Field("C"),
@@ -6147,35 +6147,35 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Set Serial Number",
-			pgn:         130828,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Set Serial Number",
+			PGN:         130828,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Suzuki: Engine and Storage Device Config",
-			pgn:         130831,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("586")),
+			Description: "Suzuki: Engine and Storage Device Config",
+			PGN:         130831,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("586")),
 		},
 
 		{
-			description: "Simnet: Fuel Used - High Resolution",
-			pgn:         130832,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Fuel Used - High Resolution",
+			PGN:         130832,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "B&G: User and Remote rename",
-			pgn:         130833,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("381"),
+			Description: "B&G: User and Remote rename",
+			PGN:         130833,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("381"),
 				lookupFieldtypeField("Data Type", 12, "BANDG_KEY_VALUE"),
 				simpleDescField("Length", 4, "Length of field 8"),
 				reservedField(8*1),
@@ -6185,28 +6185,28 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Engine and Tank Configuration",
-			pgn:         130834,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Engine and Tank Configuration",
+			PGN:         130834,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Simnet: Set Engine and Tank Configuration",
-			pgn:         130835,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Set Engine and Tank Configuration",
+			PGN:         130835,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		/* Seen when HDS8 configures EP65R */
 		{
-			description: "Simnet: Fluid Level Sensor Configuration",
-			pgn:         130836,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Fluid Level Sensor Configuration",
+			PGN:         130836,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("C"),
 				uint8Field("Device"),
 				instanceField(),
@@ -6219,11 +6219,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Maretron: Switch Status Counter",
-			pgn:         130836,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Switch Status Counter",
+			PGN:         130836,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				instanceField(),
 				uint8Field("Indicator Number"),
 				dateField("Start Date"),
@@ -6233,23 +6233,23 @@ func createPGNList() []pgnInfo {
 				uint8Field("ERROR Counter"),
 				lookupField("Switch Status", 2, "OFF_ON"),
 				reservedField(6))),
-			interval: 15000,
+			Interval: 15000,
 		},
 
 		{
-			description: "Simnet: Fuel Flow Turbine Configuration",
-			pgn:         130837,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Fuel Flow Turbine Configuration",
+			PGN:         130837,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Maretron: Switch Status Timer",
-			pgn:         130837,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("137"),
+			Description: "Maretron: Switch Status Timer",
+			PGN:         130837,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("137"),
 				instanceField(),
 				uint8Field("Indicator Number"),
 				dateField("Start Date"),
@@ -6260,39 +6260,39 @@ func createPGNList() []pgnInfo {
 				lookupField("Switch Status", 2, "OFF_ON"),
 				reservedField(6),
 			)),
-			interval: 15000,
+			Interval: 15000,
 		},
 
 		{
-			description: "Simnet: Fluid Level Warning",
-			pgn:         130838,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Fluid Level Warning",
+			PGN:         130838,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Simnet: Pressure Sensor Configuration",
-			pgn:         130839,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Pressure Sensor Configuration",
+			PGN:         130839,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Simnet: Data User Group Configuration",
-			pgn:         130840,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Data User Group Configuration",
+			PGN:         130840,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Simnet: AIS Class B static data (msg 24 Part A)",
-			pgn:         130842,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AIS Class B static data (msg 24 Part A)",
+			PGN:         130842,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchField("Message ID", 6, "0", "Msg 24 Part A"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				uint8Field("D"),
@@ -6302,11 +6302,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Furuno: Six Degrees Of Freedom Movement",
-			pgn:         130842,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1855"),
+			Description: "Furuno: Six Degrees Of Freedom Movement",
+			PGN:         130842,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1855"),
 				simpleSignedField("A", 8*4),
 				simpleSignedField("B", 8*4),
 				simpleSignedField("C", 8*4),
@@ -6319,11 +6319,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: AIS Class B static data (msg 24 Part B)",
-			pgn:         130842,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AIS Class B static data (msg 24 Part B)",
+			PGN:         130842,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchField("Message ID", 6, "1", "Msg 24 Part B"),
 				lookupField("Repeat Indicator", 2, "REPEAT_INDICATOR"),
 				uint8Field("D"),
@@ -6342,11 +6342,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Furuno: Heel Angle, Roll Information",
-			pgn:         130843,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1855"),
+			Description: "Furuno: Heel Angle, Roll Information",
+			PGN:         130843,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1855"),
 				uint8Field("A"),
 				uint8Field("B"),
 				angleI16Field("Yaw", ""),
@@ -6355,27 +6355,27 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Sonar Status, Frequency and DSP Voltage",
-			pgn:         130843,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1857")),
+			Description: "Simnet: Sonar Status, Frequency and DSP Voltage",
+			PGN:         130843,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
 
 		{
-			description: "Furuno: Multi Sats In View Extended",
-			pgn:         130845,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1855")),
+			Description: "Furuno: Multi Sats In View Extended",
+			PGN:         130845,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1855")),
 		},
 
 		{
-			description: "Simnet: Key Value",
-			pgn:         130845,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Key Value",
+			PGN:         130845,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
 				lookupField("Repeat Indicator", 8*1, "REPEAT_INDICATOR"),
 				lookupField("Display Group", 8*1, "SIMNET_DISPLAY_GROUP"),
@@ -6384,15 +6384,15 @@ func createPGNList() []pgnInfo {
 				spareField(8*1),
 				simpleDescField("MinLength", 8*1, "Length of data field"),
 				keyValueField("Value", "Data value"))),
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Simnet: Parameter Set",
-			pgn:         130846,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Parameter Set",
+			PGN:         130846,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
 				uint8DescField("B", "00, 01 or FF observed"),
 				lookupField("Display Group", 8*1, "SIMNET_DISPLAY_GROUP"),
@@ -6402,23 +6402,23 @@ func createPGNList() []pgnInfo {
 				simpleDescField("Length", 8*1, "Length of data field"),
 				keyValueField("Value", "Data value"),
 			)),
-			interval: math.MaxUint16,
+			Interval: math.MaxUint16,
 		},
 
 		{
-			description: "Furuno: Motion Sensor Status Extended",
-			pgn:         130846,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   varLenFieldListToFixed(company("1855")),
+			Description: "Furuno: Motion Sensor Status Extended",
+			PGN:         130846,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   varLenFieldListToFixed(company("1855")),
 		},
 
 		{
-			description: "SeaTalk: Node Statistics",
-			pgn:         130847,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1851"),
+			Description: "SeaTalk: Node Statistics",
+			PGN:         130847,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint16Field("Product Code"),
 				uint8Field("Year"),
 				uint8Field("Month"),
@@ -6427,11 +6427,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: AP Command",
-			pgn:         130850,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AP Command",
+			PGN:         130850,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "255", "SIMNET_EVENT_COMMAND"),
@@ -6443,11 +6443,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Event Command: AP command",
-			pgn:         130850,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Event Command: AP command",
+			PGN:         130850,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchLookupField("Proprietary ID", 8*1, "2", "SIMNET_EVENT_COMMAND"),
 				uint16Field("Unused A"),
 				uint8Field("Controlling Device"),
@@ -6459,11 +6459,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Alarm",
-			pgn:         130850,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Alarm",
+			PGN:         130850,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
 				reservedField(8*1),
 				matchLookupField("Proprietary ID", 8*1, "1", "SIMNET_EVENT_COMMAND"),
@@ -6472,16 +6472,16 @@ func createPGNList() []pgnInfo {
 				uint16Field("Message ID"),
 				uint8Field("F"),
 				uint8Field("G"))),
-			interval:    math.MaxUint16,
-			explanation: "There may follow a PGN 130856 'Simnet: Alarm Text' message with a textual explanation of the alarm",
+			Interval:    math.MaxUint16,
+			Explanation: "There may follow a PGN 130856 'Simnet: Alarm Text' message with a textual Explanation of the alarm",
 		},
 
 		{
-			description: "Simnet: Event Reply: AP command",
-			pgn:         130851,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Event Reply: AP command",
+			PGN:         130851,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchLookupField("Proprietary ID", 8*1, "2", "SIMNET_EVENT_COMMAND"),
 				uint16Field("B"),
 				uint8DescField("Address", "NMEA 2000 address of controlling device"),
@@ -6493,67 +6493,67 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Simnet: Alarm Message",
-			pgn:         130856,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: Alarm Message",
+			PGN:         130856,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint16Field("Message ID"),
 				uint8Field("B"),
 				uint8Field("C"),
 				stringFixField("Text", 8*common.FastPacketMaxSize))),
-			interval:    math.MaxUint16,
-			explanation: "Usually accompanied by a PGN 130850 'Simnet: Alarm' message with the same information in binary form.",
+			Interval:    math.MaxUint16,
+			Explanation: "Usually accompanied by a PGN 130850 'Simnet: Alarm' message with the same information in binary form.",
 		},
 
 		{
-			description: "Simnet: AP Unknown 4",
-			pgn:         130860,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("1857"),
+			Description: "Simnet: AP Unknown 4",
+			PGN:         130860,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
 				simpleSignedField("B", 8*4),
 				simpleSignedField("C", 8*4),
 				uint32Field("D"),
 				simpleSignedField("E", 8*4),
 				uint32Field("F"))),
-			interval:    1000,
-			explanation: "Seen as sent by AC-42 and H5000 AP only so far.",
+			Interval:    1000,
+			Explanation: "Seen as sent by AC-42 and H5000 AP only so far.",
 		},
 
 		{
-			description: "Airmar: Additional Weather Data",
-			pgn:         130880,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Additional Weather Data",
+			PGN:         130880,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("C"),
 				temperatureField("Apparent Windchill Temperature"),
 				temperatureField("True Windchill Temperature"),
 				temperatureField("Dewpoint"))),
-			url: "http://www.airmartechnology.com/uploads/installguide/PB2000UserManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/PB2000UserManual.pdf",
 		},
 
 		{
-			description: "Airmar: Heater Control",
-			pgn:         130881,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: Heater Control",
+			PGN:         130881,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("C"),
 				temperatureField("Plate Temperature"),
 				temperatureField("Air Temperature"),
 				temperatureField("Dewpoint"))),
-			url: "http://www.airmartechnology.com/uploads/installguide/PB2000UserManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/PB2000UserManual.pdf",
 		},
 
 		{
-			description: "Airmar: POST",
-			pgn:         130944,
-			complete:    packetStatusIncomplete | packetStatusNotSeen,
-			packetType:  packetTypeFast,
-			fieldList: varLenFieldListToFixed(append(company("135"),
+			Description: "Airmar: POST",
+			PGN:         130944,
+			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			PacketType:  PacketTypeFast,
+			FieldList: varLenFieldListToFixed(append(company("135"),
 				lookupField("Control", 1, "AIRMAR_POST_CONTROL"),
 				reservedField(7),
 				uint8Field("Number of ID/test result pairs to follow"),
@@ -6562,15 +6562,15 @@ func createPGNList() []pgnInfo {
 					"AIRMAR_POST_ID",
 					"See Airmar docs for table of IDs and failure codes; these lookup values are for DST200"),
 				uint8DescField("Test result", "Values other than 0 are failure codes"))),
-			url: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
+			URL: "http://www.airmartechnology.com/uploads/installguide/DST200UserlManual.pdf",
 		},
 
 		{
-			description: "Actisense: Operating mode",
-			pgn:         common.ActisenseBEM + 0x11,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Actisense: Operating mode",
+			PGN:         common.ActisenseBEM + 0x11,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("Model ID"),
 				uint32Field("Serial ID"),
@@ -6580,11 +6580,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Actisense: Startup status",
-			pgn:         common.ActisenseBEM + 0xf0,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Actisense: Startup status",
+			PGN:         common.ActisenseBEM + 0xf0,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("Model ID"),
 				uint32Field("Serial ID"),
@@ -6596,11 +6596,11 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Actisense: System status",
-			pgn:         common.ActisenseBEM + 0xf2,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "Actisense: System status",
+			PGN:         common.ActisenseBEM + 0xf2,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("SID"),
 				uint16Field("Model ID"),
 				uint32Field("Serial ID"),
@@ -6631,19 +6631,19 @@ func createPGNList() []pgnInfo {
 		},
 
 		{
-			description: "Actisense: ?",
-			pgn:         common.ActisenseBEM + 0xf4,
-			complete:    packetStatusIncomplete,
-			packetType:  packetTypeFast,
-			fieldList:   [33]pgnField{uint8Field("SID"), uint16Field("Model ID"), uint32Field("Serial ID")},
+			Description: "Actisense: ?",
+			PGN:         common.ActisenseBEM + 0xf4,
+			Complete:    PacketStatusInComplete,
+			PacketType:  PacketTypeFast,
+			FieldList:   [33]PGNField{uint8Field("SID"), uint16Field("Model ID"), uint32Field("Serial ID")},
 		},
 
 		{
-			description: "iKonvert: Network status",
-			pgn:         common.IKnovertBEM,
-			complete:    packetStatusComplete,
-			packetType:  packetTypeFast,
-			fieldList: [33]pgnField{
+			Description: "iKonvert: Network status",
+			PGN:         common.IKnovertBEM,
+			Complete:    PacketStatusComplete,
+			PacketType:  PacketTypeFast,
+			FieldList: [33]PGNField{
 				uint8Field("CAN network load"),
 				uint32Field("Errors"),
 				uint8Field("Device count"),

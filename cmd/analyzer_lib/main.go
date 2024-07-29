@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/erh/gonmea/analyzer"
+	"github.com/erh/gonmea/common"
 )
 
 func main() {
@@ -22,9 +23,8 @@ func main() {
 }
 
 func realMain() error {
-
 	if len(os.Args) != 2 {
-		return fmt.Errorf("need file/path/net to parse")
+		return errors.New("need file/path/net to parse")
 	}
 
 	path := os.Args[1]
@@ -46,9 +46,11 @@ func realMain() error {
 }
 
 func processData(in io.ReadCloser) error {
+	//nolint:errcheck
 	defer in.Close()
 
-	parser, err := analyzer.NewParser()
+	conf := analyzer.NewConfig(common.NewLogger(io.Discard))
+	analyzer, err := analyzer.NewAnalyzer(conf)
 	if err != nil {
 		return err
 	}
@@ -66,12 +68,11 @@ func processData(in io.ReadCloser) error {
 		if len(line) == 0 {
 			continue
 		}
-		msg, err := parser.ParseMessage(line)
-
+		msg, hasMsg, err := analyzer.ProcessMessage(line)
 		if err != nil {
 			return err
 		}
-		if msg == nil {
+		if !hasMsg {
 			continue
 		}
 		md, err := json.MarshalIndent(msg, "", "  ")

@@ -18,12 +18,11 @@ package common
 // limitations under the License.
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
-
-	"cmp"
 
 	"go.uber.org/zap"
 	"go.viam.com/rdk/logging"
@@ -87,13 +86,13 @@ func AllowPGNSingleFrame(n uint32) bool {
 }
 
 var (
-	// UseFixedTimestamp is for testing purposes only
+	// UseFixedTimestamp is for testing purposes only.
 	UseFixedTimestamp atomic.Bool
 
 	IsCLI atomic.Bool
 )
 
-// Now returns the current time.Time
+// Now returns the current time.Time.
 func Now() time.Time {
 	if UseFixedTimestamp.Load() {
 		return time.UnixMilli(1672527600000) // 2023-01-01 00:00
@@ -102,38 +101,17 @@ func Now() time.Time {
 	return time.Now()
 }
 
-// FixedClock is used to return fixed time
+// FixedClock is used to return fixed time.
 type FixedClock struct{}
 
+// Now returns fixed or now.
 func (c FixedClock) Now() time.Time {
 	return Now()
 }
 
+// NewTicker returns a new ticker.
 func (c FixedClock) NewTicker(t time.Duration) *time.Ticker {
 	return time.NewTicker(t)
-}
-
-// Error logs a message at the ERROR level. The returned
-// error may be used to propagate upwards.
-func Error(logger logging.Logger, isCLI bool, format string, v ...any) error {
-	logger.Errorf(format, v...)
-	err := fmt.Errorf(format, v...)
-	if !isCLI {
-		return err
-	}
-	return &ExitError{Code: 2, Cause: err}
-}
-
-// Abort logs a message at the "FATAL" level. The returned
-// error may be used to propagate upwards and if running
-// as a CLI, it may os.Exit.
-func Abort(logger logging.Logger, isCLI bool, format string, v ...any) error {
-	logger.Errorf("FATAL: "+format, v...)
-	err := fmt.Errorf(format, v...)
-	if !isCLI {
-		return err
-	}
-	return &ExitError{Code: 2, Cause: err}
 }
 
 /*
@@ -199,9 +177,8 @@ this the "Extended Data Page" (EDP).
 //
 //	prio, pgn, src, dst := GetISO11783BitsFromCanID(id)
 //
-// return prio, pgn, src, dst
+// return prio, pgn, src, dst.
 func GetISO11783BitsFromCanID(id uint) (uint8, uint32, uint8, uint8) {
-
 	PF := (id >> 16) & 0xFF
 	PS := (id >> 8) & 0xFF
 	RDP := id >> 24 & 3 // Use R + DP bits

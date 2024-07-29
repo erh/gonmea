@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"errors"
-	"io"
 	"testing"
 	"time"
 
@@ -49,25 +48,19 @@ func TestParser(t *testing.T) {
 	})
 
 	t.Run("preset parser format", func(t *testing.T) {
-		parser, err := NewParserWithFormat(RawFormatNavLink2)
-		test.That(t, err, test.ShouldBeNil)
-
-		msg, err := parser.ParseMessage(msgData)
+		msg, err := ParseMessageWithFormat(msgData, RawFormatNavLink2)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, msg, test.ShouldResemble, expected)
 
 		// try it again
-		msg, err = parser.ParseMessage(msgData)
+		msg, err = ParseMessageWithFormat(msgData, RawFormatNavLink2)
 		test.That(t, err, test.ShouldBeNil)
 		test.That(t, msg, test.ShouldResemble, expected)
 	})
 
 	t.Run("invalid format for data is ignored", func(t *testing.T) {
-		parser, err := NewParserWithFormat(RawFormatGarminCSV2)
-		test.That(t, err, test.ShouldBeNil)
-
-		_, err = parser.ParseMessage(msgData)
+		_, err := ParseMessageWithFormat(msgData, RawFormatGarminCSV2)
 		test.That(t, err, test.ShouldNotBeNil)
-		test.That(t, errors.Is(err, io.EOF), test.ShouldBeTrue)
+		test.That(t, errors.Is(err, errExpectedOneMessage), test.ShouldBeTrue)
 	})
 }

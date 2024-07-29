@@ -19,7 +19,7 @@
 
 PLATFORM=$(shell uname | tr '[A-Z]' '[a-z]')-$(shell uname -m)
 TARGETDIR=../../rel/$(PLATFORM)
-ANALYZER=$(TARGETDIR)/analyzer
+ANALYZER=$(TARGETDIR)/analyzer_cli
 TEMPDIR=/tmp
 
 .PHONY: test1 test2 test3 test4 test5 test6 test7 test8 test9 tests

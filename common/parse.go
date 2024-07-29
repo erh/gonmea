@@ -31,7 +31,7 @@ import (
 
 const (
 	timestampFormat = "2006-01-02-15:04:05.000"
-	// others seen in pgn-test.in
+	// others seen in pgn-test.in.
 	timestampFormatAlt  = "2006-01-02T15:04:05.000Z"
 	timestampFormatAlt2 = "2006-01-02T15:04:05Z"
 )
@@ -105,7 +105,7 @@ func parseTimestamp(from string) (time.Time, error) {
 }
 
 // ParseRawFormatPlain parses PLAIN messages.
-func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
+func ParseRawFormatPlain(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var prio, src, dst, dataLen uint8
 	var pgn uint32
 	var junk, r int
@@ -142,11 +142,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger loggin
 		&data[7],
 		&junk)
 	if r < 5 {
-		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
 
@@ -155,6 +151,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger loggin
 		return -1
 	}
 
+	m.Data = make([]byte, dataLen)
 	if r <= 5+8 {
 		for i := uint8(0); i < dataLen; i++ {
 			m.Data[i] = uint8(data[i])
@@ -168,7 +165,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger loggin
 }
 
 // ParseRawFormatFast parses FAST messages.
-func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
+func ParseRawFormatFast(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var prio, src, dst, dataLen uint8
 	var pgn uint32
 
@@ -189,42 +186,27 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger logging
 
 	r, _ = fmt.Sscanf(string(msg[pIdx:]), ",%d,%d,%d,%d,%d ", &prio, &pgn, &src, &dst, &dataLen)
 	if r < 5 {
-		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
 
 	nextIdx := findOccurrence(msg[pIdx:], ',', 6)
 	if nextIdx == -1 {
-		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
+	m.Data = make([]byte, dataLen)
 	pIdx += nextIdx
 	for i := uint8(0); i < dataLen; i++ {
 		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
 		if !ok {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		pIdx += advancedBy
 		if i < dataLen && pIdx < len(msg) {
 			if msg[pIdx] != ',' && !unicode.IsSpace(rune(msg[pIdx])) {
-				//nolint:errcheck
 				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-				if !showJSON {
-					logger.Info(msg)
-				}
 				return 2
 			}
 			pIdx++
@@ -271,13 +253,12 @@ func scanHex(p []byte, m *byte) (int, bool) {
 var tiden int
 
 // ParseRawFormatActisenseN2KAscii parses Actisense N2K ASCII messages.
-func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
+func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, logger logging.Logger) int {
 	scanned := 0
 
 	// parse timestamp. Actisense doesn't give us date so let's figure it out ourself
 	splitBySpaces := strings.Split(string(msg), " ")
 	if len(splitBySpaces) == 1 || splitBySpaces[0][0] != 'A' {
-		//nolint:errcheck
 		logger.Error("No message or does not start with 'A'\n")
 		return -1
 	}
@@ -312,11 +293,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 	scanned += len(splitBySpaces[0]) + 1
 	splitBySpaces = splitBySpaces[1:]
 	if len(splitBySpaces) == 0 {
-		//nolint:errcheck
-		logger.Error("Incomplete message\n")
-		if !showJSON {
-			logger.Info(msg)
-		}
+		logger.Error("Incomplete message")
 		return -1
 	}
 	//nolint:errcheck
@@ -327,17 +304,14 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 	scanned += len(splitBySpaces[0]) + 1
 	p := []byte(strings.Join(splitBySpaces[1:], " "))
 	var i uint8
+	m.Data = make([]byte, FastPacketMaxSize)
 	for i = 0; i < FastPacketMaxSize; i++ {
 		if len(p) == 0 || unicode.IsSpace(rune(p[0])) {
 			break
 		}
 		advancedBy, ok := scanHex(p, &m.Data[i])
 		if !ok {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", len(msg)-scanned, string(msg), string(p), i)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		scanned += advancedBy
@@ -350,7 +324,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 
 // ParseRawFormatAirmar parses Airmar messages.
 // Note(UNTESTED): See README.md.
-func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
+func ParseRawFormatAirmar(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var dataLen uint
 	var prio, src, dst uint8
 	var pgn uint32
@@ -372,11 +346,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger loggi
 
 	r, _ := fmt.Sscanf(string(msg[pIdx:]), "%d", &pgn)
 	if r != 1 {
-		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
 	pIdx += len(strconv.FormatUint(uint64(pgn), 10))
@@ -385,21 +355,13 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger loggi
 
 		r, _ := fmt.Sscanf(string(msg[pIdx:]), "%x", &id)
 		if r != 1 {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		pIdx += len(strconv.FormatUint(uint64(id), 16))
 	}
 	if msg[pIdx] != ' ' {
-		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
 
@@ -407,24 +369,17 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger loggi
 
 	pIdx++
 	dataLen = uint(len(msg[pIdx:]) / 2)
+	m.Data = make([]byte, dataLen)
 	for i := uint(0); i < dataLen; i++ {
 		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
 		if !ok {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		pIdx += advancedBy
 		if i < dataLen {
 			if msg[pIdx] != ',' && msg[pIdx] != ' ' {
-				//nolint:errcheck
 				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-				if !showJSON {
-					logger.Info(msg)
-				}
 				return 2
 			}
 			pIdx++
@@ -437,7 +392,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger loggi
 
 // ParseRawFormatChetco parses Chetco messages.
 // Note(UNTESTED): See README.md.
-func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
+func ParseRawFormatChetco(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var tstamp uint
 
 	if len(msg) == 0 || msg[0] == '\n' {
@@ -445,11 +400,7 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger loggi
 	}
 
 	if r, _ := fmt.Sscanf(string(msg), "$PCDIN,%x,%x,%x,", &m.PGN, &tstamp, &m.Src); r < 3 {
-		//nolint:errcheck
 		logger.Error("Error reading Chetco message: %s", msg)
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 2
 	}
 
@@ -461,13 +412,10 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger loggi
 
 	var i uint
 	for i = 0; msg[pIdx] != '*'; i++ {
+		m.Data = append(m.Data, 0x00)
 		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
 		if !ok {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		pIdx += advancedBy
@@ -488,7 +436,7 @@ Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority
 Manufacturer,3,255,3,0,43,0xFFDF40A6E9BB22C04B3666C18FBF0600A6C33CA5F84B01A0293B140000000010FC01AC26AC264A12000000
 */
 // Note(UNTESTED): See README.md.
-func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool, logger logging.Logger) int {
+func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, absolute bool, logger logging.Logger) int {
 	var seq, tstamp, pgn, src, dst, prio, single, count uint
 	var t int
 
@@ -504,14 +452,11 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 			string(msg),
 			"%d,%d_%d_%d_%d_%d_%d_%d,%d,",
 			&seq, &month, &day, &year, &hours, &minutes, &seconds, &ms, &pgn); r < 9 {
-			//nolint:errcheck
 			logger.Error("Error reading Garmin CSV message: %s", msg)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 
+		//nolint:gosmopolitan
 		m.Timestamp = time.Date(
 			int(year),
 			time.Month(month),
@@ -526,11 +471,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 		pIdx = findOccurrence(msg, ',', 6)
 	} else {
 		if r, _ := fmt.Sscanf(string(msg), "%d,%d,%d,", &seq, &tstamp, &pgn); r < 3 {
-			//nolint:errcheck
 			logger.Error("Error reading Garmin CSV message: %s", msg)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 
@@ -542,34 +483,23 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 	}
 
 	if len(msg[pIdx:]) == 0 {
-		//nolint:errcheck
 		logger.Error("Error reading Garmin CSV message: %s", msg)
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 3
 	}
 
 	var restOfData string
 	if r, _ := fmt.Sscanf(string(msg[pIdx:]), "%d,%d,%d,%d,%d,0x%s", &src, &dst, &prio, &single, &count, &restOfData); r < 5 {
-		//nolint:errcheck
 		logger.Error("Error reading Garmin CSV message: %s", msg)
-		if !showJSON {
-			logger.Info(msg)
-		}
 		return 3
 	}
 	pIdx += strings.Index(string(msg[pIdx:]), ",0x") + 3
 
+	m.Data = make([]byte, count)
 	var i uint
 	for i = 0; len(msg[pIdx:]) != 0 && i < count; i++ {
 		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
 		if !ok {
-			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			if !showJSON {
-				logger.Info(msg)
-			}
 			return 2
 		}
 		pIdx += advancedBy
@@ -646,7 +576,7 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger logging.Logger) int 
 	for splitBySpaces = splitBySpaces[1:]; len(splitBySpaces) != 0; splitBySpaces = splitBySpaces[1:] {
 		//nolint:errcheck
 		n, _ := strconv.ParseInt(splitBySpaces[0], 16, 64)
-		m.Data[i] = byte(n)
+		m.Data = append(m.Data, byte(n))
 		i++
 		if i > FastPacketMaxSize {
 			return -1
@@ -681,7 +611,6 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) in
 	var pgnData string
 	r, _ := fmt.Sscanf(string(msg), "!PDGY,%d,%d,%d,%d,%f,%s ", &pgn, &prio, &src, &dst, &timer, &pgnData)
 	if r != 6 {
-		//nolint:errcheck
 		logger.Error("wrong amount of fields in message: %d", r)
 		return -1
 	}
@@ -691,11 +620,10 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) in
 
 	decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
 	if err != nil {
-		//nolint:errcheck
 		logger.Error("error decoding base64 data: %s", err)
 		return -1
 	}
-	copy(m.Data[:], decoded)
+	m.Data = decoded
 
 	m.setParsedValues(prio, pgn, dst, src, uint8(len(decoded)))
 	return 0

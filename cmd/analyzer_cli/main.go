@@ -6,23 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/erh/gonmea/analyzer"
+	"github.com/erh/gonmea/analyzer/cli"
 	"github.com/erh/gonmea/common"
 )
 
 func main() {
-	conf, cont, err := analyzer.ParseArgs(os.Args)
+	cli, err := cli.New(os.Args)
 	handleErr(err)
-	defer func() {
-		//nolint:errcheck
-		conf.Logger.Sync()
-	}()
-	if !cont {
-		return
-	}
-	ana, err := analyzer.NewAnalyzer(conf)
-	handleErr(err)
-	handleErr(ana.Run())
+	handleErr(cli.Run())
 }
 
 func handleErr(err error) {

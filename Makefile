@@ -21,7 +21,7 @@ PATH_WITH_TOOLS="`pwd`/$(TOOL_BIN):${PATH}"
 PLATFORM=$(shell uname | tr '[A-Z]' '[a-z]')-$(shell uname -m)
 BUILDDIR?=rel/$(PLATFORM)
 TARGETDIR=$(BUILDDIR)
-ANALYZER=$(TARGETDIR)/analyzer
+ANALYZER=$(TARGETDIR)/analyzer_cli
 TARGETS=$(ANALYZER)
 
 all: $(TARGETS)
@@ -30,7 +30,7 @@ analyzer: $(ANALYZER)
 
 $(ANALYZER):
 	@mkdir -p $(TARGETDIR)
-	go build -o $(ANALYZER) cmd/analyzer/main.go
+	go build -o $(ANALYZER) cmd/analyzer_cli/main.go
 
 tests:	$(ANALYZER)
 	(cd analyzer/tests; make tests)

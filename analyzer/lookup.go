@@ -21,48 +21,48 @@ import (
 	"fmt"
 )
 
-type lookupType byte
+type LookupType byte
 
-func (ana *Analyzer) fillLookups() {
+func (ana *analyzerImpl) fillLookups() {
 	// Iterate over the PGNs and fill the description of company-code fixed values
-	for _, elem := range ana.pgns {
-		f := &elem.fieldList[0]
-		if f.name != "" && f.unit != "" && f.name == "Manufacturer Code" {
+	for _, elem := range ana.state.PGNs {
+		f := &elem.FieldList[0]
+		if f.Name != "" && f.Unit != "" && f.Name == "Manufacturer Code" {
 			var id int
-			fmt.Sscanf(f.unit, "=%d")
-			f.description = lookupFunctionPairForTyp["MANUFACTURER_CODE"](id)
+			fmt.Sscanf(f.Unit, "=%d")
+			f.Description = lookupFunctionPairForTyp["MANUFACTURER_CODE"](id)
 		}
 	}
 }
 
 const (
-	lookupTypeNone lookupType = iota
-	lookupTypePair
-	lookupTypeTriplet
-	lookupTypeBit
-	lookupTypeFieldType
+	LookupTypeNone LookupType = iota
+	LookupTypePair
+	LookupTypeTriplet
+	LookupTypeBit
+	LookupTypeFieldType
 )
 
-type lookupInfo struct {
-	name            string
-	lookupType      lookupType
-	functionPair    func(val int) string
-	functionTriplet func(val1, val2 int) string
-	val1Order       uint8 // Which field is the first field in a tripletEnumerator
-	size            int   // Used in analyzer only
+type LookupInfo struct {
+	Name            string
+	LookupType      LookupType
+	FunctionPair    func(val int) string
+	FunctionTriplet func(val1, val2 int) string
+	Val1Order       uint8 // Which field is the first field in a tripletEnumerator
+	Size            int   // Used in analyzer only
 }
 
 var (
 	lookupFunctionPairForTyp      = map[string]func(val int) string{}
 	lookupFunctionTripletForTyp   = map[string]func(val1, val2 int) string{}
-	lookupFunctionFieldTypeForTyp = map[string]func(ana *Analyzer, value int) (string, error){}
+	lookupFunctionFieldTypeForTyp = map[string]func(ana *analyzerImpl, value int) (string, error){}
 
 	lookupPairForTyp      = map[string]map[int]string{}
 	lookupTripletForTyp   = map[string]map[tripletPair]string{}
-	lookupFieldTypeForTyp = map[string]map[int](func(ana *Analyzer) (string, error)){}
+	lookupFieldTypeForTyp = map[string]map[int](func(ana *analyzerImpl) (string, error)){}
 )
 
-func addlookupType(typ string, _ uint32) {
+func addLookupType(typ string, _ uint32) {
 	lookupPairForTyp[typ] = map[int]string{}
 	lookupFunctionPairForTyp[typ] = func(val int) string {
 		return lookupPairForTyp[typ][val]
@@ -78,7 +78,7 @@ type tripletPair struct {
 	val2 int
 }
 
-func addlookupTypeTriplet(typ string, _ uint32) {
+func addLookupTypeTriplet(typ string, _ uint32) {
 	lookupTripletForTyp[typ] = map[tripletPair]string{}
 	lookupFunctionTripletForTyp[typ] = func(val1, val2 int) string {
 		return lookupTripletForTyp[typ][tripletPair{val1, val2}]
@@ -90,7 +90,7 @@ func addLookupTriplet(typ string, val1, val2 int, desc string) {
 	lookupTripletForTyp[typ][tripletPair{val1, val2}] = desc
 }
 
-func addlookupTypeBitfield(typ string, _ uint32) {
+func addLookupTypeBitfield(typ string, _ uint32) {
 	lookupPairForTyp[typ] = map[int]string{}
 	lookupFunctionPairForTyp[typ] = func(val int) string {
 		return lookupPairForTyp[typ][val]
@@ -101,22 +101,22 @@ func addLookupBitfield(typ string, val int, desc string) {
 	lookupPairForTyp[typ][val] = desc
 }
 
-func addlookupTypeFieldType(typ string, _ uint32) {
-	lookupFieldTypeForTyp[typ] = map[int](func(ana *Analyzer) (string, error)){}
-	lookupFunctionFieldTypeForTyp[typ] = func(ana *Analyzer, value int) (string, error) {
+func addLookupTypeFieldType(typ string, _ uint32) {
+	lookupFieldTypeForTyp[typ] = map[int](func(ana *analyzerImpl) (string, error)){}
+	lookupFunctionFieldTypeForTyp[typ] = func(ana *analyzerImpl, value int) (string, error) {
 		return lookupFieldTypeForTyp[typ][value](ana)
 	}
 }
 
 func addLookupFieldType(fType string, n int, str, ft string) {
-	var f pgnField
-	lookupFieldTypeForTyp[fType][n] = func(ana *Analyzer) (string, error) {
-		if f.name == "" {
+	var f PGNField
+	lookupFieldTypeForTyp[fType][n] = func(ana *analyzerImpl) (string, error) {
+		if f.Name == "" {
 			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
 				return "", err
 			}
 		}
-		ana.ftf = &f
+		ana.state.FTF = &f
 		return str, nil
 	}
 }
@@ -128,43 +128,43 @@ func addLookupFieldTypeLookup(
 	str string,
 	ft string,
 	bits int,
-	lt lookupType,
+	lt LookupType,
 	ln string,
 ) {
-	var f pgnField
-	lookupFieldTypeForTyp[fType][n] = func(ana *Analyzer) (string, error) {
-		if f.name == "" {
-			f.lookup.name = ln
-			f.size = uint32(bits)
-			f.lookup.size = bits
-			f.lookup.lookupType = lt
+	var f PGNField
+	lookupFieldTypeForTyp[fType][n] = func(ana *analyzerImpl) (string, error) {
+		if f.Name == "" {
+			f.Lookup.Name = ln
+			f.Size = uint32(bits)
+			f.Lookup.Size = bits
+			f.Lookup.LookupType = lt
 			switch lt {
-			case lookupTypePair, lookupTypeBit, lookupTypeFieldType:
-				f.lookup.functionPair = lookupFunctionPairForTyp[ln]
-			case lookupTypeTriplet:
-				f.lookup.functionTriplet = lookupFunctionTripletForTyp[ln]
-			case lookupTypeNone:
+			case LookupTypePair, LookupTypeBit, LookupTypeFieldType:
+				f.Lookup.FunctionPair = lookupFunctionPairForTyp[ln]
+			case LookupTypeTriplet:
+				f.Lookup.FunctionTriplet = lookupFunctionTripletForTyp[ln]
+			case LookupTypeNone:
 			default:
-				return "", fmt.Errorf("unknown lookupType %v", lt)
+				return "", fmt.Errorf("unknown LookupType %v", lt)
 			}
 			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
 				return "", err
 			}
 		}
-		ana.ftf = &f
+		ana.state.FTF = &f
 		return str, nil
 	}
 }
 
 func initLookupTypes() {
-	addlookupType("LIGHTINana.COMMAND", 3)
+	addLookupType("LIGHTINana.COMMAND", 3)
 	addLookup("LIGHTINana.COMMAND", 0, "Idle")
 	addLookup("LIGHTINana.COMMAND", 1, "Detect Devices")
 	addLookup("LIGHTINana.COMMAND", 2, "Reboot")
 	addLookup("LIGHTINana.COMMAND", 3, "Factory Reset")
 	addLookup("LIGHTINana.COMMAND", 4, "Powering Up")
 
-	addlookupType("INDUSTRY_CODE", 3)
+	addLookupType("INDUSTRY_CODE", 3)
 	addLookup("INDUSTRY_CODE", 0, "Global")
 	addLookup("INDUSTRY_CODE", 1, "Highway")
 	addLookup("INDUSTRY_CODE", 2, "Agriculture")
@@ -172,7 +172,7 @@ func initLookupTypes() {
 	addLookup("INDUSTRY_CODE", 4, "Marine")
 	addLookup("INDUSTRY_CODE", 5, "Industrial")
 
-	addlookupType("MANUFACTURER_CODE", 11)
+	addLookupType("MANUFACTURER_CODE", 11)
 	addLookup("MANUFACTURER_CODE", 69, "ARKS Enterprises, Inc.")
 	addLookup("MANUFACTURER_CODE", 78, "FW Murphy/Enovation Controls")
 	addLookup("MANUFACTURER_CODE", 80, "Twin Disc")
@@ -352,7 +352,7 @@ func initLookupTypes() {
 	addLookup("MANUFACTURER_CODE", 1862, "Yamaha Marine")
 	addLookup("MANUFACTURER_CODE", 1863, "Faria Instruments")
 
-	addlookupType("AIS_MESSAGE_ID", 6)
+	addLookupType("AIS_MESSAGE_ID", 6)
 	addLookup("AIS_MESSAGE_ID", 1, "Scheduled Class A position report")
 	addLookup("AIS_MESSAGE_ID", 2, "Assigned scheduled Class A position report")
 	addLookup("AIS_MESSAGE_ID", 3, "Interrogated Class A position report")
@@ -381,7 +381,7 @@ func initLookupTypes() {
 	addLookup("AIS_MESSAGE_ID", 26, "Multiple slot binary message")
 	addLookup("AIS_MESSAGE_ID", 27, "Position report for long range applications")
 
-	addlookupType("SHIP_TYPE", 8*1)
+	addLookupType("SHIP_TYPE", 8*1)
 	addLookup("SHIP_TYPE", 0, "Unavailable")
 	addLookup("SHIP_TYPE", 20, "Wing In Ground")
 	addLookup("SHIP_TYPE", 21, "Wing In Ground (hazard cat X)")
@@ -439,7 +439,7 @@ func initLookupTypes() {
 	addLookup("SHIP_TYPE", 99, "Other (no additional information)")
 
 	/* http://www.nmea.org/Assets/20120726%20nmea%202000%20class%20&%20function%20codes%20v%202.00.pdf */
-	addlookupType("DEVICE_CLASS", 7)
+	addLookupType("DEVICE_CLASS", 7)
 	addLookup("DEVICE_CLASS", 0, "Reserved for 2000 Use")
 	addLookup("DEVICE_CLASS", 10, "System tools")
 	addLookup("DEVICE_CLASS", 20, "Safety systems")
@@ -459,7 +459,7 @@ func initLookupTypes() {
 	addLookup("DEVICE_CLASS", 120, "Display")
 	addLookup("DEVICE_CLASS", 125, "Entertainment")
 
-	addlookupTypeTriplet("DEVICE_FUNCTION", 8)
+	addLookupTypeTriplet("DEVICE_FUNCTION", 8)
 	addLookupTriplet("DEVICE_FUNCTION", 10, 130, "Diagnostic")
 	addLookupTriplet("DEVICE_FUNCTION", 10, 140, "Bus Traffic Logger")
 	addLookupTriplet("DEVICE_FUNCTION", 20, 110, "Alarm Enunciator")
@@ -567,24 +567,24 @@ func initLookupTypes() {
 	addLookupTriplet("DEVICE_FUNCTION", 125, 130, "Multimedia Player")
 	addLookupTriplet("DEVICE_FUNCTION", 125, 140, "Multimedia Controller")
 
-	addlookupType("REPEAT_INDICATOR", 2)
+	addLookupType("REPEAT_INDICATOR", 2)
 	addLookup("REPEAT_INDICATOR", 0, "Initial")
 	addLookup("REPEAT_INDICATOR", 1, "First retransmission")
 	addLookup("REPEAT_INDICATOR", 2, "Second retransmission")
 	addLookup("REPEAT_INDICATOR", 3, "Final retransmission")
 
-	addlookupType("TX_RX_MODE", 4)
+	addLookupType("TX_RX_MODE", 4)
 	addLookup("TX_RX_MODE", 0, "Tx A/Tx B, Rx A/Rx B")
 	addLookup("TX_RX_MODE", 1, "Tx A, Rx A/Rx B")
 	addLookup("TX_RX_MODE", 2, "Tx B, Rx A/Rx B")
 
-	addlookupTypeBitfield("STATION_STATUS", 4)
+	addLookupTypeBitfield("STATION_STATUS", 4)
 	addLookupBitfield("STATION_STATUS", 0, "Station in use")
 	addLookupBitfield("STATION_STATUS", 1, "Low SNR")
 	addLookupBitfield("STATION_STATUS", 2, "Cycle Error")
 	addLookupBitfield("STATION_STATUS", 3, "Blink")
 
-	addlookupType("STATION_TYPE", 4)
+	addLookupType("STATION_TYPE", 4)
 	addLookup("STATION_TYPE", 0, "All types of mobile station")
 	addLookup("STATION_TYPE", 2, "All types of Class B mobile station")
 	addLookup("STATION_TYPE", 3, "SAR airborne mobile station")
@@ -595,7 +595,7 @@ func initLookupTypes() {
 	addLookup("STATION_TYPE", 8, "Regional use 8")
 	addLookup("STATION_TYPE", 9, "Regional use 9")
 
-	addlookupType("REPORTINana.INTERVAL", 4)
+	addLookupType("REPORTINana.INTERVAL", 4)
 	addLookup("REPORTINana.INTERVAL", 0, "As given by the autonomous mode")
 	addLookup("REPORTINana.INTERVAL", 1, "10 min")
 	addLookup("REPORTINana.INTERVAL", 2, "6 min")
@@ -609,7 +609,7 @@ func initLookupTypes() {
 	addLookup("REPORTINana.INTERVAL", 10, "Next shorter reporting interval")
 	addLookup("REPORTINana.INTERVAL", 11, "Next longer reporting interval")
 
-	addlookupType("AIS_TRANSCEIVER", 5)
+	addLookupType("AIS_TRANSCEIVER", 5)
 	addLookup("AIS_TRANSCEIVER", 0, "Channel A VDL reception")
 	addLookup("AIS_TRANSCEIVER", 1, "Channel B VDL reception")
 	addLookup("AIS_TRANSCEIVER", 2, "Channel A VDL transmission")
@@ -617,11 +617,11 @@ func initLookupTypes() {
 	addLookup("AIS_TRANSCEIVER", 4, "Own information not broadcast")
 	addLookup("AIS_TRANSCEIVER", 5, "Reserved")
 
-	addlookupType("AIS_ASSIGNED_MODE", 1)
+	addLookupType("AIS_ASSIGNED_MODE", 1)
 	addLookup("AIS_ASSIGNED_MODE", 0, "Autonomous and continuous")
 	addLookup("AIS_ASSIGNED_MODE", 1, "Assigned mode")
 
-	addlookupType("ATON_TYPE", 5)
+	addLookupType("ATON_TYPE", 5)
 	addLookup("ATON_TYPE", 0, "Default: Type of AtoN not specified")
 	addLookup("ATON_TYPE", 1, "Reference point")
 	addLookup("ATON_TYPE", 2, "RACON")
@@ -655,13 +655,13 @@ func initLookupTypes() {
 	addLookup("ATON_TYPE", 30, "Floating AtoN: special mark")
 	addLookup("ATON_TYPE", 31, "Floating AtoN: light vessel/LANBY/rigs")
 
-	addlookupType("AIS_SPECIAL_MANEUVER", 2)
+	addLookupType("AIS_SPECIAL_MANEUVER", 2)
 	addLookup("AIS_SPECIAL_MANEUVER", 0, "Not available")
 	addLookup("AIS_SPECIAL_MANEUVER", 1, "Not engaged in special maneuver")
 	addLookup("AIS_SPECIAL_MANEUVER", 2, "Engaged in special maneuver")
 	addLookup("AIS_SPECIAL_MANEUVER", 3, "Reserved")
 
-	addlookupType("POSITION_FIX_DEVICE", 4)
+	addLookupType("POSITION_FIX_DEVICE", 4)
 	addLookup("POSITION_FIX_DEVICE", 0, "Default: undefined")
 	addLookup("POSITION_FIX_DEVICE", 1, "GPS")
 	addLookup("POSITION_FIX_DEVICE", 2, "GLONASS")
@@ -673,7 +673,7 @@ func initLookupTypes() {
 	addLookup("POSITION_FIX_DEVICE", 8, "Galileo")
 	addLookup("POSITION_FIX_DEVICE", 15, "Internal GNSS")
 
-	addlookupType("GNS", 4)
+	addLookupType("GNS", 4)
 	addLookup("GNS", 0, "GPS")
 	addLookup("GNS", 1, "GLONASS")
 	addLookup("GNS", 2, "GPS+GLONASS")
@@ -684,12 +684,12 @@ func initLookupTypes() {
 	addLookup("GNS", 7, "surveyed")
 	addLookup("GNS", 8, "Galileo")
 
-	addlookupType("ENGINE_INSTANCE", 8*1)
+	addLookupType("ENGINE_INSTANCE", 8*1)
 	addLookup("ENGINE_INSTANCE", 0, "Single Engine or Dual Engine Port")
 	addLookup("ENGINE_INSTANCE", 1, "Dual Engine Starboard")
 
 	// http://www.osukl.com/wp-content/uploads/2015/04/3155-UM.pdf
-	addlookupTypeBitfield("ENGINE_STATUS_1", 8*2)
+	addLookupTypeBitfield("ENGINE_STATUS_1", 8*2)
 	addLookupBitfield("ENGINE_STATUS_1", 0, "Check Engine")
 	addLookupBitfield("ENGINE_STATUS_1", 1, "Over Temperature")
 	addLookupBitfield("ENGINE_STATUS_1", 2, "Low Oil Pressure")
@@ -707,7 +707,7 @@ func initLookupTypes() {
 	addLookupBitfield("ENGINE_STATUS_1", 14, "Throttle Position Sensor")
 	addLookupBitfield("ENGINE_STATUS_1", 15, "Emergency Stop")
 
-	addlookupTypeBitfield("ENGINE_STATUS_2", 8*2)
+	addLookupTypeBitfield("ENGINE_STATUS_2", 8*2)
 	addLookupBitfield("ENGINE_STATUS_2", 0, "Warning Level 1")
 	addLookupBitfield("ENGINE_STATUS_2", 1, "Warning Level 2")
 	addLookupBitfield("ENGINE_STATUS_2", 2, "Power Reduction")
@@ -717,30 +717,30 @@ func initLookupTypes() {
 	addLookupBitfield("ENGINE_STATUS_2", 6, "Neutral Start Protect")
 	addLookupBitfield("ENGINE_STATUS_2", 7, "Engine Shutting Down")
 
-	addlookupType("GEAR_STATUS", 2)
+	addLookupType("GEAR_STATUS", 2)
 	addLookup("GEAR_STATUS", 0, "Forward")
 	addLookup("GEAR_STATUS", 1, "Neutral")
 	addLookup("GEAR_STATUS", 2, "Reverse")
 
-	addlookupType("DIRECTION", 4)
+	addLookupType("DIRECTION", 4)
 	addLookup("DIRECTION", 0, "Forward")
 	addLookup("DIRECTION", 1, "Reverse")
 
-	addlookupType("POSITION_ACCURACY", 1)
+	addLookupType("POSITION_ACCURACY", 1)
 	addLookup("POSITION_ACCURACY", 0, "Low")
 	addLookup("POSITION_ACCURACY", 1, "High")
 
-	addlookupType("RAIM_FLAG", 1)
+	addLookupType("RAIM_FLAG", 1)
 	addLookup("RAIM_FLAG", 0, "not in use")
 	addLookup("RAIM_FLAG", 1, "in use")
 
-	addlookupType("TIME_STAMP", 6)
+	addLookupType("TIME_STAMP", 6)
 	addLookup("TIME_STAMP", 60, "Not available")
 	addLookup("TIME_STAMP", 61, "Manual input mode")
 	addLookup("TIME_STAMP", 62, "Dead reckoning mode")
 	addLookup("TIME_STAMP", 63, "Positioning system is inoperative")
 
-	addlookupType("GNS_METHOD", 4)
+	addLookupType("GNS_METHOD", 4)
 	addLookup("GNS_METHOD", 0, "no GNSS")
 	addLookup("GNS_METHOD", 1, "GNSS fix")
 	addLookup("GNS_METHOD", 2, "DGNSS fix")
@@ -751,12 +751,12 @@ func initLookupTypes() {
 	addLookup("GNS_METHOD", 7, "Manual Input")
 	addLookup("GNS_METHOD", 8, "Simulate mode")
 
-	addlookupType("GNS_INTEGRITY", 2)
+	addLookupType("GNS_INTEGRITY", 2)
 	addLookup("GNS_INTEGRITY", 0, "No integrity checking")
 	addLookup("GNS_INTEGRITY", 1, "Safe")
 	addLookup("GNS_INTEGRITY", 2, "Caution")
 
-	addlookupType("SYSTEM_TIME", 4)
+	addLookupType("SYSTEM_TIME", 4)
 	addLookup("SYSTEM_TIME", 0, "GPS")
 	addLookup("SYSTEM_TIME", 1, "GLONASS")
 	addLookup("SYSTEM_TIME", 2, "Radio Station")
@@ -764,7 +764,7 @@ func initLookupTypes() {
 	addLookup("SYSTEM_TIME", 4, "Local Rubidium clock")
 	addLookup("SYSTEM_TIME", 5, "Local Crystal clock")
 
-	addlookupType("MAGNETIC_VARIATION", 4)
+	addLookupType("MAGNETIC_VARIATION", 4)
 	addLookup("MAGNETIC_VARIATION", 0, "Manual")
 	addLookup("MAGNETIC_VARIATION", 1, "Automatic Chart")
 	addLookup("MAGNETIC_VARIATION", 2, "Automatic Table")
@@ -775,50 +775,50 @@ func initLookupTypes() {
 	addLookup("MAGNETIC_VARIATION", 7, "WMM 2015")
 	addLookup("MAGNETIC_VARIATION", 8, "WMM 2020")
 
-	addlookupType("RESIDUAL_MODE", 4)
+	addLookupType("RESIDUAL_MODE", 4)
 	addLookup("RESIDUAL_MODE", 0, "Autonomous")
 	addLookup("RESIDUAL_MODE", 1, "Differential enhanced")
 	addLookup("RESIDUAL_MODE", 2, "Estimated")
 	addLookup("RESIDUAL_MODE", 3, "Simulator")
 	addLookup("RESIDUAL_MODE", 4, "Manual")
 
-	addlookupType("WIND_REFERENCE", 3)
+	addLookupType("WIND_REFERENCE", 3)
 	addLookup("WIND_REFERENCE", 0, "True (ground referenced to North)")
 	addLookup("WIND_REFERENCE", 1, "Magnetic (ground referenced to Magnetic North)")
 	addLookup("WIND_REFERENCE", 2, "Apparent")
 	addLookup("WIND_REFERENCE", 3, "True (boat referenced)")
 	addLookup("WIND_REFERENCE", 4, "True (water referenced)")
 
-	addlookupType("WATER_REFERENCE", 8*1)
+	addLookupType("WATER_REFERENCE", 8*1)
 	addLookup("WATER_REFERENCE", 0, "Paddle wheel")
 	addLookup("WATER_REFERENCE", 1, "Pitot tube")
 	addLookup("WATER_REFERENCE", 2, "Doppler")
 	addLookup("WATER_REFERENCE", 3, "Correlation (ultra sound)")
 	addLookup("WATER_REFERENCE", 4, "Electro Magnetic")
 
-	addlookupType("YES_NO", 2)
+	addLookupType("YES_NO", 2)
 	addLookup("YES_NO", 0, "No")
 	addLookup("YES_NO", 1, "Yes") /* Note that Error and Unknown are automatically decoded */
 
-	addlookupType("OK_WARNING", 2)
+	addLookupType("OK_WARNING", 2)
 	addLookup("OK_WARNING", 0, "OK")
 	addLookup("OK_WARNING", 1, "Warning")
 
-	addlookupType("OFF_ON", 2)
+	addLookupType("OFF_ON", 2)
 	addLookup("OFF_ON", 0, "Off")
 	addLookup("OFF_ON", 1, "On") /* Note that Error and Unknown are automatically decoded */
 
-	addlookupType("DIRECTION_REFERENCE", 2)
+	addLookupType("DIRECTION_REFERENCE", 2)
 	addLookup("DIRECTION_REFERENCE", 0, "True")
 	addLookup("DIRECTION_REFERENCE", 1, "Magnetic")
 	addLookup("DIRECTION_REFERENCE", 2, "Error")
 
-	addlookupType("DIRECTION_RUDDER", 3)
+	addLookupType("DIRECTION_RUDDER", 3)
 	addLookup("DIRECTION_RUDDER", 0, "No Order")
 	addLookup("DIRECTION_RUDDER", 1, "Move to starboard")
 	addLookup("DIRECTION_RUDDER", 2, "Move to port")
 
-	addlookupType("NAV_STATUS", 4)
+	addLookupType("NAV_STATUS", 4)
 	addLookup("NAV_STATUS", 0, "Under way using engine")
 	addLookup("NAV_STATUS", 1, "At anchor")
 	addLookup("NAV_STATUS", 2, "Not under command")
@@ -834,12 +834,12 @@ func initLookupTypes() {
 	addLookup("NAV_STATUS", 12, "Power-driven vessl pushing ahead or towing alongside")
 	addLookup("NAV_STATUS", 14, "AIS-SART")
 
-	addlookupType("POWER_FACTOR", 2)
+	addLookupType("POWER_FACTOR", 2)
 	addLookup("POWER_FACTOR", 0, "Leading")
 	addLookup("POWER_FACTOR", 1, "Lagging")
 	addLookup("POWER_FACTOR", 2, "Error")
 
-	addlookupType("TEMPERATURE_SOURCE", 8*1)
+	addLookupType("TEMPERATURE_SOURCE", 8*1)
 	addLookup("TEMPERATURE_SOURCE", 0, "Sea Temperature")
 	addLookup("TEMPERATURE_SOURCE", 1, "Outside Temperature")
 	addLookup("TEMPERATURE_SOURCE", 2, "Inside Temperature")
@@ -857,11 +857,11 @@ func initLookupTypes() {
 	addLookup("TEMPERATURE_SOURCE", 14, "Exhaust Gas Temperature")
 	addLookup("TEMPERATURE_SOURCE", 15, "Shaft Seal Temperature")
 
-	addlookupType("HUMIDITY_SOURCE", 8*1)
+	addLookupType("HUMIDITY_SOURCE", 8*1)
 	addLookup("HUMIDITY_SOURCE", 0, "Inside")
 	addLookup("HUMIDITY_SOURCE", 1, "Outside")
 
-	addlookupType("PRESSURE_SOURCE", 8*1)
+	addLookupType("PRESSURE_SOURCE", 8*1)
 	addLookup("PRESSURE_SOURCE", 0, "Atmospheric")
 	addLookup("PRESSURE_SOURCE", 1, "Water")
 	addLookup("PRESSURE_SOURCE", 2, "Steam")
@@ -872,7 +872,7 @@ func initLookupTypes() {
 	addLookup("PRESSURE_SOURCE", 7, "Oil")
 	addLookup("PRESSURE_SOURCE", 8, "Fuel")
 
-	addlookupType("DSC_FORMAT", 8*1)
+	addLookupType("DSC_FORMAT", 8*1)
 	addLookup("DSC_FORMAT", 102, "Geographical area")
 	addLookup("DSC_FORMAT", 112, "Distress")
 	addLookup("DSC_FORMAT", 114, "Common interest")
@@ -881,13 +881,13 @@ func initLookupTypes() {
 	addLookup("DSC_FORMAT", 121, "Non-calling purpose")
 	addLookup("DSC_FORMAT", 123, "Individual station automatic")
 
-	addlookupType("DSC_CATEGORY", 8*1)
+	addLookupType("DSC_CATEGORY", 8*1)
 	addLookup("DSC_CATEGORY", 100, "Routine")
 	addLookup("DSC_CATEGORY", 108, "Safety")
 	addLookup("DSC_CATEGORY", 110, "Urgency")
 	addLookup("DSC_CATEGORY", 112, "Distress")
 
-	addlookupType("DSC_NATURE", 8*1)
+	addLookupType("DSC_NATURE", 8*1)
 	addLookup("DSC_NATURE", 100, "Fire")
 	addLookup("DSC_NATURE", 101, "Flooding")
 	addLookup("DSC_NATURE", 102, "Collision")
@@ -901,7 +901,7 @@ func initLookupTypes() {
 	addLookup("DSC_NATURE", 110, "Man overboard")
 	addLookup("DSC_NATURE", 112, "EPIRB emission")
 
-	addlookupType("DSC_FIRST_TELECOMMAND", 8*1)
+	addLookupType("DSC_FIRST_TELECOMMAND", 8*1)
 	addLookup("DSC_FIRST_TELECOMMAND", 100, "F3E/G3E All modes TP")
 	addLookup("DSC_FIRST_TELECOMMAND", 101, "F3E/G3E duplex TP")
 	addLookup("DSC_FIRST_TELECOMMAND", 103, "Polling")
@@ -917,7 +917,7 @@ func initLookupTypes() {
 	addLookup("DSC_FIRST_TELECOMMAND", 121, "Ship position or location registration updating")
 	addLookup("DSC_FIRST_TELECOMMAND", 126, "No information")
 
-	addlookupType("DSC_SECOND_TELECOMMAND", 8*1)
+	addLookupType("DSC_SECOND_TELECOMMAND", 8*1)
 	addLookup("DSC_SECOND_TELECOMMAND", 100, "No reason given")
 	addLookup("DSC_SECOND_TELECOMMAND", 101, "Congestion at MSC")
 	addLookup("DSC_SECOND_TELECOMMAND", 102, "Busy")
@@ -934,7 +934,7 @@ func initLookupTypes() {
 	addLookup("DSC_SECOND_TELECOMMAND", 113, "Fax/data")
 	addLookup("DSC_SECOND_TELECOMMAND", 126, "No information")
 
-	addlookupType("DSC_EXPANSION_DATA", 8*1)
+	addLookupType("DSC_EXPANSION_DATA", 8*1)
 	addLookup("DSC_EXPANSION_DATA", 100, "Enhanced position")
 	addLookup("DSC_EXPANSION_DATA", 101, "Source and datum of position")
 	addLookup("DSC_EXPANSION_DATA", 102, "SOG")
@@ -943,12 +943,12 @@ func initLookupTypes() {
 	addLookup("DSC_EXPANSION_DATA", 105, "Enhanced geographic area")
 	addLookup("DSC_EXPANSION_DATA", 106, "Number of persons on board")
 
-	addlookupType("SEATALK_ALARM_STATUS", 8*1)
+	addLookupType("SEATALK_ALARM_STATUS", 8*1)
 	addLookup("SEATALK_ALARM_STATUS", 0, "Alarm condition not met")
 	addLookup("SEATALK_ALARM_STATUS", 1, "Alarm condition met and not silenced")
 	addLookup("SEATALK_ALARM_STATUS", 2, "Alarm condition met and silenced")
 
-	addlookupType("SEATALK_ALARM_ID", 8*1)
+	addLookupType("SEATALK_ALARM_ID", 8*1)
 	addLookup("SEATALK_ALARM_ID", 0, "No Alarm")
 	addLookup("SEATALK_ALARM_ID", 1, "Shallow Depth")
 	addLookup("SEATALK_ALARM_ID", 2, "Deep Depth")
@@ -1056,14 +1056,14 @@ func initLookupTypes() {
 	addLookup("SEATALK_ALARM_ID", 107, "AIS Connection Lost")
 	addLookup("SEATALK_ALARM_ID", 108, "No Fix")
 
-	addlookupType("SEATALK_ALARM_GROUP", 8*1)
+	addLookupType("SEATALK_ALARM_GROUP", 8*1)
 	addLookup("SEATALK_ALARM_GROUP", 0, "Instrument")
 	addLookup("SEATALK_ALARM_GROUP", 1, "Autopilot")
 	addLookup("SEATALK_ALARM_GROUP", 2, "Radar")
 	addLookup("SEATALK_ALARM_GROUP", 3, "Chart Plotter")
 	addLookup("SEATALK_ALARM_GROUP", 4, "AIS")
 
-	addlookupType("SEATALK_PILOT_MODE", 8*1)
+	addLookupType("SEATALK_PILOT_MODE", 8*1)
 	addLookup("SEATALK_PILOT_MODE", 64, "Standby")
 	addLookup("SEATALK_PILOT_MODE", 66, "Auto")
 	addLookup("SEATALK_PILOT_MODE", 70, "Wind")
@@ -1072,14 +1072,14 @@ func initLookupTypes() {
 	// Entertainment PGNs new circa 2016
 	// https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf
 
-	addlookupType("ENTERTAINMENT_ZONE", 8*1)
+	addLookupType("ENTERTAINMENT_ZONE", 8*1)
 	addLookup("ENTERTAINMENT_ZONE", 0, "All zones")
 	addLookup("ENTERTAINMENT_ZONE", 1, "Zone 1")
 	addLookup("ENTERTAINMENT_ZONE", 2, "Zone 2")
 	addLookup("ENTERTAINMENT_ZONE", 3, "Zone 3")
 	addLookup("ENTERTAINMENT_ZONE", 4, "Zone 4")
 
-	addlookupType("ENTERTAINMENT_SOURCE", 8*1)
+	addLookupType("ENTERTAINMENT_SOURCE", 8*1)
 	addLookup("ENTERTAINMENT_SOURCE", 0, "Vessel alarm")
 	addLookup("ENTERTAINMENT_SOURCE", 1, "AM")
 	addLookup("ENTERTAINMENT_SOURCE", 2, "FM")
@@ -1106,7 +1106,7 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_SOURCE", 23, "HDMI")
 	addLookup("ENTERTAINMENT_SOURCE", 24, "Video")
 
-	addlookupType("ENTERTAINMENT_PLAY_STATUS", 8*2)
+	addLookupType("ENTERTAINMENT_PLAY_STATUS", 8*2)
 	addLookup("ENTERTAINMENT_PLAY_STATUS", 0, "Play")
 	addLookup("ENTERTAINMENT_PLAY_STATUS", 1, "Pause")
 	addLookup("ENTERTAINMENT_PLAY_STATUS", 2, "Stop")
@@ -1133,7 +1133,7 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_PLAY_STATUS", 23, "Slow motion .25x")
 	addLookup("ENTERTAINMENT_PLAY_STATUS", 24, "Slow motion .125x")
 
-	addlookupTypeBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 8*4)
+	addLookupTypeBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 8*4)
 	addLookupBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 0, "Play")
 	addLookupBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 1, "Pause")
 	addLookupBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 2, "Stop")
@@ -1161,22 +1161,22 @@ func initLookupTypes() {
 	addLookupBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 24, "Slow motion .125x")
 	addLookupBitfield("ENTERTAINMENT_PLAY_STATUS_BITFIELD", 25, "Source renaming")
 
-	addlookupType("ENTERTAINMENT_REPEAT_STATUS", 4)
+	addLookupType("ENTERTAINMENT_REPEAT_STATUS", 4)
 	addLookup("ENTERTAINMENT_REPEAT_STATUS", 0, "Off")
 	addLookup("ENTERTAINMENT_REPEAT_STATUS", 1, "One")
 	addLookup("ENTERTAINMENT_REPEAT_STATUS", 2, "All")
 
-	addlookupType("ENTERTAINMENT_SHUFFLE_STATUS", 4)
+	addLookupType("ENTERTAINMENT_SHUFFLE_STATUS", 4)
 	addLookup("ENTERTAINMENT_SHUFFLE_STATUS", 0, "Off")
 	addLookup("ENTERTAINMENT_SHUFFLE_STATUS", 1, "Play queue")
 	addLookup("ENTERTAINMENT_SHUFFLE_STATUS", 2, "All")
 
-	addlookupType("ENTERTAINMENT_LIKE_STATUS", 8*1)
+	addLookupType("ENTERTAINMENT_LIKE_STATUS", 8*1)
 	addLookup("ENTERTAINMENT_LIKE_STATUS", 0, "None")
 	addLookup("ENTERTAINMENT_LIKE_STATUS", 1, "Thumbs up")
 	addLookup("ENTERTAINMENT_LIKE_STATUS", 2, "Thumbs down")
 
-	addlookupType("ENTERTAINMENT_TYPE", 8*1)
+	addLookupType("ENTERTAINMENT_TYPE", 8*1)
 	addLookup("ENTERTAINMENT_TYPE", 0, "File")
 	addLookup("ENTERTAINMENT_TYPE", 1, "Playlist Name")
 	addLookup("ENTERTAINMENT_TYPE", 2, "Genre Name")
@@ -1189,7 +1189,7 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_TYPE", 9, "Play Queue")
 	addLookup("ENTERTAINMENT_TYPE", 10, "Content Info")
 
-	addlookupType("ENTERTAINMENT_GROUP", 8*1)
+	addLookupType("ENTERTAINMENT_GROUP", 8*1)
 	addLookup("ENTERTAINMENT_GROUP", 0, "File")
 	addLookup("ENTERTAINMENT_GROUP", 1, "Playlist Name")
 	addLookup("ENTERTAINMENT_GROUP", 2, "Genre Name")
@@ -1202,7 +1202,7 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_GROUP", 9, "Play Queue")
 	addLookup("ENTERTAINMENT_GROUP", 10, "Content Info")
 
-	addlookupTypeBitfield("ENTERTAINMENT_GROUP_BITFIELD", 8*2)
+	addLookupTypeBitfield("ENTERTAINMENT_GROUP_BITFIELD", 8*2)
 	addLookupBitfield("ENTERTAINMENT_GROUP_BITFIELD", 0, "File")
 	addLookupBitfield("ENTERTAINMENT_GROUP_BITFIELD", 1, "Playlist Name")
 	addLookupBitfield("ENTERTAINMENT_GROUP_BITFIELD", 2, "Genre Name")
@@ -1215,7 +1215,7 @@ func initLookupTypes() {
 	addLookupBitfield("ENTERTAINMENT_GROUP_BITFIELD", 9, "Play Queue")
 	addLookupBitfield("ENTERTAINMENT_GROUP_BITFIELD", 10, "Content Info")
 
-	addlookupType("ENTERTAINMENT_CHANNEL", 8*1)
+	addLookupType("ENTERTAINMENT_CHANNEL", 8*1)
 	addLookup("ENTERTAINMENT_CHANNEL", 0, "All channels")
 	addLookup("ENTERTAINMENT_CHANNEL", 1, "Stereo full range")
 	addLookup("ENTERTAINMENT_CHANNEL", 2, "Stereo front")
@@ -1230,7 +1230,7 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_CHANNEL", 11, "Surround left")
 	addLookup("ENTERTAINMENT_CHANNEL", 12, "Surround right")
 
-	addlookupType("ENTERTAINMENT_EQ", 8*1)
+	addLookupType("ENTERTAINMENT_EQ", 8*1)
 	addLookup("ENTERTAINMENT_EQ", 0, "Flat")
 	addLookup("ENTERTAINMENT_EQ", 1, "Rock")
 	addLookup("ENTERTAINMENT_EQ", 2, "Hall")
@@ -1243,30 +1243,30 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_EQ", 9, "Cinema")
 	addLookup("ENTERTAINMENT_EQ", 10, "Custom")
 
-	addlookupType("ENTERTAINMENT_FILTER", 8*1)
+	addLookupType("ENTERTAINMENT_FILTER", 8*1)
 	addLookup("ENTERTAINMENT_FILTER", 0, "Full range")
 	addLookup("ENTERTAINMENT_FILTER", 1, "High pass")
 	addLookup("ENTERTAINMENT_FILTER", 2, "Low pass")
 	addLookup("ENTERTAINMENT_FILTER", 3, "Band pass")
 	addLookup("ENTERTAINMENT_FILTER", 4, "Notch filter")
 
-	addlookupType("ALERT_TYPE", 4)
+	addLookupType("ALERT_TYPE", 4)
 	addLookup("ALERT_TYPE", 1, "Emergency Alarm")
 	addLookup("ALERT_TYPE", 2, "Alarm")
 	addLookup("ALERT_TYPE", 5, "Warning")
 	addLookup("ALERT_TYPE", 8, "Caution")
 
-	addlookupType("ALERT_CATEGORY", 4)
+	addLookupType("ALERT_CATEGORY", 4)
 	addLookup("ALERT_CATEGORY", 0, "Navigational")
 	addLookup("ALERT_CATEGORY", 1, "Technical")
 
-	addlookupType("ALERT_TRIGGER_CONDITION", 4)
+	addLookupType("ALERT_TRIGGER_CONDITION", 4)
 	addLookup("ALERT_TRIGGER_CONDITION", 0, "Manual")
 	addLookup("ALERT_TRIGGER_CONDITION", 1, "Auto")
 	addLookup("ALERT_TRIGGER_CONDITION", 2, "Test")
 	addLookup("ALERT_TRIGGER_CONDITION", 3, "Disabled")
 
-	addlookupType("ALERT_THRESHOLD_STATUS", 4)
+	addLookupType("ALERT_THRESHOLD_STATUS", 4)
 	addLookup("ALERT_THRESHOLD_STATUS", 0, "Normal")
 	addLookup("ALERT_THRESHOLD_STATUS", 1, "Threshold Exceeded")
 	addLookup("ALERT_THRESHOLD_STATUS", 2, "Extreme Threshold Exceeded")
@@ -1274,7 +1274,7 @@ func initLookupTypes() {
 	addLookup("ALERT_THRESHOLD_STATUS", 4, "Acknowledged")
 	addLookup("ALERT_THRESHOLD_STATUS", 5, "Awaiting Acknowledge")
 
-	addlookupType("ALERT_STATE", 8*1)
+	addLookupType("ALERT_STATE", 8*1)
 	addLookup("ALERT_STATE", 0, "Disabled")
 	addLookup("ALERT_STATE", 1, "Normal")
 	addLookup("ALERT_STATE", 2, "Active")
@@ -1282,7 +1282,7 @@ func initLookupTypes() {
 	addLookup("ALERT_STATE", 4, "Acknowledged")
 	addLookup("ALERT_STATE", 5, "Awaiting Acknowledge")
 
-	addlookupType("ALERT_LANGUAGE_ID", 8*1)
+	addLookupType("ALERT_LANGUAGE_ID", 8*1)
 	addLookup("ALERT_LANGUAGE_ID", 0, "English (US)")
 	addLookup("ALERT_LANGUAGE_ID", 1, "English (UK)")
 	addLookup("ALERT_LANGUAGE_ID", 2, "Arabic")
@@ -1304,13 +1304,13 @@ func initLookupTypes() {
 	addLookup("ALERT_LANGUAGE_ID", 18, "Spanish")
 	addLookup("ALERT_LANGUAGE_ID", 19, "Swedish")
 
-	addlookupType("ALERT_RESPONSE_COMMAND", 2)
+	addLookupType("ALERT_RESPONSE_COMMAND", 2)
 	addLookup("ALERT_RESPONSE_COMMAND", 0, "Acknowledge")
 	addLookup("ALERT_RESPONSE_COMMAND", 1, "Temporary Silence")
 	addLookup("ALERT_RESPONSE_COMMAND", 2, "Test Command off")
 	addLookup("ALERT_RESPONSE_COMMAND", 3, "Test Command on")
 
-	addlookupType("CONVERTER_STATE", 8*1)
+	addLookupType("CONVERTER_STATE", 8*1)
 	addLookup("CONVERTER_STATE", 0, "Off")
 	addLookup("CONVERTER_STATE", 1, "Low Power Mode")
 	addLookup("CONVERTER_STATE", 2, "Fault")
@@ -1323,29 +1323,29 @@ func initLookupTypes() {
 	addLookup("CONVERTER_STATE", 9, "Inverting")
 	addLookup("CONVERTER_STATE", 10, "Assisting")
 
-	addlookupType("THRUSTER_DIRECTION_CONTROL", 4)
+	addLookupType("THRUSTER_DIRECTION_CONTROL", 4)
 	addLookup("THRUSTER_DIRECTION_CONTROL", 0, "Off")
 	addLookup("THRUSTER_DIRECTION_CONTROL", 1, "Ready")
 	addLookup("THRUSTER_DIRECTION_CONTROL", 2, "To Port")
 	addLookup("THRUSTER_DIRECTION_CONTROL", 3, "To Starboard")
 
-	addlookupType("THRUSTER_RETRACT_CONTROL", 2)
+	addLookupType("THRUSTER_RETRACT_CONTROL", 2)
 	addLookup("THRUSTER_RETRACT_CONTROL", 0, "Off")
 	addLookup("THRUSTER_RETRACT_CONTROL", 1, "Extend")
 	addLookup("THRUSTER_RETRACT_CONTROL", 2, "Retract")
 
-	addlookupTypeBitfield("THRUSTER_CONTROL_EVENTS", 8*1)
+	addLookupTypeBitfield("THRUSTER_CONTROL_EVENTS", 8*1)
 	addLookupBitfield("THRUSTER_CONTROL_EVENTS", 0, "Another device controlling thruster")
 	addLookupBitfield("THRUSTER_CONTROL_EVENTS", 1, "Boat speed too fast to safely use thruster")
 
-	addlookupType("THRUSTER_MOTOR_TYPE", 4)
+	addLookupType("THRUSTER_MOTOR_TYPE", 4)
 	addLookup("THRUSTER_MOTOR_TYPE", 0, "12VDC")
 	addLookup("THRUSTER_MOTOR_TYPE", 1, "24VDC")
 	addLookup("THRUSTER_MOTOR_TYPE", 2, "48VDC")
 	addLookup("THRUSTER_MOTOR_TYPE", 3, "24VAC")
 	addLookup("THRUSTER_MOTOR_TYPE", 4, "Hydraulic")
 
-	addlookupTypeBitfield("THRUSTER_MOTOR_EVENTS", 8*1)
+	addLookupTypeBitfield("THRUSTER_MOTOR_EVENTS", 8*1)
 	addLookupBitfield("THRUSTER_MOTOR_EVENTS", 0, "Motor over temperature cutout")
 	addLookupBitfield("THRUSTER_MOTOR_EVENTS", 1, "Motor over current cutout")
 	addLookupBitfield("THRUSTER_MOTOR_EVENTS", 2, "Low oil level warning")
@@ -1353,24 +1353,24 @@ func initLookupTypes() {
 	addLookupBitfield("THRUSTER_MOTOR_EVENTS", 4, "Controller under voltage cutout")
 	addLookupBitfield("THRUSTER_MOTOR_EVENTS", 5, "Manufacturer defined")
 
-	addlookupType("BOOT_STATE", 4)
+	addLookupType("BOOT_STATE", 4)
 	addLookup("BOOT_STATE", 0, "in Startup Monitor")
 	addLookup("BOOT_STATE", 1, "running Bootloader")
 	addLookup("BOOT_STATE", 2, "running Application")
 
-	addlookupType("ACCESS_LEVEL", 3)
+	addLookupType("ACCESS_LEVEL", 3)
 	addLookup("ACCESS_LEVEL", 0, "Locked")
 	addLookup("ACCESS_LEVEL", 1, "unlocked level 1")
 	addLookup("ACCESS_LEVEL", 2, "unlocked level 2")
 
-	addlookupType("TRANSMISSION_INTERVAL", 4)
+	addLookupType("TRANSMISSION_INTERVAL", 4)
 	addLookup("TRANSMISSION_INTERVAL", 0, "Acknowledge")
 	addLookup("TRANSMISSION_INTERVAL", 1, "Transmit Interval/Priority not supported")
 	addLookup("TRANSMISSION_INTERVAL", 2, "Transmit Interval too low")
 	addLookup("TRANSMISSION_INTERVAL", 3, "Access denied")
 	addLookup("TRANSMISSION_INTERVAL", 4, "Not supported")
 
-	addlookupType("PARAMETER_FIELD", 4)
+	addLookupType("PARAMETER_FIELD", 4)
 	addLookup("PARAMETER_FIELD", 0, "Acknowledge")
 	addLookup("PARAMETER_FIELD", 1, "Invalid parameter field")
 	addLookup("PARAMETER_FIELD", 2, "Temporary error")
@@ -1379,25 +1379,25 @@ func initLookupTypes() {
 	addLookup("PARAMETER_FIELD", 5, "Not supported")
 	addLookup("PARAMETER_FIELD", 6, "Read or Write not supported")
 
-	addlookupType("PGN_LIST_FUNCTION", 8*1)
+	addLookupType("PGN_LIST_FUNCTION", 8*1)
 	addLookup("PGN_LIST_FUNCTION", 0, "Transmit PGN list")
 	addLookup("PGN_LIST_FUNCTION", 1, "Receive PGN list")
 
-	addlookupType("FUSION_COMMAND", 8*1)
+	addLookupType("FUSION_COMMAND", 8*1)
 	addLookup("FUSION_COMMAND", 1, "Play")
 	addLookup("FUSION_COMMAND", 2, "Pause")
 	addLookup("FUSION_COMMAND", 4, "Next")
 	addLookup("FUSION_COMMAND", 6, "Prev")
 
-	addlookupType("FUSION_SIRIUS_COMMAND", 8*1)
+	addLookupType("FUSION_SIRIUS_COMMAND", 8*1)
 	addLookup("FUSION_SIRIUS_COMMAND", 1, "Next")
 	addLookup("FUSION_SIRIUS_COMMAND", 2, "Prev")
 
-	addlookupType("FUSION_MUTE_COMMAND", 8*1)
+	addLookupType("FUSION_MUTE_COMMAND", 8*1)
 	addLookup("FUSION_MUTE_COMMAND", 1, "Mute On")
 	addLookup("FUSION_MUTE_COMMAND", 2, "Mute Off")
 
-	addlookupType("SEATALK_KEYSTROKE", 8*1)
+	addLookupType("SEATALK_KEYSTROKE", 8*1)
 	addLookup("SEATALK_KEYSTROKE", 1, "Auto")
 	addLookup("SEATALK_KEYSTROKE", 2, "Standby")
 	addLookup("SEATALK_KEYSTROKE", 3, "Wind")
@@ -1409,11 +1409,11 @@ func initLookupTypes() {
 	addLookup("SEATALK_KEYSTROKE", 34, "+1 and +10")
 	addLookup("SEATALK_KEYSTROKE", 35, "Track")
 
-	addlookupType("SEATALK_DEVICE_ID", 8*1)
+	addLookupType("SEATALK_DEVICE_ID", 8*1)
 	addLookup("SEATALK_DEVICE_ID", 3, "S100")
 	addLookup("SEATALK_DEVICE_ID", 5, "Course Computer")
 
-	addlookupType("SEATALK_NETWORK_GROUP", 8*1)
+	addLookupType("SEATALK_NETWORK_GROUP", 8*1)
 	addLookup("SEATALK_NETWORK_GROUP", 0, "None")
 	addLookup("SEATALK_NETWORK_GROUP", 1, "Helm 1")
 	addLookup("SEATALK_NETWORK_GROUP", 2, "Helm 2")
@@ -1426,13 +1426,13 @@ func initLookupTypes() {
 	addLookup("SEATALK_NETWORK_GROUP", 9, "Group 4")
 	addLookup("SEATALK_NETWORK_GROUP", 10, "Group 5")
 
-	addlookupType("SEATALK_DISPLAY_COLOR", 8*1)
+	addLookupType("SEATALK_DISPLAY_COLOR", 8*1)
 	addLookup("SEATALK_DISPLAY_COLOR", 0, "Day 1")
 	addLookup("SEATALK_DISPLAY_COLOR", 2, "Day 2")
 	addLookup("SEATALK_DISPLAY_COLOR", 3, "Red/Black")
 	addLookup("SEATALK_DISPLAY_COLOR", 4, "Inverse")
 
-	addlookupType("AIRMAR_CALIBRATE_FUNCTION", 8*1)
+	addLookupType("AIRMAR_CALIBRATE_FUNCTION", 8*1)
 	addLookup("AIRMAR_CALIBRATE_FUNCTION", 0, "Normal/cancel calibration")
 	addLookup("AIRMAR_CALIBRATE_FUNCTION", 1, "Enter calibration mode")
 	addLookup("AIRMAR_CALIBRATE_FUNCTION", 2, "Reset calibration to 0")
@@ -1440,7 +1440,7 @@ func initLookupTypes() {
 	addLookup("AIRMAR_CALIBRATE_FUNCTION", 4, "Reset compass to defaults")
 	addLookup("AIRMAR_CALIBRATE_FUNCTION", 5, "Reset damping to defaults")
 
-	addlookupType("AIRMAR_CALIBRATE_STATUS", 8*1)
+	addLookupType("AIRMAR_CALIBRATE_STATUS", 8*1)
 	addLookup("AIRMAR_CALIBRATE_STATUS", 0, "Queried")
 	addLookup("AIRMAR_CALIBRATE_STATUS", 1, "Passed")
 	addLookup("AIRMAR_CALIBRATE_STATUS", 2, "Failed - timeout")
@@ -1448,54 +1448,54 @@ func initLookupTypes() {
 	addLookup("AIRMAR_CALIBRATE_STATUS", 4, "Failed - other")
 	addLookup("AIRMAR_CALIBRATE_STATUS", 5, "In progress")
 
-	addlookupType("AIRMAR_TEMPERATURE_INSTANCE", 2)
+	addLookupType("AIRMAR_TEMPERATURE_INSTANCE", 2)
 	addLookup("AIRMAR_TEMPERATURE_INSTANCE", 0, "Device Sensor")
 	addLookup("AIRMAR_TEMPERATURE_INSTANCE", 1, "Onboard Water Sensor")
 	addLookup("AIRMAR_TEMPERATURE_INSTANCE", 2, "Optional Water Sensor")
 
-	addlookupType("AIRMAR_FILTER", 4)
+	addLookupType("AIRMAR_FILTER", 4)
 	addLookup("AIRMAR_FILTER", 0, "No filter")
 	addLookup("AIRMAR_FILTER", 1, "Basic IIR filter")
 
-	addlookupType("CONTROLLER_STATE", 2)
+	addLookupType("CONTROLLER_STATE", 2)
 	addLookup("CONTROLLER_STATE", 0, "Error Active")
 	addLookup("CONTROLLER_STATE", 1, "Error Passive")
 	addLookup("CONTROLLER_STATE", 2, "Bus Off")
 
-	addlookupType("EQUIPMENT_STATUS", 2)
+	addLookupType("EQUIPMENT_STATUS", 2)
 	addLookup("EQUIPMENT_STATUS", 0, "Operational")
 	addLookup("EQUIPMENT_STATUS", 1, "Fault")
 
-	addlookupType("MOB_STATUS", 3)
+	addLookupType("MOB_STATUS", 3)
 	addLookup("MOB_STATUS", 0, "MOB Emitter Activated")
 	addLookup("MOB_STATUS", 1, "Manual on-board MOB Button Activation")
 	addLookup("MOB_STATUS", 2, "Test mode")
 
-	addlookupType("LOW_BATTERY", 3)
+	addLookupType("LOW_BATTERY", 3)
 	addLookup("LOW_BATTERY", 0, "Good")
 	addLookup("LOW_BATTERY", 1, "Low")
 
-	addlookupType("TURN_MODE", 3)
+	addLookupType("TURN_MODE", 3)
 	addLookup("TURN_MODE", 0, "Rudder limit controlled")
 	addLookup("TURN_MODE", 1, "Turn rate controlled")
 	addLookup("TURN_MODE", 2, "Radius controlled")
 
-	addlookupType("ACCEPTABILITY", 2)
+	addLookupType("ACCEPTABILITY", 2)
 	addLookup("ACCEPTABILITY", 0, "Bad level")
 	addLookup("ACCEPTABILITY", 1, "Bad frequency")
 	addLookup("ACCEPTABILITY", 2, "Being qualified")
 	addLookup("ACCEPTABILITY", 3, "Good")
 
-	addlookupType("LINE", 2)
+	addLookupType("LINE", 2)
 	addLookup("LINE", 0, "Line 1")
 	addLookup("LINE", 1, "Line 2")
 	addLookup("LINE", 2, "Line 3")
 
-	addlookupType("WAVEFORM", 3)
+	addLookupType("WAVEFORM", 3)
 	addLookup("WAVEFORM", 0, "Sine wave")
 	addLookup("WAVEFORM", 1, "Modified sine wave")
 
-	addlookupType("TANK_TYPE", 4)
+	addLookupType("TANK_TYPE", 4)
 	addLookup("TANK_TYPE", 0, "Fuel")
 	addLookup("TANK_TYPE", 1, "Water")
 	addLookup("TANK_TYPE", 2, "Gray water")
@@ -1503,14 +1503,14 @@ func initLookupTypes() {
 	addLookup("TANK_TYPE", 4, "Oil")
 	addLookup("TANK_TYPE", 5, "Black water")
 
-	addlookupType("DC_SOURCE", 8*1)
+	addLookupType("DC_SOURCE", 8*1)
 	addLookup("DC_SOURCE", 0, "Battery")
 	addLookup("DC_SOURCE", 1, "Alternator")
 	addLookup("DC_SOURCE", 2, "Convertor")
 	addLookup("DC_SOURCE", 3, "Solar cell")
 	addLookup("DC_SOURCE", 4, "Wind generator")
 
-	addlookupType("CHARGER_STATE", 4)
+	addLookupType("CHARGER_STATE", 4)
 	addLookup("CHARGER_STATE", 0, "Not charging")
 	addLookup("CHARGER_STATE", 1, "Bulk")
 	addLookup("CHARGER_STATE", 2, "Absorption")
@@ -1522,31 +1522,31 @@ func initLookupTypes() {
 	addLookup("CHARGER_STATE", 8, "Disabled")
 	addLookup("CHARGER_STATE", 9, "Fault")
 
-	addlookupType("CHARGINana.ALGORITHM", 4)
+	addLookupType("CHARGINana.ALGORITHM", 4)
 	addLookup("CHARGINana.ALGORITHM", 0, "Trickle")
 	addLookup("CHARGINana.ALGORITHM", 1, "Constant voltage / Constant current")
 	addLookup("CHARGINana.ALGORITHM", 2, "2 stage (no float)")
 	addLookup("CHARGINana.ALGORITHM", 3, "3 stage")
 
-	addlookupType("CHARGER_MODE", 4)
+	addLookupType("CHARGER_MODE", 4)
 	addLookup("CHARGER_MODE", 0, "Standalone")
 	addLookup("CHARGER_MODE", 1, "Primary")
 	addLookup("CHARGER_MODE", 2, "Secondary")
 	addLookup("CHARGER_MODE", 3, "Echo")
 
-	addlookupType("INVERTER_STATE", 4)
+	addLookupType("INVERTER_STATE", 4)
 	addLookup("INVERTER_STATE", 0, "Invert")
 	addLookup("INVERTER_STATE", 1, "AC passthru")
 	addLookup("INVERTER_STATE", 2, "Load sense")
 	addLookup("INVERTER_STATE", 3, "Fault")
 	addLookup("INVERTER_STATE", 4, "Disabled")
 
-	addlookupType("BATTERY_TYPE", 4)
+	addLookupType("BATTERY_TYPE", 4)
 	addLookup("BATTERY_TYPE", 0, "Flooded")
 	addLookup("BATTERY_TYPE", 1, "Gel")
 	addLookup("BATTERY_TYPE", 2, "AGM")
 
-	addlookupType("BATTERY_VOLTAGE", 4)
+	addLookupType("BATTERY_VOLTAGE", 4)
 	addLookup("BATTERY_VOLTAGE", 0, "6V")
 	addLookup("BATTERY_VOLTAGE", 1, "12V")
 	addLookup("BATTERY_VOLTAGE", 2, "24V")
@@ -1555,114 +1555,114 @@ func initLookupTypes() {
 	addLookup("BATTERY_VOLTAGE", 5, "42V")
 	addLookup("BATTERY_VOLTAGE", 6, "48V")
 
-	addlookupType("BATTERY_CHEMISTRY", 4)
+	addLookupType("BATTERY_CHEMISTRY", 4)
 	addLookup("BATTERY_CHEMISTRY", 0, "Pb (Lead)")
 	addLookup("BATTERY_CHEMISTRY", 1, "Li")
 	addLookup("BATTERY_CHEMISTRY", 2, "NiCd")
 	addLookup("BATTERY_CHEMISTRY", 3, "ZnO")
 	addLookup("BATTERY_CHEMISTRY", 4, "NiMH")
 
-	addlookupType("GOOD_WARNINana.ERROR", 2)
+	addLookupType("GOOD_WARNINana.ERROR", 2)
 	addLookup("GOOD_WARNINana.ERROR", 0, "Good")
 	addLookup("GOOD_WARNINana.ERROR", 1, "Warning")
 	addLookup("GOOD_WARNINana.ERROR", 2, "Error")
 
-	addlookupType("TRACKING", 2)
+	addLookupType("TRACKING", 2)
 	addLookup("TRACKING", 0, "Cancelled")
 	addLookup("TRACKING", 1, "Acquiring")
 	addLookup("TRACKING", 2, "Tracking")
 	addLookup("TRACKING", 3, "Lost")
 
-	addlookupType("TARGET_ACQUISITION", 1)
+	addLookupType("TARGET_ACQUISITION", 1)
 	addLookup("TARGET_ACQUISITION", 0, "Manual")
 	addLookup("TARGET_ACQUISITION", 1, "Automatic")
 
-	addlookupType("WINDLASS_DIRECTION", 2)
+	addLookupType("WINDLASS_DIRECTION", 2)
 	addLookup("WINDLASS_DIRECTION", 0, "Off")
 	addLookup("WINDLASS_DIRECTION", 1, "Down")
 	addLookup("WINDLASS_DIRECTION", 2, "Up")
 
-	addlookupType("SPEED_TYPE", 2)
+	addLookupType("SPEED_TYPE", 2)
 	addLookup("SPEED_TYPE", 0, "Single speed")
 	addLookup("SPEED_TYPE", 1, "Dual speed")
 	addLookup("SPEED_TYPE", 2, "Proportional speed")
 
-	addlookupTypeBitfield("WINDLASS_CONTROL", 4)
+	addLookupTypeBitfield("WINDLASS_CONTROL", 4)
 	addLookupBitfield("WINDLASS_CONTROL", 0, "Another device controlling windlass")
 
-	addlookupType("WINDLASS_MOTION", 2)
+	addLookupType("WINDLASS_MOTION", 2)
 	addLookup("WINDLASS_MOTION", 0, "Windlass stopped")
 	addLookup("WINDLASS_MOTION", 1, "Deployment occurring")
 	addLookup("WINDLASS_MOTION", 2, "Retrieval occurring")
 
-	addlookupType("RODE_TYPE", 2)
+	addLookupType("RODE_TYPE", 2)
 	addLookup("RODE_TYPE", 0, "Chain presently detected")
 	addLookup("RODE_TYPE", 1, "Rope presently detected")
 
-	addlookupType("DOCKINana.STATUS", 2)
+	addLookupType("DOCKINana.STATUS", 2)
 	addLookup("DOCKINana.STATUS", 0, "Not docked")
 	addLookup("DOCKINana.STATUS", 1, "Fully docked")
 
-	addlookupTypeBitfield("WINDLASS_OPERATION", 6)
+	addLookupTypeBitfield("WINDLASS_OPERATION", 6)
 	addLookupBitfield("WINDLASS_OPERATION", 0, "System error")
 	addLookupBitfield("WINDLASS_OPERATION", 1, "Sensor error")
 	addLookupBitfield("WINDLASS_OPERATION", 2, "No windlass motion detected")
 	addLookupBitfield("WINDLASS_OPERATION", 3, "Retrieval docking distance reached")
 	addLookupBitfield("WINDLASS_OPERATION", 4, "End of rode reached")
 
-	addlookupTypeBitfield("WINDLASS_MONITORING", 8)
+	addLookupTypeBitfield("WINDLASS_MONITORING", 8)
 	addLookupBitfield("WINDLASS_MONITORING", 0, "Controller under voltage cut-out")
 	addLookupBitfield("WINDLASS_MONITORING", 1, "Controller over current cut-out")
 	addLookupBitfield("WINDLASS_MONITORING", 2, "Controller over temperature cut-out")
 	addLookupBitfield("WINDLASS_MONITORING", 3, "Manufacturer defined")
 
-	addlookupType("AIS_TYPE", 1)
+	addLookupType("AIS_TYPE", 1)
 	addLookup("AIS_TYPE", 0, "SOTDMA")
 	addLookup("AIS_TYPE", 1, "CS")
 
-	addlookupType("AIS_BAND", 1)
+	addLookupType("AIS_BAND", 1)
 	addLookup("AIS_BAND", 0, "Top 525 kHz of marine band")
 	addLookup("AIS_BAND", 1, "Entire marine band")
 
-	addlookupType("AIS_MODE", 1)
+	addLookupType("AIS_MODE", 1)
 	addLookup("AIS_MODE", 0, "Autonomous")
 	addLookup("AIS_MODE", 1, "Assigned")
 
-	addlookupType("AIS_COMMUNICATION_STATE", 1)
+	addLookupType("AIS_COMMUNICATION_STATE", 1)
 	addLookup("AIS_COMMUNICATION_STATE", 0, "SOTDMA")
 	addLookup("AIS_COMMUNICATION_STATE", 1, "ITDMA")
 
-	addlookupType("AVAILABLE", 1)
+	addLookupType("AVAILABLE", 1)
 	addLookup("AVAILABLE", 0, "Available")
 	addLookup("AVAILABLE", 1, "Not available")
 
-	addlookupType("BEARINana.MODE", 2)
+	addLookupType("BEARINana.MODE", 2)
 	addLookup("BEARINana.MODE", 0, "Great Circle")
 	addLookup("BEARINana.MODE", 1, "Rhumbline")
 
-	addlookupType("MARK_TYPE", 4)
+	addLookupType("MARK_TYPE", 4)
 	addLookup("MARK_TYPE", 0, "Collision")
 	addLookup("MARK_TYPE", 1, "Turning point")
 	addLookup("MARK_TYPE", 2, "Reference")
 	addLookup("MARK_TYPE", 3, "Wheelover")
 	addLookup("MARK_TYPE", 4, "Waypoint")
 
-	addlookupType("GNSS_MODE", 3)
+	addLookupType("GNSS_MODE", 3)
 	addLookup("GNSS_MODE", 0, "1D")
 	addLookup("GNSS_MODE", 1, "2D")
 	addLookup("GNSS_MODE", 2, "3D")
 	addLookup("GNSS_MODE", 3, "Auto")
 
-	addlookupType("RANGE_RESIDUAL_MODE", 2)
+	addLookupType("RANGE_RESIDUAL_MODE", 2)
 	addLookup("RANGE_RESIDUAL_MODE", 0, "Range residuals were used to calculate data")
 	addLookup("RANGE_RESIDUAL_MODE", 1, "Range residuals were calculated after the position")
 
-	addlookupType("DGNSS_MODE", 3)
+	addLookupType("DGNSS_MODE", 3)
 	addLookup("DGNSS_MODE", 0, "None")
 	addLookup("DGNSS_MODE", 1, "SBAS if available")
 	addLookup("DGNSS_MODE", 3, "SBAS")
 
-	addlookupType("SATELLITE_STATUS", 4)
+	addLookupType("SATELLITE_STATUS", 4)
 	addLookup("SATELLITE_STATUS", 0, "Not tracked")
 	addLookup("SATELLITE_STATUS", 1, "Tracked")
 	addLookup("SATELLITE_STATUS", 2, "Used")
@@ -1670,17 +1670,17 @@ func initLookupTypes() {
 	addLookup("SATELLITE_STATUS", 4, "Tracked+Diff")
 	addLookup("SATELLITE_STATUS", 5, "Used+Diff")
 
-	addlookupType("AIS_VERSION", 2)
+	addLookupType("AIS_VERSION", 2)
 	addLookup("AIS_VERSION", 0, "ITU-R M.1371-1")
 	addLookup("AIS_VERSION", 1, "ITU-R M.1371-3")
 	addLookup("AIS_VERSION", 2, "ITU-R M.1371-5")
 	addLookup("AIS_VERSION", 3, "ITU-R M.1371 future edition")
 
-	addlookupType("TIDE", 2)
+	addLookupType("TIDE", 2)
 	addLookup("TIDE", 0, "Falling")
 	addLookup("TIDE", 1, "Rising")
 
-	addlookupType("WATERMAKER_STATE", 6)
+	addLookupType("WATERMAKER_STATE", 6)
 	addLookup("WATERMAKER_STATE", 0, "Stopped")
 	addLookup("WATERMAKER_STATE", 1, "Starting")
 	addLookup("WATERMAKER_STATE", 2, "Running")
@@ -1690,18 +1690,18 @@ func initLookupTypes() {
 	addLookup("WATERMAKER_STATE", 6, "Initiating")
 	addLookup("WATERMAKER_STATE", 7, "Manual")
 
-	addlookupType("ENTERTAINMENT_ID_TYPE", 8*1)
+	addLookupType("ENTERTAINMENT_ID_TYPE", 8*1)
 	addLookup("ENTERTAINMENT_ID_TYPE", 0, "Group")
 	addLookup("ENTERTAINMENT_ID_TYPE", 1, "File")
 	addLookup("ENTERTAINMENT_ID_TYPE", 2, "Encrypted group")
 	addLookup("ENTERTAINMENT_ID_TYPE", 3, "Encrypted file")
 
-	addlookupType("ENTERTAINMENT_DEFAULT_SETTINGS", 2)
+	addLookupType("ENTERTAINMENT_DEFAULT_SETTINGS", 2)
 	addLookup("ENTERTAINMENT_DEFAULT_SETTINGS", 0, "Save current settings as user default")
 	addLookup("ENTERTAINMENT_DEFAULT_SETTINGS", 1, "Load user default")
 	addLookup("ENTERTAINMENT_DEFAULT_SETTINGS", 2, "Load manufacturer default")
 
-	addlookupType("ENTERTAINMENT_REGIONS", 4)
+	addLookupType("ENTERTAINMENT_REGIONS", 4)
 	addLookup("ENTERTAINMENT_REGIONS", 0, "USA")
 	addLookup("ENTERTAINMENT_REGIONS", 1, "Europe")
 	addLookup("ENTERTAINMENT_REGIONS", 2, "Asia")
@@ -1711,26 +1711,26 @@ func initLookupTypes() {
 	addLookup("ENTERTAINMENT_REGIONS", 6, "Russia")
 	addLookup("ENTERTAINMENT_REGIONS", 7, "Japan")
 
-	addlookupType("VIDEO_PROTOCOLS", 4)
+	addLookupType("VIDEO_PROTOCOLS", 4)
 	addLookup("VIDEO_PROTOCOLS", 0, "PAL")
 	addLookup("VIDEO_PROTOCOLS", 1, "NTSC")
 
-	addlookupType("ENTERTAINMENT_VOLUME_CONTROL", 2)
+	addLookupType("ENTERTAINMENT_VOLUME_CONTROL", 2)
 	addLookup("ENTERTAINMENT_VOLUME_CONTROL", 0, "Up")
 	addLookup("ENTERTAINMENT_VOLUME_CONTROL", 1, "Down")
 
-	addlookupType("BLUETOOTH_STATUS", 8*1)
+	addLookupType("BLUETOOTH_STATUS", 8*1)
 	addLookup("BLUETOOTH_STATUS", 0, "Connected")
 	addLookup("BLUETOOTH_STATUS", 1, "Not connected")
 	addLookup("BLUETOOTH_STATUS", 2, "Not paired")
 
-	addlookupType("BLUETOOTH_SOURCE_STATUS", 4)
+	addLookupType("BLUETOOTH_SOURCE_STATUS", 4)
 	addLookup("BLUETOOTH_SOURCE_STATUS", 0, "Reserved")
 	addLookup("BLUETOOTH_SOURCE_STATUS", 1, "Connected")
 	addLookup("BLUETOOTH_SOURCE_STATUS", 2, "Connecting")
 	addLookup("BLUETOOTH_SOURCE_STATUS", 3, "Not connected")
 
-	addlookupType("SONICHUB_COMMAND", 8*1)
+	addLookupType("SONICHUB_COMMAND", 8*1)
 	addLookup("SONICHUB_COMMAND", 1, "Init #2")
 	addLookup("SONICHUB_COMMAND", 4, "AM Radio")
 	addLookup("SONICHUB_COMMAND", 5, "Zone Info")
@@ -1750,40 +1750,40 @@ func initLookupTypes() {
 	addLookup("SONICHUB_COMMAND", 48, "Position")
 	addLookup("SONICHUB_COMMAND", 50, "Init #3")
 
-	addlookupType("SIMNET_AP_MODE", 8*1)
+	addLookupType("SIMNET_AP_MODE", 8*1)
 	addLookup("SIMNET_AP_MODE", 2, "Heading")
 	addLookup("SIMNET_AP_MODE", 3, "Wind")
 	addLookup("SIMNET_AP_MODE", 10, "Nav")
 	addLookup("SIMNET_AP_MODE", 11, "No Drift")
 
-	addlookupTypeBitfield("SIMNET_AP_MODE_BITFIELD", 8*2)
+	addLookupTypeBitfield("SIMNET_AP_MODE_BITFIELD", 8*2)
 	addLookupBitfield("SIMNET_AP_MODE_BITFIELD", 3, "Standby")
 	addLookupBitfield("SIMNET_AP_MODE_BITFIELD", 4, "Heading")
 	addLookupBitfield("SIMNET_AP_MODE_BITFIELD", 6, "Nav")
 	addLookupBitfield("SIMNET_AP_MODE_BITFIELD", 8, "No Drift")
 	addLookupBitfield("SIMNET_AP_MODE_BITFIELD", 10, "Wind")
 
-	addlookupType("SIMNET_DEVICE_MODEL", 8*1)
+	addLookupType("SIMNET_DEVICE_MODEL", 8*1)
 	addLookup("SIMNET_DEVICE_MODEL", 0, "AC")
 	addLookup("SIMNET_DEVICE_MODEL", 1, "Other device")
 	addLookup("SIMNET_DEVICE_MODEL", 100, "NAC")
 
-	addlookupType("SIMNET_DEVICE_REPORT", 8*1)
+	addLookupType("SIMNET_DEVICE_REPORT", 8*1)
 	addLookup("SIMNET_DEVICE_REPORT", 2, "Status")
 	addLookup("SIMNET_DEVICE_REPORT", 3, "Send Status")
 	addLookup("SIMNET_DEVICE_REPORT", 10, "Mode")
 	addLookup("SIMNET_DEVICE_REPORT", 11, "Send Mode")
 	addLookup("SIMNET_DEVICE_REPORT", 23, "Sailing Processor Status")
 
-	addlookupType("SIMNET_AP_STATUS", 8*1)
+	addLookupType("SIMNET_AP_STATUS", 8*1)
 	addLookup("SIMNET_AP_STATUS", 2, "Manual")
 	addLookup("SIMNET_AP_STATUS", 16, "Automatic")
 
-	addlookupType("SIMNET_COMMAND", 8*1)
+	addLookupType("SIMNET_COMMAND", 8*1)
 	addLookup("SIMNET_COMMAND", 50, "Text")
 
 	// Note(UNTESTED): See README.md
-	addlookupTypeFieldType("SIMNET_KEY_VALUE", 8*2)
+	addLookupTypeFieldType("SIMNET_KEY_VALUE", 8*2)
 	addLookupFieldType("SIMNET_KEY_VALUE", 0, "Heading Offset", "ANGLE_FIX16")
 	addLookupFieldType("SIMNET_KEY_VALUE", 41, "Timezone offset", "TIME_FIX16_MIN")
 	addLookupFieldType("SIMNET_KEY_VALUE", 260, "True wind high", "SPEED_UFIX16_CM")
@@ -1794,18 +1794,18 @@ func initLookupTypes() {
 	addLookupFieldType("SIMNET_KEY_VALUE", 768, "Local field", "ANGLE_FIX16")
 	addLookupFieldType("SIMNET_KEY_VALUE", 1024, "Field angle", "ANGLE_FIX16")
 	addLookupFieldType("SIMNET_KEY_VALUE", 1800, "Anchor depth", "SPEED_UFIX16_CM")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 4863, "Backlight level", "LOOKUP", 8, lookupTypePair, "SIMNET_BACKLIGHT_LEVEL")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 5160, "Time format", "LOOKUP", 8, lookupTypePair, "SIMNET_TIME_FORMAT")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 5161, "Time hour display", "LOOKUP", 8, lookupTypePair, "SIMNET_HOUR_DISPLAY")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 9983, "Night mode", "LOOKUP", 8, lookupTypePair, "SIMNET_NIGHT_MODE")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 4863, "Backlight level", "LOOKUP", 8, LookupTypePair, "SIMNET_BACKLIGHT_LEVEL")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 5160, "Time format", "LOOKUP", 8, LookupTypePair, "SIMNET_TIME_FORMAT")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 5161, "Time hour display", "LOOKUP", 8, LookupTypePair, "SIMNET_HOUR_DISPLAY")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 9983, "Night mode", "LOOKUP", 8, LookupTypePair, "SIMNET_NIGHT_MODE")
 	addLookupFieldType("SIMNET_KEY_VALUE", 11524, "True wind shift", "SPEED_UFIX16_CM")
 	addLookupFieldType("SIMNET_KEY_VALUE", 22296, "AP low boat speed", "SPEED_UFIX16_CM")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 32789, "Alert bits", "BITLOOKUP", 16, lookupTypeBit, "SIMNET_ALERT_BITFIELD")
-	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 44079, "Night mode color", "LOOKUP", 8, lookupTypePair, "SIMNET_NIGHT_MODE_COLOR")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 32789, "Alert bits", "BITLOOKUP", 16, LookupTypeBit, "SIMNET_ALERT_BITFIELD")
+	addLookupFieldTypeLookup("SIMNET_KEY_VALUE", 44079, "Night mode color", "LOOKUP", 8, LookupTypePair, "SIMNET_NIGHT_MODE_COLOR")
 	addLookupFieldType("SIMNET_KEY_VALUE", 55087, "Day mode invert", "UINT8")
 
 	// There are other bits in use, but their meaning is not yet clear.
-	addlookupTypeBitfield("SIMNET_ALERT_BITFIELD", 64)
+	addLookupTypeBitfield("SIMNET_ALERT_BITFIELD", 64)
 	addLookupBitfield("SIMNET_ALERT_BITFIELD", 0, "No GPS fix")
 	addLookupBitfield("SIMNET_ALERT_BITFIELD", 2, "No active autopilot control unit")
 	addLookupBitfield("SIMNET_ALERT_BITFIELD", 4, "No autopilot computer")
@@ -1836,22 +1836,22 @@ func initLookupTypes() {
 	addLookupBitfield("SIMNET_ALERT_BITFIELD", 54, "CAN bus supply overload")
 	addLookupBitfield("SIMNET_ALERT_BITFIELD", 56, "Wind sensor battery low")
 
-	addlookupType("SIMNET_EVENT_COMMAND", 8*1)
+	addLookupType("SIMNET_EVENT_COMMAND", 8*1)
 	addLookup("SIMNET_EVENT_COMMAND", 1, "Alarm")
 	addLookup("SIMNET_EVENT_COMMAND", 2, "AP command")
 	addLookup("SIMNET_EVENT_COMMAND", 255, "Autopilot")
 
-	addlookupType("SIMNET_NIGHT_MODE", 8*1)
+	addLookupType("SIMNET_NIGHT_MODE", 8*1)
 	addLookup("SIMNET_NIGHT_MODE", 2, "Day")
 	addLookup("SIMNET_NIGHT_MODE", 4, "Night")
 
-	addlookupType("SIMNET_NIGHT_MODE_COLOR", 8*1)
+	addLookupType("SIMNET_NIGHT_MODE_COLOR", 8*1)
 	addLookup("SIMNET_NIGHT_MODE_COLOR", 0, "Red")
 	addLookup("SIMNET_NIGHT_MODE_COLOR", 1, "Green")
 	addLookup("SIMNET_NIGHT_MODE_COLOR", 2, "Blue")
 	addLookup("SIMNET_NIGHT_MODE_COLOR", 3, "White")
 
-	addlookupType("SIMNET_DISPLAY_GROUP", 8*1)
+	addLookupType("SIMNET_DISPLAY_GROUP", 8*1)
 	addLookup("SIMNET_DISPLAY_GROUP", 1, "Default")
 	addLookup("SIMNET_DISPLAY_GROUP", 2, "Group 1")
 	addLookup("SIMNET_DISPLAY_GROUP", 3, "Group 2")
@@ -1860,15 +1860,15 @@ func initLookupTypes() {
 	addLookup("SIMNET_DISPLAY_GROUP", 6, "Group 5")
 	addLookup("SIMNET_DISPLAY_GROUP", 7, "Group 6")
 
-	addlookupType("SIMNET_HOUR_DISPLAY", 8*1)
+	addLookupType("SIMNET_HOUR_DISPLAY", 8*1)
 	addLookup("SIMNET_HOUR_DISPLAY", 0, "24 hour")
 	addLookup("SIMNET_HOUR_DISPLAY", 1, "12 hour")
 
-	addlookupType("SIMNET_TIME_FORMAT", 8*1)
+	addLookupType("SIMNET_TIME_FORMAT", 8*1)
 	addLookup("SIMNET_TIME_FORMAT", 1, "MM/dd/yyyy")
 	addLookup("SIMNET_TIME_FORMAT", 2, "dd/MM/yyyy")
 
-	addlookupType("SIMNET_BACKLIGHT_LEVEL", 8*1)
+	addLookupType("SIMNET_BACKLIGHT_LEVEL", 8*1)
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 0, "10% (Min)")
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 1, "Day mode")
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 4, "Night mode")
@@ -1882,7 +1882,7 @@ func initLookupTypes() {
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 88, "90%")
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 99, "100% (Max)")
 
-	addlookupType("SIMNET_AP_EVENTS", 8*1)
+	addLookupType("SIMNET_AP_EVENTS", 8*1)
 	addLookup("SIMNET_AP_EVENTS", 6, "Standby")
 	addLookup("SIMNET_AP_EVENTS", 9, "Auto mode")
 	addLookup("SIMNET_AP_EVENTS", 10, "Nav mode")
@@ -1901,17 +1901,17 @@ func initLookupTypes() {
 	addLookup("SIMNET_AP_EVENTS", 112, "Ping port end")
 	addLookup("SIMNET_AP_EVENTS", 113, "Ping starboard end")
 
-	addlookupType("SIMNET_DIRECTION", 8*1)
+	addLookupType("SIMNET_DIRECTION", 8*1)
 	addLookup("SIMNET_DIRECTION", 2, "Port")
 	addLookup("SIMNET_DIRECTION", 3, "Starboard")
 	addLookup("SIMNET_DIRECTION", 4, "Left rudder (port)")
 	addLookup("SIMNET_DIRECTION", 5, "Right rudder (starboard)")
 
-	addlookupType("SIMNET_ALARM", 8*1)
+	addLookupType("SIMNET_ALARM", 8*1)
 	addLookup("SIMNET_ALARM", 57, "Low boat speed")
 	addLookup("SIMNET_ALARM", 58, "Wind data missing")
 
-	addlookupType("FUSION_MESSAGE_ID", 8*1)
+	addLookupType("FUSION_MESSAGE_ID", 8*1)
 	addLookup("FUSION_MESSAGE_ID", 1, "Request Status")
 	addLookup("FUSION_MESSAGE_ID", 2, "Source")
 	addLookup("FUSION_MESSAGE_ID", 4, "Track Info")
@@ -1939,11 +1939,11 @@ func initLookupTypes() {
 	addLookup("FUSION_MESSAGE_ID", 40, "SiriusXM Genre")
 	addLookup("FUSION_MESSAGE_ID", 45, "Zone Name")
 
-	addlookupType("SONICHUB_CONTROL", 8*1)
+	addLookupType("SONICHUB_CONTROL", 8*1)
 	addLookup("SONICHUB_CONTROL", 0, "Set")
 	addLookup("SONICHUB_CONTROL", 128, "Ack")
 
-	addlookupType("SONICHUB_SOURCE", 8*1)
+	addLookupType("SONICHUB_SOURCE", 8*1)
 	addLookup("SONICHUB_SOURCE", 0, "AM")
 	addLookup("SONICHUB_SOURCE", 1, "FM")
 	addLookup("SONICHUB_SOURCE", 2, "iPod")
@@ -1952,13 +1952,13 @@ func initLookupTypes() {
 	addLookup("SONICHUB_SOURCE", 5, "AUX 2")
 	addLookup("SONICHUB_SOURCE", 6, "Mic")
 
-	addlookupType("ISO_CONTROL", 8*1)
+	addLookupType("ISO_CONTROL", 8*1)
 	addLookup("ISO_CONTROL", 0, "ACK")
 	addLookup("ISO_CONTROL", 1, "NAK")
 	addLookup("ISO_CONTROL", 2, "Access Denied")
 	addLookup("ISO_CONTROL", 3, "Address Busy")
 
-	addlookupType("ISO_COMMAND", 8*1)
+	addLookupType("ISO_COMMAND", 8*1)
 	addLookup("ISO_COMMAND", 0, "ACK")
 	addLookup("ISO_COMMAND", 16, "RTS")
 	addLookup("ISO_COMMAND", 17, "CTS")
@@ -1966,7 +1966,7 @@ func initLookupTypes() {
 	addLookup("ISO_COMMAND", 32, "BAM")
 	addLookup("ISO_COMMAND", 255, "Abort")
 
-	addlookupType("GROUP_FUNCTION", 8*1)
+	addLookupType("GROUP_FUNCTION", 8*1)
 	addLookup("GROUP_FUNCTION", 0, "Request")
 	addLookup("GROUP_FUNCTION", 1, "Command")
 	addLookup("GROUP_FUNCTION", 2, "Acknowledge")
@@ -1975,7 +1975,7 @@ func initLookupTypes() {
 	addLookup("GROUP_FUNCTION", 5, "Write Fields")
 	addLookup("GROUP_FUNCTION", 6, "Write Fields Reply")
 
-	addlookupType("AIRMAR_COMMAND", 8*1)
+	addLookupType("AIRMAR_COMMAND", 8*1)
 	addLookup("AIRMAR_COMMAND", 32, "Attitude Offsets")
 	addLookup("AIRMAR_COMMAND", 33, "Calibrate Compass")
 	addLookup("AIRMAR_COMMAND", 34, "True Wind Options")
@@ -1987,7 +1987,7 @@ func initLookupTypes() {
 	addLookup("AIRMAR_COMMAND", 44, "Temperature Filter")
 	addLookup("AIRMAR_COMMAND", 46, "NMEA 2000 options")
 
-	addlookupType("AIRMAR_DEPTH_QUALITY_FACTOR", 4)
+	addLookupType("AIRMAR_DEPTH_QUALITY_FACTOR", 4)
 	addLookup("AIRMAR_DEPTH_QUALITY_FACTOR", 0, "Depth unlocked")
 	addLookup("AIRMAR_DEPTH_QUALITY_FACTOR", 1, "Quality 10%")
 	addLookup("AIRMAR_DEPTH_QUALITY_FACTOR", 2, "Quality 20%")
@@ -2000,7 +2000,7 @@ func initLookupTypes() {
 	addLookup("AIRMAR_DEPTH_QUALITY_FACTOR", 9, "Quality 90%")
 	addLookup("AIRMAR_DEPTH_QUALITY_FACTOR", 10, "Quality 100%")
 
-	addlookupType("PGN_ERROR_CODE", 4)
+	addLookupType("PGN_ERROR_CODE", 4)
 	addLookup("PGN_ERROR_CODE", 0, "Acknowledge")
 	addLookup("PGN_ERROR_CODE", 1, "PGN not supported")
 	addLookup("PGN_ERROR_CODE", 2, "PGN not available")
@@ -2009,15 +2009,15 @@ func initLookupTypes() {
 	addLookup("PGN_ERROR_CODE", 5, "Tag not supported")
 	addLookup("PGN_ERROR_CODE", 6, "Read or Write not supported")
 
-	addlookupType("AIRMAR_TRANSMISSION_INTERVAL", 2)
+	addLookupType("AIRMAR_TRANSMISSION_INTERVAL", 2)
 	addLookup("AIRMAR_TRANSMISSION_INTERVAL", 0, "Measure interval")
 	addLookup("AIRMAR_TRANSMISSION_INTERVAL", 1, "Requested by user")
 
-	addlookupType("MOB_POSITION_SOURCE", 3)
+	addLookupType("MOB_POSITION_SOURCE", 3)
 	addLookup("MOB_POSITION_SOURCE", 0, "Position estimated by the vessel")
 	addLookup("MOB_POSITION_SOURCE", 1, "Position reported by MOB emitter")
 
-	addlookupType("STEERINana.MODE", 3)
+	addLookupType("STEERINana.MODE", 3)
 	addLookup("STEERINana.MODE", 0, "Main Steering")
 	addLookup("STEERINana.MODE", 1, "Non-Follow-Up Device")
 	addLookup("STEERINana.MODE", 2, "Follow-Up Device")
@@ -2025,26 +2025,26 @@ func initLookupTypes() {
 	addLookup("STEERINana.MODE", 4, "Heading Control")
 	addLookup("STEERINana.MODE", 5, "Track Control")
 
-	addlookupType("FUSION_RADIO_SOURCE", 8*1)
+	addLookupType("FUSION_RADIO_SOURCE", 8*1)
 	addLookup("FUSION_RADIO_SOURCE", 0, "AM")
 	addLookup("FUSION_RADIO_SOURCE", 1, "FM")
 
-	addlookupType("FUSION_REPLAY_MODE", 8*1)
+	addLookupType("FUSION_REPLAY_MODE", 8*1)
 	addLookup("FUSION_REPLAY_MODE", 9, "USB repeat")
 	addLookup("FUSION_REPLAY_MODE", 10, "USB shuffle")
 	addLookup("FUSION_REPLAY_MODE", 12, "iPod repeat")
 	addLookup("FUSION_REPLAY_MODE", 13, "iPod shuffle")
 
-	addlookupType("FUSION_REPLAY_STATUS", 8*1)
+	addLookupType("FUSION_REPLAY_STATUS", 8*1)
 	addLookup("FUSION_REPLAY_STATUS", 0, "Off")
 	addLookup("FUSION_REPLAY_STATUS", 1, "One/track")
 	addLookup("FUSION_REPLAY_STATUS", 2, "All/album")
 
-	addlookupType("AIRMAR_POST_CONTROL", 1)
+	addLookupType("AIRMAR_POST_CONTROL", 1)
 	addLookup("AIRMAR_POST_CONTROL", 0, "Report previous values")
 	addLookup("AIRMAR_POST_CONTROL", 1, "Generate new values")
 
-	addlookupType("AIRMAR_POST_ID", 8*1)
+	addLookupType("AIRMAR_POST_ID", 8*1)
 	addLookup("AIRMAR_POST_ID", 1, "Format Code")
 	addLookup("AIRMAR_POST_ID", 2, "Factory EEPROM")
 	addLookup("AIRMAR_POST_ID", 3, "User EEPROM")
@@ -2054,29 +2054,29 @@ func initLookupTypes() {
 	addLookup("AIRMAR_POST_ID", 7, "Internal temperature sensor")
 	addLookup("AIRMAR_POST_ID", 8, "Battery voltage sensor")
 
-	addlookupTypeBitfield("ENTERTAINMENT_REPEAT_BITFIELD", 2)
+	addLookupTypeBitfield("ENTERTAINMENT_REPEAT_BITFIELD", 2)
 	addLookupBitfield("ENTERTAINMENT_REPEAT_BITFIELD", 0, "Song")
 	addLookupBitfield("ENTERTAINMENT_REPEAT_BITFIELD", 1, "Play queue")
 
-	addlookupTypeBitfield("ENTERTAINMENT_SHUFFLE_BITFIELD", 2)
+	addLookupTypeBitfield("ENTERTAINMENT_SHUFFLE_BITFIELD", 2)
 	addLookupBitfield("ENTERTAINMENT_SHUFFLE_BITFIELD", 0, "Play queue")
 	addLookupBitfield("ENTERTAINMENT_SHUFFLE_BITFIELD", 1, "All")
 
-	addlookupType("SONICHUB_TUNING", 8*1)
+	addLookupType("SONICHUB_TUNING", 8*1)
 	addLookup("SONICHUB_TUNING", 1, "Seeking up")
 	addLookup("SONICHUB_TUNING", 2, "Tuned")
 	addLookup("SONICHUB_TUNING", 3, "Seeking down")
 
-	addlookupType("SONICHUB_PLAYLIST", 8*1)
+	addLookupType("SONICHUB_PLAYLIST", 8*1)
 	addLookup("SONICHUB_PLAYLIST", 1, "Report")
 	addLookup("SONICHUB_PLAYLIST", 4, "Next song")
 	addLookup("SONICHUB_PLAYLIST", 6, "Previous song")
 
-	addlookupType("FUSION_POWER_STATE", 8*1)
+	addLookupType("FUSION_POWER_STATE", 8*1)
 	addLookup("FUSION_POWER_STATE", 1, "On")
 	addLookup("FUSION_POWER_STATE", 2, "Off")
 
-	addlookupType("PRIORITY", 4)
+	addLookupType("PRIORITY", 4)
 	addLookup("PRIORITY", 0, "0")
 	addLookup("PRIORITY", 1, "1")
 	addLookup("PRIORITY", 2, "2")
@@ -2088,13 +2088,13 @@ func initLookupTypes() {
 	addLookup("PRIORITY", 8, "Leave unchanged")
 	addLookup("PRIORITY", 9, "Reset to default")
 
-	addlookupType("DEVICE_TEMP_STATE", 4)
+	addLookupType("DEVICE_TEMP_STATE", 4)
 	addLookup("DEVICE_TEMP_STATE", 0, "Cold")
 	addLookup("DEVICE_TEMP_STATE", 1, "Warm")
 	addLookup("DEVICE_TEMP_STATE", 2, "Hot")
 
 	// Note(UNTESTED): See README.md
-	addlookupTypeFieldType("BANDana.KEY_VALUE", 12)
+	addLookupTypeFieldType("BANDana.KEY_VALUE", 12)
 	addLookupFieldType("BANDana.KEY_VALUE", 0x00, "Altitude", "FIX16")
 	addLookupFieldType("BANDana.KEY_VALUE", 0x0b, "Rudder Angle", "ANGLE_FIX16")
 	addLookupFieldType("BANDana.KEY_VALUE", 0x10, "User 5", "FIX32_2")
@@ -2250,7 +2250,7 @@ func initLookupTypes() {
 	addLookupFieldType("BANDana.KEY_VALUE", 0x182, "Pilot Weather Helm", "ANGLE_FIX16")
 	addLookupFieldType("BANDana.KEY_VALUE", 0x183, "Pilot Mean Heel", "ANGLE_FIX16")
 
-	addlookupType("BANDana.DECIMALS", 8)
+	addLookupType("BANDana.DECIMALS", 8)
 	addLookup("BANDana.DECIMALS", 0, "0")
 	addLookup("BANDana.DECIMALS", 1, "1")
 	addLookup("BANDana.DECIMALS", 2, "2")
@@ -2258,19 +2258,19 @@ func initLookupTypes() {
 	addLookup("BANDana.DECIMALS", 4, "4")
 	addLookup("BANDana.DECIMALS", 254, "Auto")
 
-	addlookupType("GARMIN_COLOR_MODE", 8*1)
+	addLookupType("GARMIN_COLOR_MODE", 8*1)
 	addLookup("GARMIN_COLOR_MODE", 0, "Day")
 	addLookup("GARMIN_COLOR_MODE", 1, "Night")
 	addLookup("GARMIN_COLOR_MODE", 0xd, "Color")
 
-	addlookupType("GARMIN_COLOR", 8*1)
+	addLookupType("GARMIN_COLOR", 8*1)
 	addLookup("GARMIN_COLOR", 0, "Day full color")
 	addLookup("GARMIN_COLOR", 1, "Day high contrast")
 	addLookup("GARMIN_COLOR", 2, "Night full color")
 	addLookup("GARMIN_COLOR", 3, "Night red/black")
 	addLookup("GARMIN_COLOR", 4, "Night green/black")
 
-	addlookupType("GARMIN_BACKLIGHT_LEVEL", 8*1)
+	addLookupType("GARMIN_BACKLIGHT_LEVEL", 8*1)
 	addLookup("GARMIN_BACKLIGHT_LEVEL", 0, "0%")
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 1, "5%")
 	addLookup("SIMNET_BACKLIGHT_LEVEL", 2, "10%")
