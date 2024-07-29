@@ -46,6 +46,8 @@ type Analyzer interface {
 	// If if it is not yet complete due to fragementation or other reasons,
 	// a false will be returned indicating this should be called again.
 	ProcessRawMessage(msgData []byte) (*common.RawMessage, bool, error)
+
+	ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error)
 }
 
 type analyzerImpl struct {

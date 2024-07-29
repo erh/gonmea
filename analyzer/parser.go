@@ -102,3 +102,12 @@ func ParseRawMessageWithFormat(msgData []byte, format RawFormat) (*common.RawMes
 	}
 	return msg, nil
 }
+
+func ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+	ana, err := newOneOffAnalyzer()
+	if err != nil {
+		return nil, err
+	}
+	ana.(analyzerStater).State().MultiPackets = MultiPacketsCoalesced
+	return ana.ConvertRawMessage(rawMsg)
+}
