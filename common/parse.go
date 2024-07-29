@@ -27,9 +27,17 @@ import (
 	"unicode"
 )
 
+const (
+	timestampFormat = "2006-01-02-15:04:05.000"
+	// others seen in pgn-test.in
+	timestampFormatAlt  = "2006-01-02T15:04:05.000Z"
+	timestampFormatAlt2 = "2006-01-02T15:04:05Z"
+)
+
 // RawMessage is a raw NMEA 2000 PGN message.
 type RawMessage struct {
-	Timestamp string
+	// if relative, then it's from January 1, year 1, 00:00:00.000000000 UTC
+	Timestamp time.Time
 	Prio      uint8
 	PGN       uint32
 	Dst       uint8
@@ -48,7 +56,8 @@ func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen 
 
 // Message is a NMEA 2000 PGN message.
 type Message struct {
-	Timestamp   string                 `json:"timestamp"`
+	// if relative, then it's from January 1, year 1, 00:00:00.000000000 UTC
+	Timestamp   time.Time              `json:"timestamp"`
 	Priority    int                    `json:"prio"`
 	Src         int                    `json:"src"`
 	Dst         int                    `json:"dst"`
@@ -77,6 +86,22 @@ func findOccurrence(msg []byte, c rune, count int) int {
 	return pIdx
 }
 
+func parseTimestamp(from string) (time.Time, error) {
+	tm, err1 := time.Parse(timestampFormat, from)
+	if err1 == nil {
+		return tm, nil
+	}
+	tm, err2 := time.Parse(timestampFormatAlt, from)
+	if err2 == nil {
+		return tm, nil
+	}
+	tm, err3 := time.Parse(timestampFormatAlt2, from)
+	if err3 == nil {
+		return tm, nil
+	}
+	return time.Time{}, fmt.Errorf("error parsing time '%s': %w; %w; %w", from, err1, err2, err3)
+}
+
 // ParseRawFormatPlain parses PLAIN messages.
 func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
 	var prio, src, dst, dataLen uint8
@@ -90,7 +115,12 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logge
 	}
 	pIdx-- // Back to comma
 
-	m.Timestamp = string(msg[:pIdx])
+	tm, err := parseTimestamp(string(msg[:pIdx]))
+	if err != nil {
+		logger.Error("%s", err)
+		return -1
+	}
+	m.Timestamp = tm
 
 	r, _ = fmt.Sscanf(string(msg[pIdx:]),
 		",%d,%d,%d,%d,%d"+
@@ -148,7 +178,12 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 	}
 	pIdx-- // Back to comma
 
-	m.Timestamp = string(msg[:pIdx])
+	tm, err := parseTimestamp(string(msg[:pIdx]))
+	if err != nil {
+		logger.Error("%s", err)
+		return -1
+	}
+	m.Timestamp = tm
 
 	r, _ = fmt.Sscanf(string(msg[pIdx:]), ",%d,%d,%d,%d,%d ", &prio, &pgn, &src, &dst, &dataLen)
 	if r < 5 {
@@ -257,9 +292,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 	now := tiden + secs
 
 	//nolint:gosmopolitan
-	tm := time.Unix(int64(now), 0).Local()
-	m.Timestamp = tm.Format("2006-01-02T15:04:05")
-	m.Timestamp = fmt.Sprintf("%s,%3.3d", m.Timestamp, millis)
+	m.Timestamp = time.Unix(int64(now), 0).Add(time.Millisecond * time.Duration(millis)).Local()
 
 	// parse <SRC><DST><P>
 	scanned += len(splitBySpaces[0]) + 1
@@ -327,7 +360,12 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		return 1
 	}
 
-	m.Timestamp = string(msg[:pIdx-1])
+	tm, err := parseTimestamp(string(msg[:pIdx-1]))
+	if err != nil {
+		logger.Error("%s", err)
+		return -1
+	}
+	m.Timestamp = tm
 	pIdx += 3
 
 	r, _ := fmt.Sscanf(string(msg[pIdx:]), "%d", &pgn)
@@ -415,9 +453,7 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 
 	t := int(tstamp / 1000)
 	//nolint:gosmopolitan
-	tm := time.Unix(int64(t), 0).Local()
-	m.Timestamp = tm.Format("2006-01-02T15:04:05")
-	m.Timestamp = fmt.Sprintf("%s,%3.3d", m.Timestamp, tstamp%1000)
+	m.Timestamp = time.Unix(int64(t), 0).Local()
 
 	pIdx := len("$PCDIN,01FD07,089C77D!,03,") // Fixed length where data bytes start;
 
@@ -453,7 +489,6 @@ Manufacturer,3,255,3,0,43,0xFFDF40A6E9BB22C04B3666C18FBF0600A6C33CA5F84B01A0293B
 func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool, logger *Logger) int {
 	var seq, tstamp, pgn, src, dst, prio, single, count uint
 	var t int
-	var tm time.Time
 
 	if len(msg) == 0 || msg[0] == '\n' {
 		return 1
@@ -474,15 +509,17 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 			}
 			return 2
 		}
-		m.Timestamp = fmt.Sprintf(
-			"%04d-%02d-%02dT%02d:%02d:%02d,%03d",
-			year,
-			month,
-			day,
-			hours,
-			minutes,
-			seconds,
-			ms%1000)
+
+		m.Timestamp = time.Date(
+			int(year),
+			time.Month(month),
+			int(day),
+			int(hours),
+			int(minutes),
+			int(seconds),
+			int((ms%1000)*1e6),
+			time.Local,
+		)
 
 		pIdx = findOccurrence(msg, ',', 6)
 	} else {
@@ -497,9 +534,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 
 		t = int(tstamp / 1000)
 		//nolint:gosmopolitan
-		tm = time.Unix(int64(t), 0).Local()
-		m.Timestamp = tm.Format("2006-01-02T15:04:05")
-		m.Timestamp = fmt.Sprintf("%s,%3.3d", m.Timestamp, tstamp%1000)
+		m.Timestamp = time.Unix(int64(t), 0).Local()
 
 		pIdx = findOccurrence(msg, ',', 5)
 	}
@@ -586,9 +621,7 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 	}
 	tiden := logger.Now().Unix()
 	//nolint:gosmopolitan
-	tm := time.Unix(tiden, 0).Local()
-	m.Timestamp = tm.Format("2006-01-02T")
-	m.Timestamp = fmt.Sprintf("%s%s", m.Timestamp, splitBySpaces[0])
+	m.Timestamp = time.Unix(tiden, 0).Local()
 
 	// parse direction, not really used in analyzer
 	splitBySpaces = splitBySpaces[1:]
@@ -651,7 +684,8 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger *Logger) int {
 		return -1
 	}
 
-	m.Timestamp = strconv.FormatFloat(timer, 'f', 2, 64)
+	// there's no time but we can start from the beginning of time.
+	m.Timestamp = time.Time{}.Add(time.Microsecond * time.Duration(timer*1e3))
 
 	decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
 	if err != nil {

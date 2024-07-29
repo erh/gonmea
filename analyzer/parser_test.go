@@ -14,7 +14,7 @@ import (
 func TestParser(t *testing.T) {
 	msgData := []byte("!PDGY,130567,6,200,255,25631.18,RgPczwYAQnYeAB4AAAADAAAAAABQbiMA")
 	expected := &common.Message{
-		Timestamp:   "25631.18",
+		Timestamp:   time.Time{}.Add(time.Microsecond * time.Duration(25631.18*1e3)),
 		Priority:    6,
 		Src:         200,
 		Dst:         255,

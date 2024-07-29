@@ -28,21 +28,21 @@ all:	tests
 
 test1:
 	$(ANALYZER) < recombine-frames.in > $(TEMPDIR)/recombine-frames.out -debug -q -fixtime recombine 2> $(TEMPDIR)/recombine-frames.err
-	diff $(TEMPDIR)/recombine-frames.out recombine-frames.out
 	diff $(TEMPDIR)/recombine-frames.err recombine-frames.err
+	diff $(TEMPDIR)/recombine-frames.out recombine-frames.out
 
 test2:	
 	$(ANALYZER) < switch-multi-to-one-line.in > $(TEMPDIR)/switch-multi-to-one-line.out -debug -q -fixtime switch-multi-to-one-line 2> $(TEMPDIR)/switch-multi-to-one-line.err
-	diff $(TEMPDIR)/switch-multi-to-one-line.out switch-multi-to-one-line.out
 	diff $(TEMPDIR)/switch-multi-to-one-line.err switch-multi-to-one-line.err
+	diff $(TEMPDIR)/switch-multi-to-one-line.out switch-multi-to-one-line.out
 
 #
 # This tests TEXT stability
 #
 test3:	
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test.out -debug -q -fixtime pgn-test 2> $(TEMPDIR)/pgn-test.err
-	diff $(TEMPDIR)/pgn-test.out pgn-test.out
 	diff $(TEMPDIR)/pgn-test.err pgn-test.err
+	diff $(TEMPDIR)/pgn-test.out pgn-test.out
 
 #
 # This tests JSON stability
@@ -50,8 +50,8 @@ test3:
 test4:	
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test-json.out -json -fixtime pgn-test 2> $(TEMPDIR)/pgn-test-json.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-json.out
-	diff $(TEMPDIR)/pgn-test-json.out pgn-test-json.out
 	diff $(TEMPDIR)/pgn-test-json.err pgn-test-json.err
+	diff $(TEMPDIR)/pgn-test-json.out pgn-test-json.out
 
 #
 # This tests JSON stability
@@ -59,8 +59,8 @@ test4:
 test5:	
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test-json-nv.out -nv -q -json -fixtime pgn-test 2> $(TEMPDIR)/pgn-test-json-nv.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-json-nv.out
-	diff $(TEMPDIR)/pgn-test-json-nv.out pgn-test-json-nv.out
 	diff $(TEMPDIR)/pgn-test-json-nv.err pgn-test-json-nv.err
+	diff $(TEMPDIR)/pgn-test-json-nv.out pgn-test-json-nv.out
 
 #
 # This tests JSON stability
@@ -68,8 +68,8 @@ test5:
 test6:	
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test-json-debug.out -debug -q -json -fixtime pgn-test 2> $(TEMPDIR)/pgn-test-json-debug.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-json-debug.out
-	diff $(TEMPDIR)/pgn-test-json-debug.out pgn-test-json-debug.out
 	diff $(TEMPDIR)/pgn-test-json-debug.err pgn-test-json-debug.err
+	diff $(TEMPDIR)/pgn-test-json-debug.out pgn-test-json-debug.out
 
 #
 # This tests JSON stability
@@ -77,8 +77,8 @@ test6:
 test7:	
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test-json-nv-debug.out -nv -debug -q -json -fixtime pgn-test 2> $(TEMPDIR)/pgn-test-json-nv-debug.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-json-nv-debug.out
-	diff $(TEMPDIR)/pgn-test-json-nv-debug.out pgn-test-json-nv-debug.out
 	diff $(TEMPDIR)/pgn-test-json-nv-debug.err pgn-test-json-nv-debug.err
+	diff $(TEMPDIR)/pgn-test-json-nv-debug.out pgn-test-json-nv-debug.out
 
 #
 # This tests capability to read Actisense N2K Ascii format
@@ -87,16 +87,16 @@ test8:
 	# Note: using CET (UTC+1) may not be stable but go doesn't support offsets like UTC-1
 	TZ=CET $(ANALYZER) < pgn-test-actisense.in > $(TEMPDIR)/pgn-test-actisense.out -nv -debug -q -json -fixtime pgn-test 2> $(TEMPDIR)/pgn-test-actisense.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-actisense.out
-	diff $(TEMPDIR)/pgn-test-actisense.out pgn-test-actisense.out
 	diff $(TEMPDIR)/pgn-test-actisense.err pgn-test-actisense.err
+	diff $(TEMPDIR)/pgn-test-actisense.out pgn-test-actisense.out
 
 #
 # This tests capability to read Digital Yacht NavLink2 format
 #
-test8:	
+test9:	
 	$(ANALYZER) < navlink2-test.in > $(TEMPDIR)/navlink2-test.out -nv -debug -q -json -fixtime pgn-test 2> $(TEMPDIR)/navlink2-test.err
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/navlink2-test.out
-	diff $(TEMPDIR)/navlink2-test.out navlink2-test.out
 	diff $(TEMPDIR)/navlink2-test.err navlink2-test.err
+	diff $(TEMPDIR)/navlink2-test.out navlink2-test.out
 
-tests:	test1 test2 test3 test4 test5 test6 test7 test8
+tests:	test1 test2 test3 test4 test5 test6 test7 test8 test9
