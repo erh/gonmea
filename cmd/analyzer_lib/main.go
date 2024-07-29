@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/erh/gonmea/analyzer"
-	"github.com/erh/gonmea/common"
 )
 
 func main() {
@@ -49,31 +47,18 @@ func processData(in io.ReadCloser) error {
 	//nolint:errcheck
 	defer in.Close()
 
-	conf := analyzer.NewConfig(common.NewLogger(io.Discard))
-	analyzer, err := analyzer.NewAnalyzer(conf)
+	reader, err := analyzer.NewMessageReader(in)
 	if err != nil {
 		return err
 	}
 
-	reader := bufio.NewReader(in)
 	for {
-		line, _, err := reader.ReadLine()
+		msg, err := reader.Read()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
-		}
-		line = []byte(strings.TrimSpace(string(line)))
-		if len(line) == 0 {
-			continue
-		}
-		msg, hasMsg, err := analyzer.ProcessMessage(line)
-		if err != nil {
-			return err
-		}
-		if !hasMsg {
-			continue
 		}
 		md, err := json.MarshalIndent(msg, "", "  ")
 		if err != nil {

@@ -1,8 +1,10 @@
 package analyzer
 
 import (
+	"bufio"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/erh/gonmea/common"
 )
@@ -110,4 +112,43 @@ func ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
 	}
 	ana.(analyzerStater).State().MultiPackets = MultiPacketsCoalesced
 	return ana.ConvertRawMessage(rawMsg)
+}
+
+type Reader interface {
+	Read() (*common.Message, error)
+}
+
+type messageReader struct {
+	ana    Analyzer
+	reader *bufio.Reader
+}
+
+func (mr messageReader) Read() (*common.Message, error) {
+	for {
+		line, _, err := mr.reader.ReadLine()
+		if err != nil {
+			return nil, err
+		}
+		line = []byte(strings.TrimSpace(string(line)))
+		if len(line) == 0 {
+			continue
+		}
+		msg, hasMsg, err := mr.ana.ProcessMessage(line)
+		if err != nil {
+			return nil, err
+		}
+		if !hasMsg {
+			continue
+		}
+		return msg, nil
+	}
+}
+
+func NewMessageReader(reader io.Reader) (Reader, error) {
+	ana, err := newOneOffAnalyzer()
+	if err != nil {
+		return nil, err
+	}
+
+	return messageReader{ana: ana, reader: bufio.NewReader(reader)}, nil
 }
