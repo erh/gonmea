@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"go.viam.com/rdk/logging"
 )
 
 const (
@@ -103,7 +105,7 @@ func parseTimestamp(from string) (time.Time, error) {
 }
 
 // ParseRawFormatPlain parses PLAIN messages.
-func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
+func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
 	var prio, src, dst, dataLen uint8
 	var pgn uint32
 	var junk, r int
@@ -143,7 +145,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logge
 		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", string(msg))
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -166,7 +168,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, showJSON bool, logger *Logge
 }
 
 // ParseRawFormatFast parses FAST messages.
-func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
+func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
 	var prio, src, dst, dataLen uint8
 	var pgn uint32
 
@@ -190,7 +192,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", string(msg))
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -200,7 +202,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", string(msg))
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -211,7 +213,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", string(msg))
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -221,7 +223,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, showJSON bool, logger *Logger
 				//nolint:errcheck
 				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 				if !showJSON {
-					fmt.Fprintf(logger.writer, "%s", string(msg))
+					logger.Info(msg)
 				}
 				return 2
 			}
@@ -269,7 +271,7 @@ func scanHex(p []byte, m *byte) (int, bool) {
 var tiden int
 
 // ParseRawFormatActisenseN2KAscii parses Actisense N2K ASCII messages.
-func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
+func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
 	scanned := 0
 
 	// parse timestamp. Actisense doesn't give us date so let's figure it out ourself
@@ -287,7 +289,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 	}
 
 	if tiden == 0 {
-		tiden = int(logger.Now().Unix()) - secs
+		tiden = int(Now().Unix()) - secs
 	}
 	now := tiden + secs
 
@@ -313,7 +315,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 		//nolint:errcheck
 		logger.Error("Incomplete message\n")
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return -1
 	}
@@ -334,7 +336,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", len(msg)-scanned, string(msg), string(p), i)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -348,7 +350,7 @@ func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, showJSON bool, l
 
 // ParseRawFormatAirmar parses Airmar messages.
 // Note(UNTESTED): See README.md.
-func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
+func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
 	var dataLen uint
 	var prio, src, dst uint8
 	var pgn uint32
@@ -373,7 +375,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -386,7 +388,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -396,7 +398,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		//nolint:errcheck
 		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -411,7 +413,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -421,7 +423,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 				//nolint:errcheck
 				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
 				if !showJSON {
-					fmt.Fprintf(logger.writer, "%s", msg)
+					logger.Info(msg)
 				}
 				return 2
 			}
@@ -435,7 +437,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 
 // ParseRawFormatChetco parses Chetco messages.
 // Note(UNTESTED): See README.md.
-func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logger) int {
+func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger logging.Logger) int {
 	var tstamp uint
 
 	if len(msg) == 0 || msg[0] == '\n' {
@@ -446,7 +448,7 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 		//nolint:errcheck
 		logger.Error("Error reading Chetco message: %s", msg)
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return 2
 	}
@@ -464,7 +466,7 @@ func ParseRawFormatChetco(msg []byte, m *RawMessage, showJSON bool, logger *Logg
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -486,7 +488,7 @@ Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority
 Manufacturer,3,255,3,0,43,0xFFDF40A6E9BB22C04B3666C18FBF0600A6C33CA5F84B01A0293B140000000010FC01AC26AC264A12000000
 */
 // Note(UNTESTED): See README.md.
-func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool, logger *Logger) int {
+func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool, logger logging.Logger) int {
 	var seq, tstamp, pgn, src, dst, prio, single, count uint
 	var t int
 
@@ -505,7 +507,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 			//nolint:errcheck
 			logger.Error("Error reading Garmin CSV message: %s", msg)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -527,7 +529,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 			//nolint:errcheck
 			logger.Error("Error reading Garmin CSV message: %s", msg)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -543,7 +545,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 		//nolint:errcheck
 		logger.Error("Error reading Garmin CSV message: %s", msg)
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return 3
 	}
@@ -553,7 +555,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 		//nolint:errcheck
 		logger.Error("Error reading Garmin CSV message: %s", msg)
 		if !showJSON {
-			fmt.Fprintf(logger.writer, "%s", msg)
+			logger.Info(msg)
 		}
 		return 3
 	}
@@ -566,7 +568,7 @@ func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, showJSON, absolute bool,
 			//nolint:errcheck
 			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
 			if !showJSON {
-				fmt.Fprintf(logger.writer, "%s", msg)
+				logger.Info(msg)
 			}
 			return 2
 		}
@@ -609,7 +611,7 @@ Range","fields":{"Instance":0,"Source":"Sea Temperature","Temperature":13.40}}
 Parameters","fields":{"Temperature Source":"Sea Temperature","Temperature":13.39}}
 */
 // Note(UNTESTED): See README.md.
-func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
+func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var msgid uint
 	var prio, src, dst uint8
 	var pgn uint32
@@ -619,7 +621,7 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 	if len(splitBySpaces) == 1 {
 		return -1
 	}
-	tiden := logger.Now().Unix()
+	tiden := Now().Unix()
 	//nolint:gosmopolitan
 	m.Timestamp = time.Unix(tiden, 0).Local()
 
@@ -672,7 +674,7 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger *Logger) int {
 // timer = internal timer of the gateway in milliseconds 0-999999
 //
 // <pgn_data> = The binary payload of the PGN encoded in Base64.
-func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger *Logger) int {
+func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var prio, src, dst uint8
 	var pgn uint32
 	var timer float64

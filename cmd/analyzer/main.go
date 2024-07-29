@@ -13,6 +13,10 @@ import (
 func main() {
 	conf, cont, err := analyzer.ParseArgs(os.Args)
 	handleErr(err)
+	defer func() {
+		//nolint:errcheck
+		conf.Logger.Sync()
+	}()
 	if !cont {
 		return
 	}

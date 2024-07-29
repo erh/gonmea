@@ -31,6 +31,9 @@ import (
 	"unicode"
 
 	"github.com/erh/gonmea/common"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.viam.com/rdk/logging"
 )
 
 func init() {
@@ -113,25 +116,28 @@ type Config struct {
 	InFile         io.Reader
 	OutFile        io.Writer
 	OutErrFile     io.Writer
-	Logger         *common.Logger
+	Logger         logging.Logger
+
+	isCLI bool
 }
 
 // NewConfigForCLI returns a config for use with a CLI.
 func NewConfigForCLI() *Config {
-	return newConfig(os.Stdout, os.Stderr, common.NewLoggerForCLI(os.Stderr))
+	return newConfig(os.Stdout, os.Stderr, common.NewLogger(os.Stderr), true)
 }
 
 // NewConfigForLibrary returns a config for use with a library.
 func NewConfigForLibrary(
-	logger *common.Logger,
+	logger logging.Logger,
 ) *Config {
-	return newConfig(io.Discard, io.Discard, logger)
+	return newConfig(io.Discard, io.Discard, logger, false)
 }
 
 func newConfig(
 	outFile io.Writer,
 	outErrFile io.Writer,
-	logger *common.Logger,
+	logger logging.Logger,
+	isCLI bool,
 ) *Config {
 	return &Config{
 		ShowRaw:        false,
@@ -152,6 +158,7 @@ func newConfig(
 		Logger:         logger,
 		OutFile:        outFile,
 		OutErrFile:     outErrFile,
+		isCLI:          isCLI,
 	}
 }
 
@@ -160,8 +167,8 @@ func ParseArgs(args []string) (*Config, bool, error) {
 	progNameAsExeced := args[0]
 
 	conf := NewConfigForCLI()
-	conf.Logger.SetProgName(progNameAsExeced)
 
+	logLevel := zapcore.InfoLevel
 	conf.InFile = os.Stdin
 	for argIdx := 1; argIdx < len(args); argIdx++ {
 		arg := args[argIdx]
@@ -184,9 +191,11 @@ func ParseArgs(args []string) (*Config, bool, error) {
 			conf.ShowJSONEmpty = true
 			conf.ShowBytes = true
 		} else if strings.EqualFold(arg, "-d") {
-			conf.Logger.SetLogLevel(common.LogLevelDebug)
+			logging.GlobalLogLevel.SetLevel(zapcore.DebugLevel)
+			logLevel = zapcore.DebugLevel
 		} else if strings.EqualFold(arg, "-q") {
-			conf.Logger.SetLogLevel(common.LogLevelError)
+			logging.GlobalLogLevel.SetLevel(zapcore.ErrorLevel)
+			logLevel = zap.ErrorLevel
 		} else if hasNext && strings.EqualFold(arg, "-geo") {
 			nextArg := args[argIdx+1]
 			if strings.EqualFold(nextArg, "dd") {
@@ -215,7 +224,7 @@ func ParseArgs(args []string) (*Config, bool, error) {
 			conf.ShowData = true
 		} else if hasNext && strings.EqualFold(arg, "-fixtime") {
 			nextArg := args[argIdx+1]
-			conf.Logger.SetFixedTimestamp(nextArg)
+			common.UseFixedTimestamp.Store(true)
 			if !strings.Contains(nextArg, "n2kd") {
 				conf.ShowVersion = false
 			}
@@ -241,7 +250,7 @@ func ParseArgs(args []string) (*Config, bool, error) {
 			//nolint:gosec
 			conf.InFile, err = os.OpenFile(nextArg, os.O_RDONLY, 0)
 			if err != nil {
-				return nil, false, conf.Logger.Abort("Cannot open file %s\n", nextArg)
+				return nil, false, common.Abort(conf.Logger, true, "Cannot open file %s", nextArg)
 			}
 			argIdx++
 		} else if hasNext && strings.EqualFold(arg, "-format") {
@@ -255,7 +264,7 @@ func ParseArgs(args []string) (*Config, bool, error) {
 					break
 				}
 				if conf.SelectedFormat == RawFormatUnknown {
-					return nil, false, conf.Logger.Abort("Unknown message format '%s'\n", nextArg)
+					return nil, false, common.Abort(conf.Logger, true, "Unknown message format '%s'", nextArg)
 				}
 			}
 			argIdx++
@@ -263,12 +272,26 @@ func ParseArgs(args []string) (*Config, bool, error) {
 			//nolint:errcheck
 			conf.OnlyPgn, _ = strconv.ParseInt(arg, 10, 64)
 			if conf.OnlyPgn > 0 {
-				conf.Logger.Info("Only logging PGN %d\n", conf.OnlyPgn)
+				conf.Logger.Infof("Only logging PGN %d", conf.OnlyPgn)
 			} else {
 				return nil, false, usage(progNameAsExeced, arg, conf.OutFile)
 			}
 		}
 	}
+
+	zapConf := logging.NewZapLoggerConfig()
+	zapConf.Level = zap.NewAtomicLevelAt(logLevel)
+	zapConf.OutputPaths = []string{"stderr"}
+	zapLogger, err := zapConf.Build(zap.WithClock(common.FixedClock{}))
+	if err != nil {
+		return conf, false, err
+	}
+	conf.Logger = logging.FromZapCompatible(zapLogger.Sugar())
+
+	if common.UseFixedTimestamp.Load() {
+		conf.Logger.Info("Timestamp fixed")
+	}
+
 	return conf, true, nil
 }
 
@@ -319,11 +342,11 @@ func (ana *Analyzer) ReadRawMessage() (*common.RawMessage, error) {
 		case RawFormatPlainOrFast:
 			ana.multipackets = multipacketsSeparate
 			r = common.ParseRawFormatPlain(msg, &m, ana.ShowJSON, ana.Logger)
-			ana.Logger.Debug("plain_or_fast: plain r=%d\n", r)
+			ana.Logger.Debugf("plain_or_fast: plain r=%d", r)
 			if r < 0 {
 				ana.multipackets = multipacketsCoalesced
 				r = common.ParseRawFormatFast(msg, &m, ana.ShowJSON, ana.Logger)
-				ana.Logger.Debug("plain_or_fast: fast r=%d\n", r)
+				ana.Logger.Debugf("plain_or_fast: fast r=%d", r)
 			}
 
 		case RawFormatPlain:
@@ -337,7 +360,7 @@ func (ana *Analyzer) ReadRawMessage() (*common.RawMessage, error) {
 		case RawFormatFast:
 			r = common.ParseRawFormatFast(msg, &m, ana.ShowJSON, ana.Logger)
 			if r >= 0 && ana.SelectedFormat == RawFormatPlain {
-				ana.Logger.Info("Detected normal format with all frames on one line\n")
+				ana.Logger.Infof("Detected normal format with all frames on one line")
 				ana.multipackets = multipacketsCoalesced
 				ana.SelectedFormat = RawFormatFast
 			}
@@ -363,21 +386,21 @@ func (ana *Analyzer) ReadRawMessage() (*common.RawMessage, error) {
 		case RawFormatUnknown:
 			fallthrough
 		default:
-			return nil, ana.Logger.Error("Unknown message format\n")
+			return nil, common.Error(ana.Logger, ana.isCLI, "Unknown message format\n")
 		}
 
 		if r == 0 {
 			return &m, nil
 		}
 		//nolint:errcheck
-		ana.Logger.Error("Unknown message error %d: '%s'\n", r, msg)
+		common.Error(ana.Logger, ana.isCLI, "Unknown message error %d: '%s'", r, msg)
 	}
 }
 
 // Run performs analysis.
 func (ana *Analyzer) Run() error {
 	if !ana.ShowJSON {
-		ana.Logger.Info("N2K packet analyzer\n" + common.Copyright)
+		ana.Logger.Infof("N2K packet analyzer\n" + common.Copyright)
 	} else if ana.ShowVersion {
 		siStr := "si"
 		if !ana.showSI {
@@ -513,22 +536,22 @@ func (ana *Analyzer) showBuffers() {
 
 		if p.used {
 			//nolint:errcheck
-			ana.Logger.Error("ReassemblyBuffer[%d] PGN %d: size %d frames=%x mask=%x\n", buffer, p.pgn, p.size, p.frames, p.allFrames)
+			common.Error(ana.Logger, ana.isCLI, "ReassemblyBuffer[%d] PGN %d: size %d frames=%x mask=%x", buffer, p.pgn, p.size, p.frames, p.allFrames)
 		} else {
-			ana.Logger.Debug("ReassemblyBuffer[%d]: inUse=false\n", buffer)
+			ana.Logger.Debugf("ReassemblyBuffer[%d]: inUse=false", buffer)
 		}
 	}
 }
 
 func (ana *Analyzer) detectFormat(msg string) RawFormat {
 	if msg[0] == '$' && msg == "$PCDIN" {
-		ana.Logger.Info("Detected Chetco protocol with all data on one line\n")
+		ana.Logger.Infof("Detected Chetco protocol with all data on one line")
 		ana.multipackets = multipacketsCoalesced
 		return RawFormatChetco
 	}
 
 	if msg == "Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with relative timestamps\n")
+		ana.Logger.Infof("Detected Garmin CSV protocol with relative timestamps")
 		ana.multipackets = multipacketsCoalesced
 		return RawFormatGarminCSV1
 	}
@@ -536,14 +559,14 @@ func (ana *Analyzer) detectFormat(msg string) RawFormat {
 	if msg ==
 		"Sequence #,Month_Day_Year_Hours_Minutes_Seconds_msTicks,PGN,Processed PGN,Name,Manufacturer,Remote Address,Local "+
 			"Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with absolute timestamps\n")
+		ana.Logger.Infof("Detected Garmin CSV protocol with absolute timestamps")
 		ana.multipackets = multipacketsCoalesced
 		return RawFormatGarminCSV2
 	}
 
 	p := strings.Index(msg, " ")
 	if p != -1 && (msg[p+1] == '-' || msg[p+2] == '-') {
-		ana.Logger.Info("Detected Airmar protocol with all data on one line\n")
+		ana.Logger.Infof("Detected Airmar protocol with all data on one line")
 		ana.multipackets = multipacketsCoalesced
 		return RawFormatAirmar
 	}
@@ -553,7 +576,7 @@ func (ana *Analyzer) detectFormat(msg string) RawFormat {
 		var e rune
 		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
 		if r == 6 && (e == 'R' || e == 'T') {
-			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame\n")
+			ana.Logger.Infof("Detected YDWG-02 protocol with one line per frame")
 			ana.multipackets = multipacketsSeparate
 			return RawFormatYDWG02
 		}
@@ -565,7 +588,7 @@ func (ana *Analyzer) detectFormat(msg string) RawFormat {
 		var f string
 		r, _ := fmt.Sscanf(msg, "!PDGY,%d,%d,%d,%d,%f,%s ", &a, &b, &c, &d, &e, &f)
 		if r == 6 {
-			ana.Logger.Info("Detected Digital Yacht NavLink2 protocol with one line per frame\n")
+			ana.Logger.Infof("Detected Digital Yacht NavLink2 protocol with one line per frame")
 			ana.multipackets = multipacketsCoalesced
 			return RawFormatNavLink2
 		}
@@ -576,7 +599,7 @@ func (ana *Analyzer) detectFormat(msg string) RawFormat {
 		r1, _ := fmt.Sscanf(msg, "A%d.%d %x %x ", &a, &b, &c, &d)
 		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
 		if r1 == 4 || r2 == 3 {
-			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line\n")
+			ana.Logger.Infof("Detected Actisense N2K Ascii protocol with all frames on one line")
 			ana.multipackets = multipacketsCoalesced
 			return RawFormatActisenseN2KASCII
 		}
@@ -604,11 +627,11 @@ func (ana *Analyzer) detectFormat(msg string) RawFormat {
 			}
 		}
 		if countHex > 8 {
-			ana.Logger.Info("Detected normal format with all frames on one line\n")
+			ana.Logger.Infof("Detected normal format with all frames on one line")
 			ana.multipackets = multipacketsCoalesced
 			return RawFormatFast
 		}
-		ana.Logger.Info("Assuming normal format with one line per frame\n")
+		ana.Logger.Infof("Assuming normal format with one line per frame")
 		ana.multipackets = multipacketsSeparate
 		return RawFormatPlain
 	}
@@ -683,7 +706,7 @@ func (ana *Analyzer) printCanFormat(
 		}
 		if buffer == reassemblyBufferSize {
 			//nolint:errcheck
-			ana.Logger.Error("Out of reassembly buffers; ignoring PGN %d\n", msg.PGN)
+			common.Error(ana.Logger, ana.isCLI, "Out of reassembly buffers; ignoring PGN %d", msg.PGN)
 			return nil
 		}
 		p.used = true
@@ -708,8 +731,7 @@ func (ana *Analyzer) printCanFormat(
 		}
 
 		if (p.frames & (1 << frame)) != 0 {
-			//nolint:errcheck
-			ana.Logger.Error("Received incomplete fast packet PGN %d from source %d\n", msg.PGN, msg.Src)
+			common.Error(ana.Logger, ana.isCLI, "Received incomplete fast packet PGN %d from source %d", msg.PGN, msg.Src)
 			p.frames = 0
 		}
 
@@ -721,7 +743,7 @@ func (ana *Analyzer) printCanFormat(
 		copy(p.data[idx:], msg.Data[msgIdx:msgIdx+frameLen])
 		p.frames |= 1 << frame
 
-		ana.Logger.Debug("Using buffer %d for reassembly of PGN %d: size %d frame %d sequence %d idx=%d frames=%x mask=%x\n",
+		ana.Logger.Debugf("Using buffer %d for reassembly of PGN %d: size %d frame %d sequence %d idx=%d frames=%x mask=%x",
 			buffer,
 			msg.PGN,
 			p.size,
@@ -755,7 +777,7 @@ func (ana *Analyzer) printPgn(
 		return err
 	}
 	if pgn == nil {
-		return ana.Logger.Abort("No PGN definition found for PGN %d\n", msg.PGN)
+		return common.Abort(ana.Logger, ana.isCLI, "No PGN definition found for PGN %d", msg.PGN)
 	}
 
 	if ana.ShowData {
@@ -799,7 +821,7 @@ func (ana *Analyzer) printPgn(
 		ana.sep = " "
 	}
 
-	ana.Logger.Debug("fieldCount=%d repeatingStart1=%d\n", pgn.fieldCount, pgn.repeatingStart1)
+	ana.Logger.Debugf("fieldCount=%d repeatingStart1=%d", pgn.fieldCount, pgn.repeatingStart1)
 
 	ana.variableFieldRepeat[0] = 255 // Can be overridden by '# of parameters'
 	ana.variableFieldRepeat[1] = 0   // Can be overridden by '# of parameters'
@@ -855,7 +877,7 @@ func (ana *Analyzer) printPgn(
 					ana.sep = ""
 				}
 			}
-			ana.Logger.Debug("variableFields: repetition=%d field=%d variableFieldStart=%d variableFieldCount=%d remaining=%d\n",
+			ana.Logger.Debugf("variableFields: repetition=%d field=%d variableFieldStart=%d variableFieldCount=%d remaining=%d",
 				repetition,
 				i+1,
 				variableFieldStart,
@@ -865,7 +887,7 @@ func (ana *Analyzer) printPgn(
 		}
 
 		if field.camelName == "" && field.name == "" {
-			ana.Logger.Debug("PGN %d has unknown bytes at end: %d\n", msg.PGN, len(data)-(startBit>>3))
+			ana.Logger.Debugf("PGN %d has unknown bytes at end: %d", msg.PGN, len(data)-(startBit>>3))
 			break
 		}
 
@@ -904,21 +926,18 @@ func (ana *Analyzer) printPgn(
 	if r {
 		ana.pb.Write(writer)
 		if variableFields > 0 && ana.variableFieldRepeat[0] < math.MaxUint8 {
-			//nolint:errcheck
-			ana.Logger.Error("PGN %d has %d missing fields in repeating set\n", msg.PGN, variableFields)
+			common.Error(ana.Logger, ana.isCLI, "PGN %d has %d missing fields in repeating set", msg.PGN, variableFields)
 		}
 	} else {
 		if !ana.ShowJSON {
 			ana.pb.Write(writer)
 		}
 		ana.pb.Reset()
-		//nolint:errcheck
-		ana.Logger.Error("PGN %d analysis error\n", msg.PGN)
+		common.Error(ana.Logger, ana.isCLI, "PGN %d analysis error", msg.PGN)
 	}
 
 	if msg.PGN == 126992 && ana.currentDate < math.MaxUint16 && ana.currentTime < math.MaxUint32 && ana.ClockSrc == int64(msg.Src) {
-		//nolint:errcheck
-		ana.Logger.Error("WILL NOT SETSYSTEMCLOCK FOR 126992")
+		common.Error(ana.Logger, ana.isCLI, "WILL NOT SETSYSTEMCLOCK FOR 126992")
 	}
 	return nil
 }
@@ -932,7 +951,7 @@ func (ana *Analyzer) getSep() (string, error) {
 		ana.sep = ","
 		if strings.Contains(s, "{") {
 			if len(ana.closingBraces) >= maxBraces-1 {
-				return "", ana.Logger.Error("Too many braces\n")
+				return "", common.Error(ana.Logger, ana.isCLI, "Too many braces\n")
 			}
 			ana.closingBraces += "}"
 		}
@@ -954,14 +973,14 @@ func (ana *Analyzer) setCurrentFieldMetadata(
 
 	if fieldName == "PGN" {
 		extractNumber(nil, data, startBit, bits, &value, &maxValue, ana.Logger)
-		ana.Logger.Debug("Reference PGN = %d\n", value)
+		ana.Logger.Debugf("Reference PGN = %d", value)
 		ana.refPgn = value
 		return
 	}
 
 	if fieldName == "Length" {
 		extractNumber(nil, data, startBit, bits, &value, &maxValue, ana.Logger)
-		ana.Logger.Debug("for next field: length = %d\n", value)
+		ana.Logger.Debugf("for next field: length = %d", value)
 		ana.length = value
 		return
 	}
@@ -987,7 +1006,7 @@ func (ana *Analyzer) printField(
 		resolution = field.ft.resolution
 	}
 
-	ana.Logger.Debug("PGN %d: printField(<%s>, \"%s\", ..., startBit=%d) resolution=%g\n",
+	ana.Logger.Debugf("PGN %d: printField(<%s>, \"%s\", ..., startBit=%d) resolution=%g",
 		field.pgn.pgn,
 		field.name,
 		fieldName,
@@ -1010,7 +1029,7 @@ func (ana *Analyzer) printField(
 
 	ana.setCurrentFieldMetadata(field.name, data, startBit, *bits)
 
-	ana.Logger.Debug("PGN %d: printField <%s>, \"%s\": bits=%d proprietary=%t refPgn=%d\n",
+	ana.Logger.Debugf("PGN %d: printField <%s>, \"%s\": bits=%d proprietary=%t refPgn=%d",
 		field.pgn.pgn,
 		field.name,
 		fieldName,
@@ -1054,8 +1073,8 @@ func (ana *Analyzer) printField(
 			}
 		}
 		location3 := ana.pb.Location()
-		ana.Logger.Debug(
-			"PGN %d: printField <%s>, \"%s\": calling function for %s\n", field.pgn.pgn, field.name, fieldName, field.fieldType)
+		ana.Logger.Debugf(
+			"PGN %d: printField <%s>, \"%s\": calling function for %s", field.pgn.pgn, field.name, fieldName, field.fieldType)
 		ana.skip = false
 		var err error
 		r, err := field.ft.pf(ana, field, fieldName, data, startBit, bits)
@@ -1063,11 +1082,10 @@ func (ana *Analyzer) printField(
 			return false, err
 		}
 		// if match fails, r == false. If field is not printed, ana.skip == true
-		ana.Logger.Debug("PGN %d: printField <%s>, \"%s\": result %t bits=%d\n", field.pgn.pgn, field.name, fieldName, r, *bits)
+		ana.Logger.Debugf("PGN %d: printField <%s>, \"%s\": result %t bits=%d", field.pgn.pgn, field.name, fieldName, r, *bits)
 		if r && !ana.skip {
 			if location3 == ana.pb.Location() && !ana.ShowBytes {
-				//nolint:errcheck
-				ana.Logger.Error("PGN %d: field \"%s\" print routine did not print anything\n", field.pgn.pgn, field.name)
+				common.Error(ana.Logger, ana.isCLI, "PGN %d: field \"%s\" print routine did not print anything", field.pgn.pgn, field.name)
 				r = false
 			} else if ana.ShowBytes && !field.ft.pfIsPrintVariable {
 				location3 = ana.pb.Location()
@@ -1094,8 +1112,7 @@ func (ana *Analyzer) printField(
 		}
 		return r, nil
 	}
-	//nolint:errcheck
-	ana.Logger.Error("PGN %d: no function found to print field '%s'\n", field.pgn.pgn, fieldName)
+	common.Error(ana.Logger, ana.isCLI, "PGN %d: no function found to print field '%s'", field.pgn.pgn, fieldName)
 	return false, nil
 }
 
@@ -1172,7 +1189,7 @@ func fieldPrintVariable(
 ) (bool, error) {
 	refField := ana.getField(uint32(ana.refPgn), uint32(data[startBit/8-1]-1))
 	if refField != nil {
-		ana.Logger.Debug("Field %s: found variable field %d '%s'\n", fieldName, ana.refPgn, refField.name)
+		ana.Logger.Debugf("Field %s: found variable field %d '%s'", fieldName, ana.refPgn, refField.name)
 		r, err := ana.printField(refField, fieldName, data, startBit, bits)
 		if err != nil {
 			return false, err
@@ -1181,8 +1198,7 @@ func fieldPrintVariable(
 		return r, nil
 	}
 
-	//nolint:errcheck
-	ana.Logger.Error("Field %s: cannot derive variable length for PGN %d field # %d\n", fieldName, ana.refPgn, data[len(data)-1])
+	common.Error(ana.Logger, ana.isCLI, "Field %s: cannot derive variable length for PGN %d field # %d", fieldName, ana.refPgn, data[len(data)-1])
 	*bits = 8 /* Gotta assume something */
 	return false, nil
 }
@@ -1283,8 +1299,7 @@ func (ana *Analyzer) convertRawMessage(rawMsg *common.RawMessage) (*common.Messa
 		}
 
 		if (p.frames & (1 << frame)) != 0 {
-			//nolint:errcheck
-			ana.Logger.Error("Received incomplete fast packet PGN %d from source %d\n", rawMsg.PGN, rawMsg.Src)
+			common.Error(ana.Logger, ana.isCLI, "Received incomplete fast packet PGN %d from source %d", rawMsg.PGN, rawMsg.Src)
 			p.frames = 0
 		}
 
@@ -1296,7 +1311,7 @@ func (ana *Analyzer) convertRawMessage(rawMsg *common.RawMessage) (*common.Messa
 		copy(p.data[idx:], rawMsg.Data[msgIdx:msgIdx+frameLen])
 		p.frames |= 1 << frame
 
-		ana.Logger.Debug("Using buffer %d for reassembly of PGN %d: size %d frame %d sequence %d idx=%d frames=%x mask=%x\n",
+		ana.Logger.Debugf("Using buffer %d for reassembly of PGN %d: size %d frame %d sequence %d idx=%d frames=%x mask=%x",
 			buffer,
 			rawMsg.PGN,
 			p.size,
@@ -1344,7 +1359,7 @@ func (ana *Analyzer) convertPGN(rawMsg *common.RawMessage, data []byte) (*common
 	}
 	convertedMsg.Fields = make(map[string]interface{}, pgn.fieldCount)
 
-	ana.Logger.Debug("fieldCount=%d repeatingStart1=%d\n", pgn.fieldCount, pgn.repeatingStart1)
+	ana.Logger.Debugf("fieldCount=%d repeatingStart1=%d", pgn.fieldCount, pgn.repeatingStart1)
 
 	ana.variableFieldRepeat[0] = 255 // Can be overridden by '# of parameters'
 	ana.variableFieldRepeat[1] = 0   // Can be overridden by '# of parameters'
@@ -1391,7 +1406,7 @@ func (ana *Analyzer) convertPGN(rawMsg *common.RawMessage, data []byte) (*common
 				field = &pgn.fieldList[i]
 				repetition++
 			}
-			ana.Logger.Debug("variableFields: repetition=%d field=%d variableFieldStart=%d variableFieldCount=%d remaining=%d\n",
+			ana.Logger.Debugf("variableFields: repetition=%d field=%d variableFieldStart=%d variableFieldCount=%d remaining=%d",
 				repetition,
 				i+1,
 				variableFieldStart,
@@ -1401,7 +1416,7 @@ func (ana *Analyzer) convertPGN(rawMsg *common.RawMessage, data []byte) (*common
 		}
 
 		if field.camelName == "" && field.name == "" {
-			ana.Logger.Debug("PGN %d has unknown bytes at end: %d\n", rawMsg.PGN, len(data)-(startBit>>3))
+			ana.Logger.Debugf("PGN %d has unknown bytes at end: %d", rawMsg.PGN, len(data)-(startBit>>3))
 			break
 		}
 
@@ -1433,8 +1448,7 @@ func (ana *Analyzer) convertPGN(rawMsg *common.RawMessage, data []byte) (*common
 	}
 
 	if rawMsg.PGN == 126992 && ana.currentDate < math.MaxUint16 && ana.currentTime < math.MaxUint32 && ana.ClockSrc == int64(rawMsg.Src) {
-		//nolint:errcheck
-		ana.Logger.Error("WILL NOT SETSYSTEMCLOCK FOR 126992")
+		common.Error(ana.Logger, ana.isCLI, "WILL NOT SETSYSTEMCLOCK FOR 126992")
 	}
 	return convertedMsg, nil
 }
@@ -1451,7 +1465,7 @@ func (ana *Analyzer) convertField(
 		resolution = field.ft.resolution
 	}
 
-	ana.Logger.Debug("PGN %d: convertField(<%s>, \"%s\", ..., startBit=%d) resolution=%g\n",
+	ana.Logger.Debugf("PGN %d: convertField(<%s>, \"%s\", ..., startBit=%d) resolution=%g",
 		field.pgn.pgn,
 		field.name,
 		fieldName,
@@ -1474,7 +1488,7 @@ func (ana *Analyzer) convertField(
 
 	ana.setCurrentFieldMetadata(field.name, data, startBit, *bits)
 
-	ana.Logger.Debug("PGN %d: convertField <%s>, \"%s\": bits=%d proprietary=%t refPgn=%d\n",
+	ana.Logger.Debugf("PGN %d: convertField <%s>, \"%s\": bits=%d proprietary=%t refPgn=%d",
 		field.pgn.pgn,
 		field.name,
 		fieldName,
@@ -1495,8 +1509,8 @@ func (ana *Analyzer) convertField(
 	}
 
 	if field.ft != nil && field.ft.cf != nil {
-		ana.Logger.Debug(
-			"PGN %d: convertField <%s>, \"%s\": calling function for %s\n", field.pgn.pgn, field.name, fieldName, field.fieldType)
+		ana.Logger.Debugf(
+			"PGN %d: convertField <%s>, \"%s\": calling function for %s", field.pgn.pgn, field.name, fieldName, field.fieldType)
 		ana.skip = false
 		return field.ft.cf(ana, field, fieldName, data, startBit, bits)
 	}

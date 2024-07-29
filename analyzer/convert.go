@@ -55,7 +55,7 @@ func convertFieldNumber(
 	if logUnit == "" {
 		logUnit = "None"
 	}
-	ana.Logger.Debug("convertFieldNumber <%s> value=%x max=%x resolution=%g offset=%g unit='%s'\n",
+	ana.Logger.Debugf("convertFieldNumber <%s> value=%x max=%x resolution=%g offset=%g unit='%s'",
 		fieldName,
 		value,
 		maxValue,
@@ -63,7 +63,7 @@ func convertFieldNumber(
 		field.unitOffset,
 		logUnit)
 	if resolution == 1.0 && field.unitOffset == 0.0 {
-		ana.Logger.Debug("convertFieldNumber <%s> print as integer %d\n", fieldName, value)
+		ana.Logger.Debugf("convertFieldNumber <%s> print as integer %d", fieldName, value)
 		return int(value), true, nil
 	}
 	return float64(value)*field.resolution + field.unitOffset, true, nil
@@ -84,8 +84,7 @@ func convertFieldFloat(
 	}
 
 	if *bits != 4 || startBit != 0 {
-		//nolint:errcheck
-		ana.Logger.Error("field '%s' FLOAT value unhandled bits=%d startBit=%d\n", fieldName, *bits, startBit)
+		ana.Logger.Errorf("field '%s' FLOAT value unhandled bits=%d startBit=%d", fieldName, *bits, startBit)
 		return nil, false, nil
 	}
 	if len(data) < 4 {
@@ -167,7 +166,7 @@ func convertFieldLookup(
 	if field.unit != "" && field.unit[0] == '=' && unicode.IsDigit(rune(field.unit[1])) {
 		lookfor := fmt.Sprintf("=%d", value)
 		if lookfor != field.unit {
-			ana.Logger.Debug("Field %s value %d does not match %s\n", fieldName, value, field.unit[1:])
+			ana.Logger.Debugf("Field %s value %d does not match %s", fieldName, value, field.unit[1:])
 			ana.skip = true
 			return nil, false, nil
 		}
@@ -183,7 +182,7 @@ func convertFieldLookup(
 		} else if field.lookup.lookupType == lookupTypeTriplet {
 			var val1 int64
 
-			ana.Logger.Debug("Triplet extraction for field '%s'\n", field.name)
+			ana.Logger.Debugf("Triplet extraction for field '%s'", field.name)
 
 			if field.pgn != nil && extractNumberByOrder(field.pgn, int(field.lookup.val1Order), data, &val1, ana.Logger) {
 				s = field.lookup.functionTriplet(int(val1), int(value))
@@ -225,13 +224,13 @@ func convertFieldBitLookup(
 		return nil, false, nil
 	}
 
-	ana.Logger.Debug("RES_BITFIELD length %d value %d\n", *bits, value)
+	ana.Logger.Debugf("RES_BITFIELD length %d value %d", *bits, value)
 
 	values := make([]interface{}, 0, *bits)
 	bit := 0
 	for bitValue := int64(1); bit < *bits; bit++ {
 		isSet := (value & bitValue) != 0
-		ana.Logger.Debug("RES_BITFIELD is bit %d value %d set? = %t\n", bit, bitValue, isSet)
+		ana.Logger.Debugf("RES_BITFIELD is bit %d value %d set? = %t", bit, bitValue, isSet)
 		if isSet {
 			s := field.lookup.functionPair(bit)
 
@@ -380,7 +379,7 @@ func convertFieldKeyValue(
 	} else {
 		*bits = int(field.size)
 	}
-	ana.Logger.Debug("convertFieldKeyValue('%s') bits=%d\n", fieldName, *bits)
+	ana.Logger.Debugf("convertFieldKeyValue('%s') bits=%d", fieldName, *bits)
 
 	var val interface{}
 	var ok bool
@@ -388,7 +387,7 @@ func convertFieldKeyValue(
 		if ana.ftf != nil {
 			f := ana.ftf
 
-			ana.Logger.Debug("convertFieldKeyValue('%s') is actually a '%s' field bits=%d\n", fieldName, f.ft.name, f.size)
+			ana.Logger.Debugf("convertFieldKeyValue('%s') is actually a '%s' field bits=%d", fieldName, f.ft.name, f.size)
 
 			if *bits == 0 {
 				*bits = int(f.size)
@@ -414,8 +413,7 @@ func convertFieldKeyValue(
 		if field.pgn != nil {
 			pgn = field.pgn.pgn
 		}
-		//nolint:errcheck
-		ana.Logger.Error("PGN %d key-value has insufficient bytes for field %s\n", pgn, fieldName)
+		ana.Logger.Errorf("PGN %d key-value has insufficient bytes for field %s", pgn, fieldName)
 	}
 
 	ana.ftf = nil
@@ -439,7 +437,7 @@ func convertFieldLatLon(
 	var maxValue int64
 	var dd float64
 
-	ana.Logger.Debug("convertFieldLatLon for '%s' startbit=%d bits=%d\n", fieldName, startBit, *bits)
+	ana.Logger.Debugf("convertFieldLatLon for '%s' startbit=%d bits=%d", fieldName, startBit, *bits)
 
 	if !ana.extractNumberNotEmpty(field, data, startBit, *bits, &value, &maxValue) {
 		return nil, false, nil
@@ -526,7 +524,7 @@ func convertFieldStringFix(
 		return nil, false, nil
 	}
 
-	ana.Logger.Debug("convertFieldStringFix('%s',%d) size=%d\n", fieldName, len(data), dataLen)
+	ana.Logger.Debugf("convertFieldStringFix('%s',%d) size=%d", fieldName, len(data), dataLen)
 
 	dataLen = common.Min(dataLen, len(data)) // Cap length to remaining bytes in message
 	*bits = 8 * dataLen
@@ -587,14 +585,13 @@ func convertFieldStringLAU(
 		return nil, false, nil
 	}
 	dataLen := len(data)
-	ana.Logger.Debug("convertFieldStringLAU: <%s> data=%p len=%d startBit=%d bits=%d\n", fieldName, data, len(data), startBit, *bits)
+	ana.Logger.Debugf("convertFieldStringLAU: <%s> data=%p len=%d startBit=%d bits=%d", fieldName, data, len(data), startBit, *bits)
 
 	specifiedDataLen = int(data[0])
 	control = int(data[1])
 	data = data[2:]
 	if specifiedDataLen < 2 || dataLen < 2 {
-		//nolint:errcheck
-		ana.Logger.Error("field '%s': Invalid string length %d in STRINana.LAU field\n", fieldName, specifiedDataLen)
+		ana.Logger.Errorf("field '%s': Invalid string length %d in STRINana.LAU field", fieldName, specifiedDataLen)
 		return nil, false, nil
 	}
 	specifiedDataLen = common.Min(specifiedDataLen, dataLen) - 2
@@ -607,12 +604,11 @@ func convertFieldStringLAU(
 		_ = binary.Read(bytes.NewReader(data), binary.LittleEndian, &utf16Data)
 		utf16Str := utf16.Decode(utf16Data)
 		utf8Str := string(utf16Str)
-		ana.Logger.Debug("convertFieldStringLAU: UTF16 len %d requires %d utf8 bytes\n", specifiedDataLen/2, len(utf8Str))
+		ana.Logger.Debugf("convertFieldStringLAU: UTF16 len %d requires %d utf8 bytes", specifiedDataLen/2, len(utf8Str))
 		data = []byte(utf8Str)
 		specifiedDataLen = len(data)
 	} else if control > 1 {
-		//nolint:errcheck
-		ana.Logger.Error("Unhandled string type %d in PGN\n", control)
+		ana.Logger.Errorf("Unhandled string type %d in PGN", control)
 		return nil, false, nil
 	}
 
@@ -645,7 +641,7 @@ func convertFieldTime(
 		return nil, false, nil
 	}
 
-	ana.Logger.Debug("convertFieldTime(<%s>, \"%s\") v=%d res=%g max=0x%d\n",
+	ana.Logger.Debugf("convertFieldTime(<%s>, \"%s\") v=%d res=%g max=0x%d",
 		field.name,
 		fieldName,
 		value,
@@ -691,7 +687,7 @@ func convertFieldVariable(
 ) (interface{}, bool, error) {
 	refField := ana.getField(uint32(ana.refPgn), uint32(data[startBit/8-1]-1))
 	if refField != nil {
-		ana.Logger.Debug("Field %s: found variable field %d '%s'\n", fieldName, ana.refPgn, refField.name)
+		ana.Logger.Debugf("Field %s: found variable field %d '%s'", fieldName, ana.refPgn, refField.name)
 		val, ok, err := ana.convertField(refField, fieldName, data, startBit, bits)
 		if err != nil {
 			return nil, false, err
@@ -703,8 +699,7 @@ func convertFieldVariable(
 		return val, true, nil
 	}
 
-	//nolint:errcheck
-	ana.Logger.Error("Field %s: cannot derive variable length for PGN %d field # %d\n", fieldName, ana.refPgn, data[len(data)-1])
+	ana.Logger.Errorf("Field %s: cannot derive variable length for PGN %d field # %d", fieldName, ana.refPgn, data[len(data)-1])
 	*bits = 8 /* Gotta assume something */
 	return nil, false, nil
 }

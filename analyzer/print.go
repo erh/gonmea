@@ -30,6 +30,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/erh/gonmea/common"
+	"go.viam.com/rdk/logging"
 )
 
 const bufMaxSize = 8192
@@ -168,7 +169,7 @@ func adjustDataLenStart(data []byte, startBit *int) ([]byte, bool) {
 	return nil, false
 }
 
-func extractNumberByOrder(pgn *pgnInfo, order int, data []byte, value *int64, logger *common.Logger) bool {
+func extractNumberByOrder(pgn *pgnInfo, order int, data []byte, value *int64, logger logging.Logger) bool {
 	field := &pgn.fieldList[order-1]
 	bitOffset := getFieldOffsetByOrder(pgn, order)
 
@@ -188,7 +189,7 @@ func extractNumber(
 	bits int,
 	value *int64,
 	maxValue *int64,
-	logger *common.Logger,
+	logger logging.Logger,
 ) bool {
 	var hasSign bool
 	if field == nil {
@@ -211,7 +212,7 @@ func extractNumber(
 	var valueInThisByte uint64
 	var maxv uint64
 
-	logger.Debug("extractNumber <%s> startBit=%d bits=%d\n", name, startBit, bits)
+	logger.Debugf("extractNumber <%s> startBit=%d bits=%d", name, startBit, bits)
 
 	data, adjusted := adjustDataLenStart(data, &startBit)
 	if !adjusted {
@@ -244,7 +245,7 @@ func extractNumber(
 		}
 	}
 	if bitsRemaining > 0 {
-		logger.Debug("Insufficient length in PGN to fill field '%s'\n", name)
+		logger.Debugf("Insufficient length in PGN to fill field '%s'", name)
 		return false
 	}
 
@@ -273,7 +274,7 @@ func extractNumber(
 
 	*maxValue = int64(maxv)
 
-	logger.Debug("extractNumber <%s> startBit=%d bits=%d value=%d max=%d\n", name, startBit, bits, *value, *maxValue)
+	logger.Debugf("extractNumber <%s> startBit=%d bits=%d value=%d max=%d", name, startBit, bits, *value, *maxValue)
 
 	return true
 }
@@ -302,12 +303,12 @@ func (ana *Analyzer) extractNumberNotEmpty(
 	}
 
 	if field.pgn != nil && field.pgn.repeatingField1 == field.order {
-		ana.Logger.Debug("The first repeating fieldset repeats %d times\n", *value)
+		ana.Logger.Debugf("The first repeating fieldset repeats %d times", *value)
 		ana.variableFieldRepeat[0] = *value
 	}
 
 	if field.pgn != nil && field.pgn.repeatingField2 == field.order {
-		ana.Logger.Debug("The second repeating fieldset repeats %d times\n", *value)
+		ana.Logger.Debugf("The second repeating fieldset repeats %d times", *value)
 		ana.variableFieldRepeat[1] = *value
 	}
 
@@ -381,7 +382,7 @@ func fieldPrintNumber(
 	if logUnit == "" {
 		logUnit = "None"
 	}
-	ana.Logger.Debug("fieldPrintNumber <%s> value=%x max=%x resolution=%g offset=%g unit='%s'\n",
+	ana.Logger.Debugf("fieldPrintNumber <%s> value=%x max=%x resolution=%g offset=%g unit='%s'",
 		fieldName,
 		value,
 		maxValue,
@@ -389,7 +390,7 @@ func fieldPrintNumber(
 		field.unitOffset,
 		logUnit)
 	if resolution == 1.0 && field.unitOffset == 0.0 {
-		ana.Logger.Debug("fieldPrintNumber <%s> print as integer %d\n", fieldName, value)
+		ana.Logger.Debugf("fieldPrintNumber <%s> print as integer %d", fieldName, value)
 		ana.pb.Printf("%d", value)
 		if !ana.ShowJSON && unit != "" {
 			ana.pb.Printf(" %s", unit)
@@ -437,8 +438,7 @@ func fieldPrintFloat(
 	}
 
 	if *bits != 4 || startBit != 0 {
-		//nolint:errcheck
-		ana.Logger.Error("field '%s' FLOAT value unhandled bits=%d startBit=%d\n", fieldName, *bits, startBit)
+		ana.Logger.Errorf("field '%s' FLOAT value unhandled bits=%d startBit=%d", fieldName, *bits, startBit)
 		return false, nil
 	}
 	if len(data) < 4 {
@@ -524,7 +524,7 @@ func fieldPrintLookup(
 	if field.unit != "" && field.unit[0] == '=' && unicode.IsDigit(rune(field.unit[1])) {
 		lookfor := fmt.Sprintf("=%d", value)
 		if lookfor != field.unit {
-			ana.Logger.Debug("Field %s value %d does not match %s\n", fieldName, value, field.unit[1:])
+			ana.Logger.Debugf("Field %s value %d does not match %s", fieldName, value, field.unit[1:])
 			ana.skip = true
 			return false, nil
 		}
@@ -540,7 +540,7 @@ func fieldPrintLookup(
 		} else if field.lookup.lookupType == lookupTypeTriplet {
 			var val1 int64
 
-			ana.Logger.Debug("Triplet extraction for field '%s'\n", field.name)
+			ana.Logger.Debugf("Triplet extraction for field '%s'", field.name)
 
 			if field.pgn != nil && extractNumberByOrder(field.pgn, int(field.lookup.val1Order), data, &val1, ana.Logger) {
 				s = field.lookup.functionTriplet(int(val1), int(value))
@@ -604,7 +604,7 @@ func fieldPrintBitLookup(
 		return true, nil
 	}
 
-	ana.Logger.Debug("RES_BITFIELD length %d value %d\n", *bits, value)
+	ana.Logger.Debugf("RES_BITFIELD length %d value %d", *bits, value)
 
 	//nolint:gocritic
 	if ana.ShowJSONValue {
@@ -618,7 +618,7 @@ func fieldPrintBitLookup(
 	bit := 0
 	for bitValue := int64(1); bit < *bits; bit++ {
 		isSet := (value & bitValue) != 0
-		ana.Logger.Debug("RES_BITFIELD is bit %d value %d set? = %t\n", bit, bitValue, isSet)
+		ana.Logger.Debugf("RES_BITFIELD is bit %d value %d set? = %t", bit, bitValue, isSet)
 		if isSet {
 			s := field.lookup.functionPair(bit)
 
@@ -797,13 +797,13 @@ func fieldPrintKeyValue(
 	} else {
 		*bits = int(field.size)
 	}
-	ana.Logger.Debug("fieldPrintKeyValue('%s') bits=%d\n", fieldName, *bits)
+	ana.Logger.Debugf("fieldPrintKeyValue('%s') bits=%d", fieldName, *bits)
 
 	if len(data) >= ((startBit + *bits) >> 3) {
 		if ana.ftf != nil {
 			f := ana.ftf
 
-			ana.Logger.Debug("fieldPrintKeyValue('%s') is actually a '%s' field bits=%d\n", fieldName, f.ft.name, f.size)
+			ana.Logger.Debugf("fieldPrintKeyValue('%s') is actually a '%s' field bits=%d", fieldName, f.ft.name, f.size)
 
 			if *bits == 0 {
 				*bits = int(f.size)
@@ -829,8 +829,7 @@ func fieldPrintKeyValue(
 		if field.pgn != nil {
 			pgn = field.pgn.pgn
 		}
-		//nolint:errcheck
-		ana.Logger.Error("PGN %d key-value has insufficient bytes for field %s\n", pgn, fieldName)
+		ana.Logger.Errorf("PGN %d key-value has insufficient bytes for field %s", pgn, fieldName)
 	}
 
 	ana.ftf = nil
@@ -857,7 +856,7 @@ func fieldPrintLatLon(
 	var minutes float64
 	var seconds float64
 
-	ana.Logger.Debug("fieldPrintLatLon for '%s' startbit=%d bits=%d\n", fieldName, startBit, *bits)
+	ana.Logger.Debugf("fieldPrintLatLon for '%s' startbit=%d bits=%d", fieldName, startBit, *bits)
 
 	if !ana.extractNumberNotEmpty(field, data, startBit, *bits, &value, &maxValue) {
 		return true, nil
@@ -1007,7 +1006,7 @@ func fieldPrintStringFix(
 		return false, nil
 	}
 
-	ana.Logger.Debug("fieldPrintStringFix('%s',%d) size=%d\n", fieldName, len(data), dataLen)
+	ana.Logger.Debugf("fieldPrintStringFix('%s',%d) size=%d", fieldName, len(data), dataLen)
 
 	dataLen = common.Min(dataLen, len(data)) // Cap length to remaining bytes in message
 	*bits = 8 * dataLen
@@ -1060,14 +1059,13 @@ func fieldPrintStringLAU(
 		return false, nil
 	}
 	dataLen := len(data)
-	ana.Logger.Debug("fieldPrintStringLAU: <%s> data=%p len=%d startBit=%d bits=%d\n", fieldName, data, len(data), startBit, *bits)
+	ana.Logger.Debugf("fieldPrintStringLAU: <%s> data=%p len=%d startBit=%d bits=%d", fieldName, data, len(data), startBit, *bits)
 
 	specifiedDataLen = int(data[0])
 	control = int(data[1])
 	data = data[2:]
 	if specifiedDataLen < 2 || dataLen < 2 {
-		//nolint:errcheck
-		ana.Logger.Error("field '%s': Invalid string length %d in STRINana.LAU field\n", fieldName, specifiedDataLen)
+		ana.Logger.Errorf("field '%s': Invalid string length %d in STRINana.LAU field", fieldName, specifiedDataLen)
 		return false, nil
 	}
 	specifiedDataLen = common.Min(specifiedDataLen, dataLen) - 2
@@ -1080,12 +1078,11 @@ func fieldPrintStringLAU(
 		_ = binary.Read(bytes.NewReader(data), binary.LittleEndian, &utf16Data)
 		utf16Str := utf16.Decode(utf16Data)
 		utf8Str := string(utf16Str)
-		ana.Logger.Debug("fieldprintStringLAU: UTF16 len %d requires %d utf8 bytes\n", specifiedDataLen/2, len(utf8Str))
+		ana.Logger.Debugf("fieldprintStringLAU: UTF16 len %d requires %d utf8 bytes", specifiedDataLen/2, len(utf8Str))
 		data = []byte(utf8Str)
 		specifiedDataLen = len(data)
 	} else if control > 1 {
-		//nolint:errcheck
-		ana.Logger.Error("Unhandled string type %d in PGN\n", control)
+		ana.Logger.Errorf("Unhandled string type %d in PGN", control)
 		return false, nil
 	}
 
@@ -1116,7 +1113,7 @@ func fieldPrintTime(
 		return true, nil
 	}
 
-	ana.Logger.Debug("fieldPrintTime(<%s>, \"%s\") v=%d res=%g max=0x%d\n",
+	ana.Logger.Debugf("fieldPrintTime(<%s>, \"%s\") v=%d res=%g max=0x%d",
 		field.name,
 		fieldName,
 		value,
@@ -1167,15 +1164,15 @@ func fieldPrintTime(
 	return true, nil
 }
 
-func unhandledStartOffset(fieldName string, startBit int, logger *common.Logger) bool {
+func unhandledStartOffset(fieldName string, startBit int, logger logging.Logger) bool {
 	//nolint:errcheck
-	logger.Error("Field '%s' cannot start on bit %d\n", fieldName, startBit)
+	logger.Error("Field '%s' cannot start on bit %d", fieldName, startBit)
 	return false
 }
 
-func unhandledBitLength(fieldName string, length int, logger *common.Logger) bool {
+func unhandledBitLength(fieldName string, length int, logger logging.Logger) bool {
 	//nolint:errcheck
-	logger.Error("Field '%s' cannot have size %d\n", fieldName, length)
+	logger.Error("Field '%s' cannot have size %d", fieldName, length)
 	return false
 }
 

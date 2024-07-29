@@ -20,10 +20,13 @@ package common
 import (
 	"fmt"
 	"io"
-	"strings"
+	"sync/atomic"
 	"time"
 
 	"cmp"
+
+	"go.uber.org/zap"
+	"go.viam.com/rdk/logging"
 )
 
 // FastPacket constants.
@@ -50,138 +53,11 @@ const (
 	IKnovertBEM     = 0x40100 /* iKonvert specific fake PGNs */
 )
 
-// Logger is for logging.
-type Logger struct {
-	level          LogLevel
-	progName       string
-	fixedTimestamp string
-	writer         io.Writer
-	isCLI          bool
-}
-
-func newLogger(writer io.Writer, isCLI bool) *Logger {
-	return &Logger{
-		level:  LogLevelInfo,
-		writer: writer,
-		isCLI:  isCLI,
-	}
-}
-
-// NewLogger returns a new logger.
-func NewLogger(writer io.Writer) *Logger {
-	return newLogger(writer, false)
-}
-
-// NewLoggerForCLI returns a new logger for use by a CLI.
-func NewLoggerForCLI(writer io.Writer) *Logger {
-	return newLogger(writer, true)
-}
-
-// LogLevel represents a level to log at.
-type LogLevel int
-
-// All log levels.
-const (
-	LogLevelFatal LogLevel = iota
-	LogLevelError
-	LogLevelInfo
-	LogLevelDebug
-)
-
-// String returns the human readable LogLevel.
-func (l LogLevel) String() string {
-	switch l {
-	case LogLevelFatal:
-		return "FATAL"
-	case LogLevelError:
-		return "ERROR"
-	case LogLevelInfo:
-		return "INFO"
-	case LogLevelDebug:
-		return "DEBUG"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-// Now returns the current time.Time as seen by the logger.
-func (l *Logger) Now() time.Time {
-	if l.fixedTimestamp != "" {
-		return time.UnixMilli(1672527600000) // 2023-01-01 00:00
-	}
-
-	return time.Now()
-}
-
-func (l *Logger) now() string {
-	asOfNow := l.Now()
-
-	if l.fixedTimestamp != "" {
-		return l.fixedTimestamp
-	}
-
-	// Note: there are more fractional bits printed than the C version
-	// but this shouldn't practically matter
-	return asOfNow.UTC().Format(time.RFC3339Nano)
-}
-
-func (l *Logger) log(level LogLevel, format string, v ...any) {
-	if level > l.level {
-		return
-	}
-
-	fmt.Fprintf(l.writer, "%s %s ", level, l.now())
-	if l.progName != "" {
-		fmt.Fprintf(l.writer, "[%s] ", l.progName)
-	}
-	fmt.Fprintf(l.writer, format, v...)
-}
-
-// Info logs a message at the INFO level.
-func (l *Logger) Info(format string, v ...any) {
-	l.log(LogLevelInfo, format, v...)
-}
-
-// Debug logs a message at the DEBUG level.
-func (l *Logger) Debug(format string, v ...any) {
-	l.log(LogLevelDebug, format, v...)
-}
-
-// Error logs a message at the ERROR level. The returned
-// error may be used to propagate upwards.
-func (l *Logger) Error(format string, v ...any) error {
-	l.log(LogLevelError, format, v...)
-	err := fmt.Errorf(format, v...)
-	if !l.isCLI {
-		return err
-	}
-	return &ExitError{Code: 2, Cause: err}
-}
-
-// Abort logs a message at the FATAL level. The returned
-// error may be used to propagate upwards and if running
-// as a CLI, it may os.Exit.
-func (l *Logger) Abort(format string, v ...any) error {
-	l.log(LogLevelFatal, format, v...)
-	err := fmt.Errorf(format, v...)
-	if !l.isCLI {
-		return err
-	}
-	return &ExitError{Code: 2, Cause: err}
-}
-
-// SetProgName sets the program name running this
-// logger (used by CLI).
-func (l *Logger) SetProgName(name string) {
-	nameIdx := strings.LastIndex(name, "/")
-	if nameIdx == -1 {
-		nameIdx = strings.LastIndex(name, "\\")
-	}
-	if nameIdx == -1 {
-		l.progName = name
-	} else {
-		l.progName = name[nameIdx+1:]
-	}
+// NewLogger returns a new logger that appends to the given writer.
+func NewLogger(writer io.Writer, opts ...zap.Option) logging.Logger {
+	logger := logging.NewBlankLogger("")
+	logger.AddAppender(logging.ConsoleAppender{Writer: writer})
+	return logger
 }
 
 // Min returns the min of x,y.
@@ -200,18 +76,6 @@ func Max[T cmp.Ordered](x, y T) T {
 	return y
 }
 
-// SetLogLevel sets the logger's log level.
-func (l *Logger) SetLogLevel(level LogLevel) {
-	l.level = Min(Max(level, LogLevelFatal), LogLevelDebug)
-	l.Debug("Loglevel now %d\n", l.level)
-}
-
-// SetFixedTimestamp sets a fixed timestamp for logs.
-func (l *Logger) SetFixedTimestamp(fixedStr string) {
-	l.fixedTimestamp = fixedStr
-	l.Info("Timestamp fixed\n")
-}
-
 // AllowPGNFastPacket returns if this PGN Fast is allowed.
 func AllowPGNFastPacket(n uint32) bool {
 	return (((n) >= 0x10000 && (n) < 0x1FFFF) || (n) >= CANBoatPGNStart)
@@ -220,6 +84,56 @@ func AllowPGNFastPacket(n uint32) bool {
 // AllowPGNSingleFrame returns if this PGN can be in a single frame.
 func AllowPGNSingleFrame(n uint32) bool {
 	return ((n) < 0x10000 || (n) >= 0x1F000)
+}
+
+var (
+	// UseFixedTimestamp is for testing purposes only
+	UseFixedTimestamp atomic.Bool
+
+	IsCLI atomic.Bool
+)
+
+// Now returns the current time.Time
+func Now() time.Time {
+	if UseFixedTimestamp.Load() {
+		return time.UnixMilli(1672527600000) // 2023-01-01 00:00
+	}
+
+	return time.Now()
+}
+
+// FixedClock is used to return fixed time
+type FixedClock struct{}
+
+func (c FixedClock) Now() time.Time {
+	return Now()
+}
+
+func (c FixedClock) NewTicker(t time.Duration) *time.Ticker {
+	return time.NewTicker(t)
+}
+
+// Error logs a message at the ERROR level. The returned
+// error may be used to propagate upwards.
+func Error(logger logging.Logger, isCLI bool, format string, v ...any) error {
+	logger.Errorf(format, v...)
+	err := fmt.Errorf(format, v...)
+	if !isCLI {
+		return err
+	}
+	return &ExitError{Code: 2, Cause: err}
+}
+
+// Abort logs a message at the "FATAL" level. The returned
+// error may be used to propagate upwards and if running
+// as a CLI, it may os.Exit.
+func Abort(logger logging.Logger, isCLI bool, format string, v ...any) error {
+	logger.Errorf("FATAL: "+format, v...)
+	err := fmt.Errorf(format, v...)
+	if !isCLI {
+		return err
+	}
+	return &ExitError{Code: 2, Cause: err}
 }
 
 /*

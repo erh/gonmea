@@ -21,6 +21,7 @@ import (
 	"math"
 
 	"github.com/erh/gonmea/common"
+	"go.viam.com/rdk/logging"
 )
 
 type physicalQuantity struct {
@@ -88,11 +89,11 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 
 		if ft.physical != nil {
 			if !isphysicalQuantityListed(ft.physical) {
-				return ana.Logger.Abort("FieldType '%s' contains an unlisted physical quantity '%s'\n", ft.name, ft.physical.name)
+				return common.Abort(ana.Logger, ana.isCLI, "FieldType '%s' contains an unlisted physical quantity '%s'", ft.name, ft.physical.name)
 			}
 			if ft.unit == "" {
 				ft.unit = ft.physical.abbreviation
-				ana.Logger.Debug("Fieldtype '%s' inherits unit '%s' from physical type '%s'\n", ft.name, ft.unit, ft.physical.name)
+				ana.Logger.Debugf("Fieldtype '%s' inherits unit '%s' from physical type '%s'", ft.name, ft.unit, ft.physical.name)
 			}
 			if ft.url == "" {
 				ft.url = ft.physical.url
@@ -104,16 +105,16 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 	for ftIDx := 0; ftIDx < len(ana.fieldTypes); ftIDx++ {
 		ft := &ana.fieldTypes[ftIDx]
 
-		ana.Logger.Debug("filling '%s'\n", ft.name)
+		ana.Logger.Debugf("filling '%s'", ft.name)
 
 		if ft.baseFieldType != "" {
 			base, baseIdx := ana.getFieldType(ft.baseFieldType)
 
 			if base == nil {
-				return ana.Logger.Abort("invalid baseFieldType '%s' found in FieldType '%s'\n", ft.baseFieldType, ft.name)
+				return common.Abort(ana.Logger, ana.isCLI, "invalid baseFieldType '%s' found in FieldType '%s'", ft.baseFieldType, ft.name)
 			}
 			if baseIdx > ftIDx {
-				return ana.Logger.Abort("invalid baseFieldType '%s' must be ordered before FieldType '%s'\n", ft.baseFieldType, ft.name)
+				return common.Abort(ana.Logger, ana.isCLI, "invalid baseFieldType '%s' must be ordered before FieldType '%s'", ft.baseFieldType, ft.name)
 			}
 			ft.baseFieldTypePtr = base
 
@@ -126,17 +127,17 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 			}
 			if ft.unit == "" && base.unit != "" {
 				ft.unit = base.unit
-				ana.Logger.Debug("Fieldtype '%s' inherits unit '%s' from base type '%s'\n", ft.name, ft.unit, base.name)
+				ana.Logger.Debugf("Fieldtype '%s' inherits unit '%s' from base type '%s'", ft.name, ft.unit, base.name)
 			}
 			if ft.size == 0 && base.size != 0 {
 				ft.size = base.size
-				ana.Logger.Debug("Fieldtype '%s' inherits size %d from base type '%s'\n", ft.name, ft.size, base.name)
+				ana.Logger.Debugf("Fieldtype '%s' inherits size %d from base type '%s'", ft.name, ft.size, base.name)
 			}
 			if ft.resolution == 0.0 && base.resolution != 0.0 {
 				ft.resolution = base.resolution
-				ana.Logger.Debug("Fieldtype '%s' inherits resolution %g from base type '%s'\n", ft.name, ft.resolution, base.name)
+				ana.Logger.Debugf("Fieldtype '%s' inherits resolution %g from base type '%s'", ft.name, ft.resolution, base.name)
 			} else if ft.resolution != 0.0 && base.resolution != 0.0 && ft.resolution != base.resolution {
-				return ana.Logger.Abort("Cannot overrule resolution %g in '%s' with %g in '%s'\n", base.resolution, base.name, ft.resolution, ft.name)
+				return common.Abort(ana.Logger, ana.isCLI, "Cannot overrule resolution %g in '%s' with %g in '%s'", base.resolution, base.name, ft.resolution, ft.name)
 			}
 			if ft.pf == nil {
 				ft.pf = base.pf
@@ -147,10 +148,10 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 		}
 
 		if ft.pf == nil {
-			return ana.Logger.Abort("FieldType '%s' has no print function\n", ft.name)
+			return common.Abort(ana.Logger, ana.isCLI, "FieldType '%s' has no print function", ft.name)
 		}
 		if ft.cf == nil {
-			return ana.Logger.Abort("FieldType '%s' has no convert function\n", ft.name)
+			return common.Abort(ana.Logger, ana.isCLI, "FieldType '%s' has no convert function", ft.name)
 		}
 
 		// Set the field range
@@ -172,24 +173,24 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 			f := &ana.pgns[i].fieldList[j]
 
 			if f.fieldType == "" {
-				return ana.Logger.Abort("PGN %d '%s' field '%s' contains nil fieldType\n", pgn, pname, f.name)
+				return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' field '%s' contains nil fieldType", pgn, pname, f.name)
 			}
 			ft, _ := ana.getFieldType(f.fieldType)
 			if ft == nil {
-				return ana.Logger.Abort("PGN %d '%s' field '%s' contains invalid fieldType '%s'\n", pgn, pname, f.name, f.fieldType)
+				return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' field '%s' contains invalid fieldType '%s'", pgn, pname, f.name, f.fieldType)
 			}
 			f.ft = ft
 
 			if (ft.hasSign == &trueValue && !f.hasSign) || (ft.hasSign == &falseValue && f.hasSign) {
-				return ana.Logger.Abort(
-					"PGN %d '%s' field '%s' contains different sign attribute than fieldType '%s'\n", pgn, pname, f.name, f.fieldType)
+				return common.Abort(ana.Logger, ana.isCLI,
+					"PGN %d '%s' field '%s' contains different sign attribute than fieldType '%s'", pgn, pname, f.name, f.fieldType)
 			}
 
 			if f.resolution == 0.0 {
 				f.resolution = ft.resolution
 			}
 			if ft.resolution != 0.0 && ft.resolution != f.resolution {
-				return ana.Logger.Abort("Cannot overrule resolution %g in '%s' with %g in PGN %d field '%s'\n",
+				return common.Abort(ana.Logger, ana.isCLI, "Cannot overrule resolution %g in '%s' with %g in PGN %d field '%s'",
 					ft.resolution,
 					ft.name,
 					f.resolution,
@@ -201,15 +202,15 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 				f.size = ft.size
 			}
 			if ft.size != 0 && ft.size != f.size {
-				return ana.Logger.Abort(
-					"Cannot overrule size %d in '%s' with %d in PGN %d field '%s'\n", ft.size, ft.name, f.size, ana.pgns[i].pgn, f.name)
+				return common.Abort(ana.Logger, ana.isCLI,
+					"Cannot overrule size %d in '%s' with %d in PGN %d field '%s'", ft.size, ft.name, f.size, ana.pgns[i].pgn, f.name)
 			}
 
 			if ft.offset != 0 && f.offset == 0 {
 				f.offset = ft.offset
 			}
 			if ft.offset != f.offset {
-				return ana.Logger.Abort("Cannot overrule offset %d in '%s' with %d in PGN %d field '%s'\n",
+				return common.Abort(ana.Logger, ana.isCLI, "Cannot overrule offset %d in '%s' with %d in PGN %d field '%s'",
 					ft.offset,
 					ft.name,
 					f.offset,
@@ -221,7 +222,7 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 				f.unit = ft.unit
 			}
 			if f.unit != "" && ft.unit != "" && f.unit != ft.unit && !(f.unit == "deg" && ft.unit == "rad") {
-				return ana.Logger.Abort("PGN %d '%s' field '%s' contains different unit attribute ('%s') than fieldType '%s' ('%s')\n",
+				return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' field '%s' contains different unit attribute ('%s') than fieldType '%s' ('%s')",
 					pgn,
 					pname,
 					f.name,
@@ -241,7 +242,7 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 				ana.pgns[i].hasMatchFields = true
 			}
 
-			ana.Logger.Debug("%s size=%d res=%g sign=%v rangeMax=%g\n", f.name, f.size, f.resolution, ft.hasSign, f.rangeMax)
+			ana.Logger.Debugf("%s size=%d res=%g sign=%v rangeMax=%g", f.name, f.size, f.resolution, ft.hasSign, f.rangeMax)
 
 			if f.size != 0 && f.resolution != 0.0 && ft.hasSign != nil && math.IsNaN(f.rangeMax) {
 				f.rangeMin = getMinRange(f.name, f.size, f.resolution, f.hasSign, f.offset, ana.Logger)
@@ -252,17 +253,17 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 			f.order = uint8(j + 1)
 		}
 		if ana.pgns[i].packetType == packetTypeFast && !common.AllowPGNFastPacket(pgn) {
-			return ana.Logger.Abort("PGN %d '%s' is outside fast-packet range\n", pgn, ana.pgns[i].description)
+			return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' is outside fast-packet range", pgn, ana.pgns[i].description)
 		}
 		if ana.pgns[i].packetType != packetTypeFast && !common.AllowPGNSingleFrame(pgn) {
 			//nolint:errcheck
-			ana.Logger.Error("PGN %d '%s' is outside single-frame range\n", pgn, ana.pgns[i].description)
+			common.Error(ana.Logger, ana.isCLI, "PGN %d '%s' is outside single-frame range", pgn, ana.pgns[i].description)
 		}
 		if ana.pgns[i].repeatingCount1 != 0 && ana.pgns[i].repeatingStart1 == 0 {
-			return ana.Logger.Abort("PGN %d '%s' has no way to determine repeating field set 1\n", pgn, ana.pgns[i].description)
+			return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' has no way to determine repeating field set 1", pgn, ana.pgns[i].description)
 		}
 		if ana.pgns[i].repeatingCount2 != 0 && ana.pgns[i].repeatingStart2 == 0 {
-			return ana.Logger.Abort("PGN %d '%s' has no way to determine repeating field set 2\n", pgn, ana.pgns[i].description)
+			return common.Abort(ana.Logger, ana.isCLI, "PGN %d '%s' has no way to determine repeating field set 2", pgn, ana.pgns[i].description)
 		}
 
 		if ana.pgns[i].interval == 0 {
@@ -270,13 +271,13 @@ func (ana *Analyzer) fillFieldType(doUnitFixup bool) error {
 		}
 
 		if j == 0 && ana.pgns[i].complete == packetStatusComplete {
-			return ana.Logger.Error("Internal error: PGN %d '%s' does not have fields.\n", ana.pgns[i].pgn, ana.pgns[i].description)
+			return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d '%s' does not have fields.", ana.pgns[i].pgn, ana.pgns[i].description)
 		}
 		ana.pgns[i].fieldCount = uint32(j)
-		ana.Logger.Debug("PGN %d '%s' has %d fields\n", ana.pgns[i].pgn, pname, j)
+		ana.Logger.Debugf("PGN %d '%s' has %d fields", ana.pgns[i].pgn, pname, j)
 	}
 
-	ana.Logger.Debug("Filled all fieldtypes\n")
+	ana.Logger.Debugf("Filled all fieldtypes\n")
 	return nil
 }
 
@@ -287,7 +288,7 @@ func (ana *Analyzer) getFieldType(name string) (*fieldType, int) {
 		}
 	}
 	//nolint:errcheck
-	ana.Logger.Error("fieldType '%s' not found\n", name)
+	common.Error(ana.Logger, ana.isCLI, "fieldType '%s' not found", name)
 	return nil, 0
 }
 
@@ -315,39 +316,39 @@ func (ana *Analyzer) fixupUnit(f *pgnField) {
 			f.rangeMin /= 3600.0
 			f.rangeMax /= 3600.0
 			f.unit = "Ah"
-			ana.Logger.Debug("fixup <%s> to '%s'\n", f.name, f.unit)
+			ana.Logger.Debugf("fixup <%s> to '%s'", f.name, f.unit)
 		case "Pa":
 			f.resolution /= 100000.0
 			f.rangeMin /= 100000.0
 			f.rangeMax /= 100000.0
 			f.precision = 3
 			f.unit = "bar"
-			ana.Logger.Debug("fixup <%s> to '%s'\n", f.name, f.unit)
+			ana.Logger.Debugf("fixup <%s> to '%s'", f.name, f.unit)
 		case "K":
 			f.unitOffset = -273.15
 			f.rangeMin += -273.15
 			f.rangeMax += -275.15
 			f.precision = 2
 			f.unit = "C"
-			ana.Logger.Debug("fixup <%s> to '%s'\n", f.name, f.unit)
+			ana.Logger.Debugf("fixup <%s> to '%s'", f.name, f.unit)
 		case "rad":
 			f.resolution *= radianToDegree
 			f.rangeMin *= radianToDegree
 			f.rangeMax *= radianToDegree
 			f.unit = "deg"
 			f.precision = 1
-			ana.Logger.Debug("fixup <%s> to '%s'\n", f.name, f.unit)
+			ana.Logger.Debugf("fixup <%s> to '%s'", f.name, f.unit)
 		case "rad/s":
 			f.resolution *= radianToDegree
 			f.rangeMin *= radianToDegree
 			f.rangeMax *= radianToDegree
 			f.unit = "deg/s"
-			ana.Logger.Debug("fixup <%s> to '%s'\n", f.name, f.unit)
+			ana.Logger.Debugf("fixup <%s> to '%s'", f.name, f.unit)
 		}
 	}
 }
 
-func getMinRange(name string, size uint32, resolution float64, sign bool, offset int32, logger *common.Logger) float64 {
+func getMinRange(name string, size uint32, resolution float64, sign bool, offset int32, logger logging.Logger) float64 {
 	highbit := size
 	if sign && offset == 0 {
 		highbit = (size - 1)
@@ -362,8 +363,8 @@ func getMinRange(name string, size uint32, resolution float64, sign bool, offset
 		minValue = int64((uint64(1) << highbit) - 1)
 		r = float64(minValue) * resolution * -1.0
 	}
-	logger.Debug(
-		"%s bits=%d sign=%t minValue=%d res=%g offset=%d . rangeMin %g\n", name, highbit, sign, minValue, resolution, offset, r)
+	logger.Debugf(
+		"%s bits=%d sign=%t minValue=%d res=%g offset=%d . rangeMin %g", name, highbit, sign, minValue, resolution, offset, r)
 	return r
 }
 
@@ -373,7 +374,7 @@ func getMaxRange(
 	resolution float64,
 	sign bool,
 	offset int32,
-	logger *common.Logger,
+	logger logging.Logger,
 ) float64 {
 	specialvalues := uint64(0)
 	if size >= 4 {
@@ -392,8 +393,8 @@ func getMaxRange(
 	}
 
 	r := float64(maxValue) * resolution
-	logger.Debug(
-		"%s bits=%d sign=%t maxValue=%d res=%g offset=%d . rangeMax %g\n", name, highbit, sign, maxValue, resolution, offset, r)
+	logger.Debugf(
+		"%s bits=%d sign=%t maxValue=%d res=%g offset=%d . rangeMax %g", name, highbit, sign, maxValue, resolution, offset, r)
 	return r
 }
 
@@ -674,7 +675,7 @@ func (ana *Analyzer) fillFieldTypeLookupField(
 ) error {
 	f.ft, _ = ana.getFieldType(ft)
 	if f.ft == nil {
-		return ana.Logger.Abort("LookupFieldType %s(%d) contains an invalid fieldtype '%s'\n", lookup, key, ft)
+		return common.Abort(ana.Logger, ana.isCLI, "LookupFieldType %s(%d) contains an invalid fieldtype '%s'", lookup, key, ft)
 	}
 	f.unit = f.ft.unit
 	f.resolution = f.ft.resolution
@@ -691,7 +692,7 @@ func (ana *Analyzer) fillFieldTypeLookupField(
 	if unitStr == "" {
 		unitStr = "NULL"
 	}
-	ana.Logger.Debug("fillFieldTypeLookupField(Field, lookup='%s', key=%d, str='%s', ft='%s' unit='%s' bits=%d\n",
+	ana.Logger.Debugf("fillFieldTypeLookupField(Field, lookup='%s', key=%d, str='%s', ft='%s' unit='%s' bits=%d",
 		lookup,
 		key,
 		str,

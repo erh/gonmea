@@ -1165,7 +1165,7 @@ func (ana *Analyzer) checkPGNs() error {
 		var pgn *pgnInfo
 
 		if prn < prevPRN {
-			return ana.Logger.Error("Internal error: PGN %d is not sorted correctly\n", prn)
+			return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d is not sorted correctly", prn)
 		}
 
 		if prn < common.ActisenseBEM {
@@ -1173,15 +1173,15 @@ func (ana *Analyzer) checkPGNs() error {
 				pgnRangeIndex++
 			}
 			if prn < pgnRanges[pgnRangeIndex].pgnStart || prn > pgnRanges[pgnRangeIndex].pgnEnd {
-				return ana.Logger.Error("Internal error: PGN %d is not part of a valid PRN range\n", prn)
+				return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d is not part of a valid PRN range", prn)
 			}
 			if pgnRanges[pgnRangeIndex].pgnStep == 256 && (prn&0xff) != 0 {
-				return ana.Logger.Error("Internal error: PGN %d (0x%x) is PDU1 and must have a PGN ending in 0x00\n", prn, prn)
+				return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d (0x%x) is PDU1 and must have a PGN ending in 0x00", prn, prn)
 			}
 			if !(pgnRanges[pgnRangeIndex].packetType == ana.pgns[i].packetType ||
 				pgnRanges[pgnRangeIndex].packetType == packetTypeMixed ||
 				ana.pgns[i].packetType == packetTypeISOTP) {
-				return ana.Logger.Error("Internal error: PGN %d (0x%x) is in range 0x%x-0x%x and must have packet type %s\n",
+				return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d (0x%x) is in range 0x%x-0x%x and must have packet type %s",
 					prn,
 					prn,
 					pgnRanges[pgnRangeIndex].pgnStart,
@@ -1196,7 +1196,7 @@ func (ana *Analyzer) checkPGNs() error {
 		prevPRN = prn
 		pgn, _ = ana.searchForPgn(prevPRN)
 		if pgn != &ana.pgns[i] {
-			return ana.Logger.Error("Internal error: PGN %d is not found correctly\n", prevPRN)
+			return common.Error(ana.Logger, ana.isCLI, "Internal error: PGN %d is not found correctly", prevPRN)
 		}
 	}
 
@@ -1256,9 +1256,9 @@ func (ana *Analyzer) searchForUnknownPgn(pgnID uint32) (*pgnInfo, error) {
 		}
 	}
 	if fallback == nil {
-		return nil, ana.Logger.Abort("Cannot find catch-all PGN definition for PGN %d; internal definition error\n", pgnID)
+		return nil, common.Abort(ana.Logger, ana.isCLI, "Cannot find catch-all PGN definition for PGN %d; internal definition error", pgnID)
 	}
-	ana.Logger.Debug("Found catch-all PGN %d for PGN %d\n", fallback.pgn, pgnID)
+	ana.Logger.Debugf("Found catch-all PGN %d for PGN %d", fallback.pgn, pgnID)
 	return fallback, nil
 }
 
@@ -1266,13 +1266,13 @@ func (ana *Analyzer) getField(pgnID, field uint32) *pgnField {
 	pgn, _ := ana.searchForPgn(pgnID)
 
 	if pgn == nil {
-		ana.Logger.Debug("PGN %d is unknown\n", pgnID)
+		ana.Logger.Debugf("PGN %d is unknown", pgnID)
 		return nil
 	}
 	if field < pgn.fieldCount {
 		return &pgn.fieldList[field]
 	}
-	ana.Logger.Debug("PGN %d does not have field %d\n", pgnID, field)
+	ana.Logger.Debugf("PGN %d does not have field %d", pgnID, field)
 	return nil
 }
 
@@ -1294,12 +1294,12 @@ func (ana *Analyzer) getMatchingPgn(pgnID uint32, data []byte) (*pgnInfo, error)
 		if pgn != nil {
 			fallbackPGN = int(pgn.pgn)
 		}
-		ana.Logger.Debug("getMatchingPgn: Unknown PGN %d . fallback %d\n", pgnID, fallbackPGN)
+		ana.Logger.Debugf("getMatchingPgn: Unknown PGN %d . fallback %d", pgnID, fallbackPGN)
 		return pgn, nil
 	}
 
 	if !pgn.hasMatchFields {
-		ana.Logger.Debug("getMatchingPgn: PGN %d has no match fields, returning '%s'\n", pgnID, pgn.description)
+		ana.Logger.Debugf("getMatchingPgn: PGN %d has no match fields, returning '%s'", pgnID, pgn.description)
 		return pgn, nil
 	}
 
@@ -1310,7 +1310,7 @@ func (ana *Analyzer) getMatchingPgn(pgnID uint32, data []byte) (*pgnInfo, error)
 		matchedFixedField := true
 		hasFixedField := false
 
-		ana.Logger.Debug("getMatchingPgn: PGN %d matching with manufacturer specific '%s'\n", prn, pgn.description)
+		ana.Logger.Debugf("getMatchingPgn: PGN %d matching with manufacturer specific '%s'", prn, pgn.description)
 
 		// Iterate over fields
 		startBit := uint32(0)
@@ -1327,7 +1327,7 @@ func (ana *Analyzer) getMatchingPgn(pgnID uint32, data []byte) (*pgnInfo, error)
 				desiredValue, _ := strconv.ParseInt(field.unit[1:], 10, 64)
 				fieldSize := int(field.size)
 				if !extractNumber(field, data, int(startBit), fieldSize, &value, &maxValue, ana.Logger) || value != desiredValue {
-					ana.Logger.Debug("getMatchingPgn: PGN %d field '%s' value %d does not match %d\n",
+					ana.Logger.Debugf("getMatchingPgn: PGN %d field '%s' value %d does not match %d",
 						prn,
 						field.name,
 						value,
@@ -1335,17 +1335,17 @@ func (ana *Analyzer) getMatchingPgn(pgnID uint32, data []byte) (*pgnInfo, error)
 					matchedFixedField = false
 					break
 				}
-				ana.Logger.Debug(
-					"getMatchingPgn: PGN %d field '%s' value %d matches %d\n", prn, field.name, value, desiredValue)
+				ana.Logger.Debugf(
+					"getMatchingPgn: PGN %d field '%s' value %d matches %d", prn, field.name, value, desiredValue)
 			}
 			startBit += bits
 		}
 		if !hasFixedField {
-			ana.Logger.Debug("getMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'\n", prn, pgn.description)
+			ana.Logger.Debugf("getMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'", prn, pgn.description)
 			return pgn, nil
 		}
 		if matchedFixedField {
-			ana.Logger.Debug("getMatchingPgn: PGN %d selected manufacturer specific '%s'\n", prn, pgn.description)
+			ana.Logger.Debugf("getMatchingPgn: PGN %d selected manufacturer specific '%s'", prn, pgn.description)
 			return pgn, nil
 		}
 
