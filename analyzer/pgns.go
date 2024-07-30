@@ -14,7 +14,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0xE800-0xEEFF: Standardized single-frame addressed",
 			PGN:         0xe800,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   [33]PGNField{binaryField("Data", 8*8, "")},
 			Fallback:    true,
@@ -24,12 +24,12 @@ func createPGNList() []PGNInfo {
 		},
 
 		/************ Protocol PGNs ************/
-		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_PGN_field_list.pdf */
+		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_pgn_field_list.pdf */
 		/* http://www.maretron.com/products/pdf/J2K100-Data_Sheet.pdf */
-		/* http://www.nmea.org/Assets/PGN059392.pdf */
+		/* http://www.nmea.org/Assets/pgn059392.pdf */
 		/* http://www8.garmin.com/manuals/GPSMAP4008_NMEA2000NetworkFundamentals.pdf */
 		/* http://www.furunousa.com/Furuno/Doc/0/8JT2BMDDIB249FCNUK64DKLV67/GP330B%20NMEA%20PGNs.pdf */
-		/* http://www.nmea.org/Assets/20140710%20nmea-2000-060928%20iso%20address%20claim%20PGN%20corrigendum.pdf */
+		/* http://www.nmea.org/Assets/20140710%20nmea-2000-060928%20iso%20address%20claim%20pgn%20corrigendum.pdf */
 		{
 			Description: "ISO Acknowledgement",
 			PGN:         59392,
@@ -54,12 +54,12 @@ func createPGNList() []PGNInfo {
 			PacketType:  PacketTypeSingle,
 			FieldList:   [33]PGNField{pgnPGNField("PGN", "")},
 			Interval:    math.MaxUint16,
-			Explanation: "As defined by ISO, this message has a data length of 3 bytes with no padding added to Complete the single " +
+			Explanation: "As defined by ISO, this message has a data length of 3 bytes with no padding added to complete the single " +
 				"frame. The appropriate response to this message is based on the PGN being requested, and whether the receiver " +
 				"supports the requested PGN.",
 		},
 
-		/* For a good Explanation of ISO 11783 Transport Protocol (as used in J1939) see
+		/* For a good explanation of ISO 11783 Transport Protocol (as used in J1939) see
 		 * http://www.simmasoftware.com/j1939-presentation.pdf
 		 *
 		 * First: Transmit a RTS message to the specific address that says:
@@ -215,7 +215,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0xEF00: Manufacturer Proprietary single-frame addressed",
 			PGN:         61184,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
 			Fallback:    true,
@@ -227,7 +227,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Wireless Keypad Light Control",
 			PGN:         61184,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*1, "1", "Wireless Keypad Light Control"),
@@ -240,7 +240,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Wireless Keypad Control",
 			PGN:         61184,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("PID"),
@@ -252,7 +252,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Victron Battery Register",
 			PGN:         61184,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("358"), uint16Field("Register Id"), simpleField("Payload", 8*4))),
 		},
@@ -262,7 +262,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0xF000-0xFEFF: Standardized single-frame non-addressed",
 			PGN:         61440,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
 			Fallback:    true,
@@ -315,7 +315,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Bus #1 Average Basic AC Quantities",
 			PGN:         65004,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: [33]PGNField{
 				voltageU16VField("Line-Line AC RMS Voltage"),
@@ -640,7 +640,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0xFF00-0xFFFF: Manufacturer Proprietary single-frame non-addressed",
 			PGN:         65280,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*6, ""))),
 			Fallback:    true,
@@ -652,7 +652,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Heave",
 			PGN:         65280,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1855"), distanceFix32MmField("Heave", ""), reservedField(8*2))),
 		},
@@ -692,7 +692,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Chetco: Dimmer",
 			PGN:         65286,
-			Complete:    PacketStatusInCompleteLookup,
+			Complete:    PacketStatusIncompleteLookup,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("409"),
 				instanceField(),
@@ -730,7 +730,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Configure Temperature Sensor",
 			PGN:         65287,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -738,7 +738,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Alarm",
 			PGN:         65288,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("SID", 8*1, ""),
@@ -751,7 +751,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Trim Tab Sensor Calibration",
 			PGN:         65289,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -759,7 +759,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Paddle Wheel Speed Configuration",
 			PGN:         65290,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -767,7 +767,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Clear Fluid Level Warnings",
 			PGN:         65292,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -775,7 +775,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: LGC-2000 Configuration",
 			PGN:         65293,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -791,7 +791,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AP Unknown 1",
 			PGN:         65302,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
@@ -864,7 +864,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Sailing Processor Status",
 			PGN:         65305,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				lookupField("Model", 8*1, "SIMNET_DEVICE_MODEL"),
@@ -877,7 +877,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navico: Wireless Battery Status",
 			PGN:         65309,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				uint8Field("Status"),
@@ -897,7 +897,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AP Unknown 2",
 			PGN:         65340,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
@@ -913,7 +913,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Autopilot Angle",
 			PGN:         65341,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				reservedField(8*2),
@@ -925,7 +925,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Pilot Wind Datum",
 			PGN:         65345,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				angleU16Field("Wind Datum", ""),
@@ -936,7 +936,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Magnetic Field",
 			PGN:         65350,
-			Complete:    PacketStatusInComplete | PacketStatusMissingcompanyFields,
+			Complete:    PacketStatusIncomplete | PacketStatusMissingcompanyFields,
 			PacketType:  PacketTypeSingle,
 			FieldList: [33]PGNField{
 				angleI16Field("A", ""),
@@ -950,7 +950,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Pilot Heading",
 			PGN:         65359,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("SID", 8*1, ""),
@@ -985,7 +985,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Keypad Message",
 			PGN:         65371,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("Proprietary ID"),
@@ -1001,7 +1001,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SeaTalk: Keypad Heartbeat",
 			PGN:         65374,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint8Field("Proprietary ID"),
@@ -1013,7 +1013,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk: Pilot Mode",
 			PGN:         65379,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				binaryField("Pilot Mode", 8*2, ""),
@@ -1025,7 +1025,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: Depth Quality Factor",
 			PGN:         65408,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("SID"),
@@ -1050,7 +1050,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: Device Information",
 			PGN:         65410,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("SID"),
@@ -1064,7 +1064,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AP Unknown 3",
 			PGN:         65420,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
@@ -1080,7 +1080,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Autopilot Mode",
 			PGN:         65480,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), reservedField(8*6))),
 		},
@@ -1090,7 +1090,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0x1ED00 - 0x1EE00: Standardized fast-packet addressed",
 			PGN:         0x1ed00,
-			Complete:    PacketStatusInCompleteLookup,
+			Complete:    PacketStatusIncompleteLookup,
 			PacketType:  PacketTypeFast,
 			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
 			Fallback:    true,
@@ -1116,7 +1116,7 @@ func createPGNList() []PGNInfo {
 			Interval: math.MaxUint16,
 			Explanation: "This is the Request variation of this group function PGN. The receiver shall respond by sending the requested " +
 				"PGN, at the desired transmission interval.",
-			URL:             "http://www.nmea.org/Assets/20140109%20nmea-2000-corrigendum-tc201401031%20PGN%20126208.pdf",
+			URL:             "http://www.nmea.org/Assets/20140109%20nmea-2000-corrigendum-tc201401031%20pgn%20126208.pdf",
 			RepeatingField1: 5,
 			RepeatingCount1: 2,
 			RepeatingStart1: 6,
@@ -1168,7 +1168,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "NMEA - Read Fields group function",
 			PGN:         126208,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				matchLookupField("Function Code", 8*1, "3", "GROUP_FUNCTION"),
@@ -1313,7 +1313,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0x1EF00-0x1EFFF: Manufacturer Proprietary fast-packet addressed",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(manufacturerFields(), binaryField("Data", 8*221, ""))),
 			Fallback:    true,
@@ -1325,7 +1325,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk1: Pilot Mode",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
@@ -1340,7 +1340,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Media Control",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchField("Proprietary ID", 8*1, "3", "Media Control"),
@@ -1352,7 +1352,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Sirius Control",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchField("Proprietary ID", 8*1, "30", "Sirius Control"),
@@ -1364,7 +1364,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Request Status",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("419"), matchLookupField("Proprietary ID", 8*1, "1", "FUSION_MESSAGE_ID"), uint8Field("Unknown"))),
 		},
@@ -1372,7 +1372,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Set Source",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "2", "FUSION_MESSAGE_ID"),
@@ -1383,7 +1383,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Set Mute",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "23", "FUSION_MESSAGE_ID"),
@@ -1393,7 +1393,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Set Zone Volume",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "24", "FUSION_MESSAGE_ID"),
@@ -1405,7 +1405,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Set All Volumes",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Proprietary ID", 8*1, "25", "FUSION_MESSAGE_ID"),
@@ -1420,7 +1420,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk1: Keystroke",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
@@ -1437,7 +1437,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk1: Device Identification",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "33264", "0x81f0"),
@@ -1449,7 +1449,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk1: Display Brightness",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "3212", "0x0c8c"),
@@ -1463,7 +1463,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Seatalk1: Display Color",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				matchField("Proprietary ID", 8*2, "3212", "0x0c8c"),
@@ -1515,7 +1515,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: True Wind Options",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				matchLookupField("Proprietary ID", 8*1, "34", "AIRMAR_COMMAND"),
@@ -1656,7 +1656,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: Addressable Multi-Frame",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("135"), uint8Field("Proprietary ID"))),
 		},
@@ -1676,7 +1676,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Garmin: Day Mode",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
@@ -1692,7 +1692,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Garmin: Night Mode",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
@@ -1708,7 +1708,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Garmin: Color mode",
 			PGN:         126720,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("229"),
 				matchField("Unknown ID 1", 8*1, "222", "Always 222"),
@@ -1725,7 +1725,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0x1F000-0x1FEFF: Standardized mixed single/fast packet non-addressed",
 			PGN:         126976,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeMixed,
 			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
 			Fallback:    true,
@@ -1809,7 +1809,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Alert Configuration",
 			PGN:         126986,
-			Complete:    PacketStatusInComplete | PacketStatusIntervalUnknown,
+			Complete:    PacketStatusIncomplete | PacketStatusIntervalUnknown,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Alert Type", 4, "ALERT_TYPE"),
@@ -1900,7 +1900,7 @@ func createPGNList() []PGNInfo {
 				"synchronism for measurement data.",
 		},
 
-		/* http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20PGN%20corrigendum.pdf */
+		/* http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20pgn%20corrigendum.pdf */
 		/* http://www.nmea.org/Assets/20190624%20NMEA%20Heartbeat%20Information%20Amendment%20AT%2020190623HB.pdf */
 		{
 			Description: "Heartbeat",
@@ -1931,7 +1931,7 @@ func createPGNList() []PGNInfo {
 				"of this PGN provide information which can be used to distinguish short duration disturbances from permanent failures. See " +
 				"ISO 11898 -1 Sections 6.12, 6.13, 6.14, 13.1.1, 13.1.4, 13.1.4.3 and Figure 16 ( node status transition diagram) for " +
 				"additional context.",
-			URL: "http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20PGN%20corrigendum.pdf",
+			URL: "http://www.nmea.org/Assets/20140102%20nmea-2000-126993%20heartbeat%20pgn%20corrigendum.pdf",
 		},
 
 		{
@@ -1970,11 +1970,11 @@ func createPGNList() []PGNInfo {
 		},
 
 		/************ PERIODIC DATA PGNs **************/
-		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_PGN_field_list.pdf */
+		/* http://www.nmea.org/Assets/july%202010%20nmea2000_v1-301_app_b_pgn_field_list.pdf */
 		/* http://www.maretron.com/support/manuals/USB100UM_1.2.pdf */
 		/* http://www8.garmin.com/manuals/GPSMAP4008_NMEA2000NetworkFundamentals.pdf */
 
-		/* http://www.nmea.org/Assets/20130906%20nmea%202000%20%20man%20overboard%20notification%20%28mob%29%20PGN%20127233%20amendment.pdf
+		/* http://www.nmea.org/Assets/20130906%20nmea%202000%20%20man%20overboard%20notification%20%28mob%29%20pgn%20127233%20amendment.pdf
 		 */
 		{
 			Description: "Man Overboard Notification",
@@ -2106,7 +2106,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Heave",
 			PGN:         127252,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   [33]PGNField{uint8Field("SID"), distanceFix16CmField("Heave", ""), reservedField(8 * 5)},
 		},
@@ -2568,7 +2568,7 @@ func createPGNList() []PGNInfo {
 				reservedField(2),
 			},
 			Interval: 1500,
-			URL:      "https://web.archive.org/web/20140913025729/https://www.nmea.org/Assets/20140102%20nmea-2000-127509%20PGN%20corrigendum.pdf",
+			URL:      "https://web.archive.org/web/20140913025729/https://www.nmea.org/Assets/20140102%20nmea-2000-127509%20pgn%20corrigendum.pdf",
 			Explanation: "The NMEA wrote in the link in the URL that this PGN is obsolete and superceded by PGN 127751, but that PGN reference is " +
 				"obviously incorrect. They probably meant PGN 127511. " +
 				"The other interesting thing is that this PGN is only four bytes long but still referenced as a Fast PGN, which matches " +
@@ -2603,7 +2603,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Inverter Configuration Status",
 			PGN:         127511,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: [33]PGNField{
 				instanceField(),
@@ -2622,7 +2622,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AGS Configuration Status",
 			PGN:         127512,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   [33]PGNField{instanceField(), uint8Field("Generator Instance"), uint8Field("AGS Mode"), reservedField(8 * 5)},
 			Interval:    math.MaxUint16,
@@ -2637,12 +2637,12 @@ func createPGNList() []PGNInfo {
 		 * The Supports Equalization is 2 bits, Battery Type, Chemistry and
 		 * Nominal voltage are all 4 bits. Capacity and Peukert are both 2 bytes.
 		 * but this only adds up to 8 bytes... Maybe the 10 was as this is transmitted
-		 * as FAST PGN?
+		 * as FAST pgn?
 		 */
 		{
 			Description: "Battery Configuration Status",
 			PGN:         127513,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				instanceField(),
@@ -2662,7 +2662,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AGS Status",
 			PGN:         127514,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeSingle,
 			FieldList: [33]PGNField{
 				instanceField(),
@@ -2752,7 +2752,7 @@ func createPGNList() []PGNInfo {
 			Complete:    PacketStatusComplete,
 			PacketType:  PacketTypeSingle,
 			FieldList:   [33]PGNField{uint8Field("SID"), angleI16Field("Leeway Angle", ""), reservedField(8 * 5)},
-			URL:         "https://www.nmea.org/Assets/20170204%20nmea%202000%20leeway%20PGN%20final.pdf",
+			URL:         "https://www.nmea.org/Assets/20170204%20nmea%202000%20leeway%20pgn%20final.pdf",
 			Explanation: "This PGN provides the Nautical Leeway Angle. Nautical leeway angle is defined as the angle between the " +
 				"direction a vessel is heading (pointing) and the direction it is actually travelling (tracking thru the " +
 				"water). It is commonly provided by dual-axis speed sensors.",
@@ -3473,7 +3473,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navigation - Route / Time to+from Mark",
 			PGN:         129301,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3488,7 +3488,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Bearing and Distance between two Marks",
 			PGN:         129302,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3510,7 +3510,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS Control Status",
 			PGN:         129538,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleDescField("SV Elevation Mask", 8*2, "Will not use SV below this elevation"),
@@ -3573,7 +3573,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GPS Almanac Data",
 			PGN:         129541,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("PRN"),
@@ -3617,7 +3617,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS Pseudorange Noise Statistics",
 			PGN:         129542,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3635,7 +3635,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS RAIM Output",
 			PGN:         129545,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3655,7 +3655,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS RAIM Settings",
 			PGN:         129546,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeSingle,
 			FieldList: [33]PGNField{
 				uint8Field("Radial Position Error Maximum Threshold"),
@@ -3670,7 +3670,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS Pseudorange Error Statistics",
 			PGN:         129547,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3688,7 +3688,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "DGNSS Corrections",
 			PGN:         129549,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3709,7 +3709,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS Differential Correction Receiver Interface",
 			PGN:         129550,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Channel"),
@@ -3725,7 +3725,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GNSS Differential Correction Receiver Signal",
 			PGN:         129551,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -3749,7 +3749,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "GLONASS Almanac Data",
 			PGN:         129556,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8DescField("PRN", "Satellite ID number"),
@@ -3776,7 +3776,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS DGNSS Broadcast Binary Message",
 			PGN:         129792,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -3799,7 +3799,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS UTC and Date Report",
 			PGN:         129793,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -3924,7 +3924,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS SAR Aircraft Position Report",
 			PGN:         129798,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -3953,7 +3953,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Radio Frequency/Mode/Power",
 			PGN:         129799,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				radioFrequencyField("Rx Frequency", 10),
@@ -3969,7 +3969,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS UTC/Date Inquiry",
 			PGN:         129800,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -3986,7 +3986,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Addressed Safety Related Message",
 			PGN:         129801,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4007,7 +4007,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Safety Related Broadcast Message",
 			PGN:         129802,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4024,7 +4024,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Interrogation",
 			PGN:         129803,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4054,7 +4054,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Assignment Mode Command",
 			PGN:         129804,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4076,7 +4076,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Data Link Management Message",
 			PGN:         129805,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4099,7 +4099,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Channel Management",
 			PGN:         129806,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4130,7 +4130,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "AIS Class B Group Assignment",
 			PGN:         129807,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Message ID", 6, "AIS_MESSAGE_ID"),
@@ -4170,7 +4170,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "DSC Distress Call Information",
 			PGN:         129808,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("DSC Format", 8*1, "DSC_FORMAT"),
@@ -4206,7 +4206,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "DSC Call Information",
 			PGN:         129808,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("DSC Format Symbol", 8*1, "DSC_FORMAT"),
@@ -4352,7 +4352,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Label",
 			PGN:         130060,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleField("Hardware Channel ID", 8),
@@ -4390,7 +4390,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Database List",
 			PGN:         130064,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start Database ID"),
@@ -4415,7 +4415,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Route List",
 			PGN:         130065,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start Route ID"),
@@ -4437,7 +4437,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Route/WP-List Attributes",
 			PGN:         130066,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Database ID"),
@@ -4460,7 +4460,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Route - WP Name & Position",
 			PGN:         130067,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
@@ -4482,7 +4482,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Route - WP Name",
 			PGN:         130068,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
@@ -4502,7 +4502,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - XTE Limit & Navigation Method",
 			PGN:         130069,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
@@ -4524,7 +4524,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - WP Comment",
 			PGN:         130070,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start ID"),
@@ -4544,7 +4544,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Route Comment",
 			PGN:         130071,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start Route ID"),
@@ -4563,7 +4563,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Database Comment",
 			PGN:         130072,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start Database ID"),
@@ -4581,7 +4581,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - Radius of Turn",
 			PGN:         130073,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start RPS#"),
@@ -4601,7 +4601,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Route and WP Service - WP List - WP Name & Position",
 			PGN:         130074,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("Start WP ID"),
@@ -4792,7 +4792,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Current Station Data",
 			PGN:         130322,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
@@ -4814,7 +4814,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Meteorological Station Data",
 			PGN:         130323,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
@@ -4839,7 +4839,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Moored Buoy Station Data",
 			PGN:         130324,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleField("Mode", 4),
@@ -4867,7 +4867,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Lighting System Settings",
 			PGN:         130330,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				simpleField("Global Enable", 2),
@@ -5037,7 +5037,7 @@ func createPGNList() []PGNInfo {
 				"vendor program.",
 		},
 
-		/* http://www.nmea.org/Assets/20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20PGN%20130567.pdf
+		/* http://www.nmea.org/Assets/20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20pgn%20130567.pdf
 
 		   This PGN may be requested or used to command and configure a number of Watermaker controls. The Command Group Function PGN
 		   126208 is used perform the following: start/stop a production, start/stop rinse or flush operation, start/stop low and high
@@ -5076,13 +5076,13 @@ func createPGNList() []PGNInfo {
 				timeUfix32SField("Run Time", ""),
 			},
 			URL: "http://www.nmea.org/Assets/" +
-				"20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20PGN%20130567.pdf",
+				"20130905%20amendment%20at%202000%20201309051%20watermaker%20input%20setting%20and%20status%20pgn%20130567.pdf",
 		},
 
 		{
 			Description: "Current Status and File",
 			PGN:         130569,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Zone", 8*1, "ENTERTAINMENT_ZONE"),
@@ -5103,13 +5103,13 @@ func createPGNList() []PGNInfo {
 				uint8DescField("Delete Favorite Number", "Used to command AV to delete current station as favorite"),
 				uint16Field("Total Number of Tracks"),
 			},
-			URL: "https://www.nmea.org/Assets/20160725%20corrigenda%20PGN%20130569%20published.pdf",
+			URL: "https://www.nmea.org/Assets/20160725%20corrigenda%20pgn%20130569%20published.pdf",
 		},
 
 		{
 			Description: "Library Data File",
 			PGN:         130570,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
@@ -5130,13 +5130,13 @@ func createPGNList() []PGNInfo {
 				stringlauField("Album Name"),
 				stringlauField("Station Name"),
 			},
-			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
+			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
 		},
 
 		{
 			Description: "Library Data Group",
 			PGN:         130571,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
@@ -5155,13 +5155,13 @@ func createPGNList() []PGNInfo {
 			RepeatingField1: 7,
 			RepeatingCount1: 3,
 			RepeatingStart1: 9,
-			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
 		},
 
 		{
 			Description: "Library Data Search",
 			PGN:         130572,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Source", 8, "ENTERTAINMENT_SOURCE"),
@@ -5174,13 +5174,13 @@ func createPGNList() []PGNInfo {
 				lookupField("Group type 3", 8*1, "ENTERTAINMENT_GROUP"),
 				stringlauField("Group name 3"),
 			},
-			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
+			URL: "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
 		},
 
 		{
 			Description: "Supported Source Data",
 			PGN:         130573,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint16DescField("ID offset", "First ID in this PGN"),
@@ -5200,13 +5200,13 @@ func createPGNList() []PGNInfo {
 			RepeatingField1: 2,
 			RepeatingCount1: 10,
 			RepeatingStart1: 4,
-			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
 		},
 
 		{
 			Description: "Supported Zone Data",
 			PGN:         130574,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8DescField("First zone ID", "First Zone in this PGN"),
@@ -5218,7 +5218,7 @@ func createPGNList() []PGNInfo {
 			RepeatingField1: 2,
 			RepeatingCount1: 2,
 			RepeatingStart1: 4,
-			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20PGNs%20.pdf",
+			URL:             "https://www.nmea.org/Assets/20160715%20corrigenda%20entertainment%20pgns%20.pdf",
 		},
 
 		{
@@ -5233,7 +5233,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Direction Data",
 			PGN:         130577,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				lookupField("Data Mode", 4, "RESIDUAL_MODE"),
@@ -5404,7 +5404,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "0x1FF00-0x1FFFF: Manufacturer Specific fast-packet non-addressed",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   [33]PGNField{binaryField("Data", 8*common.FastPacketMaxSize, "")},
 			Fallback:    true,
@@ -5416,7 +5416,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Init #2",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5429,7 +5429,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: AM Radio",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5438,7 +5438,7 @@ func createPGNList() []PGNInfo {
 				lookupField("Item", 8*1, "SONICHUB_TUNING"),
 				radioFrequencyField("Frequency", 1),
 				simpleField("Noise level", 2),  // Not sure about this
-				simpleField("Signal level", 4), // ... and this, doesn't make Complete sense compared to display
+				simpleField("Signal level", 4), // ... and this, doesn't make complete sense compared to display
 				reservedField(2),
 				stringlzField("Text", 8*32))),
 		},
@@ -5446,7 +5446,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Zone info",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5458,7 +5458,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Source",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5470,7 +5470,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Source List",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5484,7 +5484,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Control",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5496,7 +5496,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: FM Radio",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5505,7 +5505,7 @@ func createPGNList() []PGNInfo {
 				lookupField("Item", 8*1, "SONICHUB_TUNING"),
 				radioFrequencyField("Frequency", 1),
 				simpleField("Noise level", 2),  // Not sure about this
-				simpleField("Signal level", 4), // ... and this, doesn't make Complete sense compared to display
+				simpleField("Signal level", 4), // ... and this, doesn't make complete sense compared to display
 				reservedField(2),
 				stringlzField("Text", 8*32))),
 		},
@@ -5513,7 +5513,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Playlist",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5530,7 +5530,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Track",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5543,7 +5543,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Artist",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5556,7 +5556,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Album",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5569,7 +5569,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Menu Item",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5585,7 +5585,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Zones",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5597,7 +5597,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Max Volume",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5623,7 +5623,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Init #1",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5634,7 +5634,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Position",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5646,7 +5646,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SonicHub: Init #3",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				reservedField(8*1),
@@ -5659,7 +5659,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simrad: Text Message",
 			PGN:         130816,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				reservedField(8*1),
@@ -5675,7 +5675,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navico: Product Information",
 			PGN:         130817,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("275"),
 				uint16Field("Product Code"),
@@ -5691,7 +5691,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Lowrance: Product Information",
 			PGN:         130817,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("140"),
 				uint16Field("Product Code"),
@@ -5707,7 +5707,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Reprogram Data",
 			PGN:         130818,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("1857"), uint16Field("Version"), uint16Field("Sequence"), binaryField("Data", 8*217, ""))),
 		},
@@ -5732,7 +5732,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Unknown 130820",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("1855"), uint8Field("A"), uint8Field("B"), uint8Field("C"), uint8Field("D"), uint8Field("E"))),
 		},
@@ -5741,7 +5741,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Source Name",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "2", "FUSION_MESSAGE_ID"),
@@ -5756,7 +5756,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Track Info",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "4", "FUSION_MESSAGE_ID"),
@@ -5776,7 +5776,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Track",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "5", "FUSION_MESSAGE_ID"),
@@ -5788,7 +5788,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Artist",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "6", "FUSION_MESSAGE_ID"),
@@ -5800,7 +5800,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Album",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "7", "FUSION_MESSAGE_ID"),
@@ -5812,7 +5812,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Unit Name",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "33", "FUSION_MESSAGE_ID"),
@@ -5823,7 +5823,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Zone Name",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "45", "FUSION_MESSAGE_ID"),
@@ -5835,7 +5835,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Play Progress",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "9", "FUSION_MESSAGE_ID"),
@@ -5847,7 +5847,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: AM/FM Station",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "11", "FUSION_MESSAGE_ID"),
@@ -5862,7 +5862,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: VHF",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "12", "FUSION_MESSAGE_ID"),
@@ -5875,7 +5875,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Squelch",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "13", "FUSION_MESSAGE_ID"),
@@ -5887,7 +5887,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Scan",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "14", "FUSION_MESSAGE_ID"),
@@ -5900,7 +5900,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Menu Item",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "17", "FUSION_MESSAGE_ID"),
@@ -5918,7 +5918,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Replay",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "20", "FUSION_MESSAGE_ID"),
@@ -5936,7 +5936,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Mute",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "23", "FUSION_MESSAGE_ID"),
@@ -5948,7 +5948,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Sub Volume",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "26", "FUSION_MESSAGE_ID"),
@@ -5963,7 +5963,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Tone",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "27", "FUSION_MESSAGE_ID"),
@@ -5977,7 +5977,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Volume",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "29", "FUSION_MESSAGE_ID"),
@@ -5991,7 +5991,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: Power State",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "32", "FUSION_MESSAGE_ID"),
@@ -6002,7 +6002,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: SiriusXM Channel",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "36", "FUSION_MESSAGE_ID"),
@@ -6013,7 +6013,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: SiriusXM Title",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "37", "FUSION_MESSAGE_ID"),
@@ -6024,7 +6024,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: SiriusXM Artist",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "38", "FUSION_MESSAGE_ID"),
@@ -6035,7 +6035,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Fusion: SiriusXM Genre",
 			PGN:         130820,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("419"),
 				matchLookupField("Message ID", 8*1, "40", "FUSION_MESSAGE_ID"),
@@ -6048,7 +6048,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navico: ASCII Data",
 			PGN:         130821,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("275"), simpleField("A", 8*1), stringFixField("Message", 8*256))),
 		},
@@ -6057,7 +6057,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Unknown 130821",
 			PGN:         130821,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1855"),
 				uint8Field("SID"),
@@ -6075,7 +6075,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navico: Unknown 1",
 			PGN:         130822,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*231, ""))),
 		},
@@ -6113,7 +6113,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Maretron: Annunciator",
 			PGN:         130824,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("137"),
 				uint8Field("Field 4"),
@@ -6126,7 +6126,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Navico: Unknown 2",
 			PGN:         130825,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(append(company("275"), binaryField("Data", 8*10, ""))),
 		},
@@ -6135,7 +6135,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Lowrance: unknown",
 			PGN:         130827,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("140"),
 				uint8Field("A"),
@@ -6149,7 +6149,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Set Serial Number",
 			PGN:         130828,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6157,7 +6157,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Suzuki: Engine and Storage Device Config",
 			PGN:         130831,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("586")),
 		},
@@ -6165,7 +6165,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Fuel Used - High Resolution",
 			PGN:         130832,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6173,7 +6173,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "B&G: User and Remote rename",
 			PGN:         130833,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("381"),
 				lookupFieldtypeField("Data Type", 12, "BANDG_KEY_VALUE"),
@@ -6187,7 +6187,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Engine and Tank Configuration",
 			PGN:         130834,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6195,7 +6195,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Set Engine and Tank Configuration",
 			PGN:         130835,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6204,7 +6204,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Fluid Level Sensor Configuration",
 			PGN:         130836,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("C"),
@@ -6239,7 +6239,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Fuel Flow Turbine Configuration",
 			PGN:         130837,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6266,7 +6266,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Fluid Level Warning",
 			PGN:         130838,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6274,7 +6274,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Pressure Sensor Configuration",
 			PGN:         130839,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6282,7 +6282,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Data User Group Configuration",
 			PGN:         130840,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6290,7 +6290,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AIS Class B static data (msg 24 Part A)",
 			PGN:         130842,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchField("Message ID", 6, "0", "Msg 24 Part A"),
@@ -6304,7 +6304,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Six Degrees Of Freedom Movement",
 			PGN:         130842,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1855"),
 				simpleSignedField("A", 8*4),
@@ -6321,7 +6321,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AIS Class B static data (msg 24 Part B)",
 			PGN:         130842,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchField("Message ID", 6, "1", "Msg 24 Part B"),
@@ -6344,7 +6344,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Heel Angle, Roll Information",
 			PGN:         130843,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1855"),
 				uint8Field("A"),
@@ -6357,7 +6357,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Sonar Status, Frequency and DSP Voltage",
 			PGN:         130843,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1857")),
 		},
@@ -6365,7 +6365,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Multi Sats In View Extended",
 			PGN:         130845,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1855")),
 		},
@@ -6373,7 +6373,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Key Value",
 			PGN:         130845,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
@@ -6390,7 +6390,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Parameter Set",
 			PGN:         130846,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
@@ -6408,7 +6408,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Furuno: Motion Sensor Status Extended",
 			PGN:         130846,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   varLenFieldListToFixed(company("1855")),
 		},
@@ -6416,7 +6416,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "SeaTalk: Node Statistics",
 			PGN:         130847,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1851"),
 				uint16Field("Product Code"),
@@ -6429,7 +6429,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AP Command",
 			PGN:         130850,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
@@ -6445,7 +6445,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Event Command: AP command",
 			PGN:         130850,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchLookupField("Proprietary ID", 8*1, "2", "SIMNET_EVENT_COMMAND"),
@@ -6461,7 +6461,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Alarm",
 			PGN:         130850,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8DescField("Address", "NMEA 2000 address of commanded device"),
@@ -6473,13 +6473,13 @@ func createPGNList() []PGNInfo {
 				uint8Field("F"),
 				uint8Field("G"))),
 			Interval:    math.MaxUint16,
-			Explanation: "There may follow a PGN 130856 'Simnet: Alarm Text' message with a textual Explanation of the alarm",
+			Explanation: "There may follow a PGN 130856 'Simnet: Alarm Text' message with a textual explanation of the alarm",
 		},
 
 		{
 			Description: "Simnet: Event Reply: AP command",
 			PGN:         130851,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				matchLookupField("Proprietary ID", 8*1, "2", "SIMNET_EVENT_COMMAND"),
@@ -6495,7 +6495,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: Alarm Message",
 			PGN:         130856,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint16Field("Message ID"),
@@ -6509,7 +6509,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Simnet: AP Unknown 4",
 			PGN:         130860,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("1857"),
 				uint8Field("A"),
@@ -6525,7 +6525,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: Additional Weather Data",
 			PGN:         130880,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("C"),
@@ -6538,7 +6538,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: Heater Control",
 			PGN:         130881,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				uint8Field("C"),
@@ -6551,7 +6551,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Airmar: POST",
 			PGN:         130944,
-			Complete:    PacketStatusInComplete | PacketStatusNotSeen,
+			Complete:    PacketStatusIncomplete | PacketStatusNotSeen,
 			PacketType:  PacketTypeFast,
 			FieldList: varLenFieldListToFixed(append(company("135"),
 				lookupField("Control", 1, "AIRMAR_POST_CONTROL"),
@@ -6582,7 +6582,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Actisense: Startup status",
 			PGN:         common.ActisenseBEM + 0xf0,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -6598,7 +6598,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Actisense: System status",
 			PGN:         common.ActisenseBEM + 0xf2,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList: [33]PGNField{
 				uint8Field("SID"),
@@ -6633,7 +6633,7 @@ func createPGNList() []PGNInfo {
 		{
 			Description: "Actisense: ?",
 			PGN:         common.ActisenseBEM + 0xf4,
-			Complete:    PacketStatusInComplete,
+			Complete:    PacketStatusIncomplete,
 			PacketType:  PacketTypeFast,
 			FieldList:   [33]PGNField{uint8Field("SID"), uint16Field("Model ID"), uint32Field("Serial ID")},
 		},

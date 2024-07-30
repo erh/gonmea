@@ -52,8 +52,8 @@ const (
 )
 
 const (
-	PacketStatusInComplete       = (PacketStatusFieldsUnknown | PacketStatusFieldLengthsUnknown | PacketStatusResolutionUnknown)
-	PacketStatusInCompleteLookup = (PacketStatusInComplete | PacketStatusLookupsUnknown)
+	PacketStatusIncomplete       = (PacketStatusFieldsUnknown | PacketStatusFieldLengthsUnknown | PacketStatusResolutionUnknown)
+	PacketStatusIncompleteLookup = (PacketStatusIncomplete | PacketStatusLookupsUnknown)
 	PacketStatusPDFOnly          = (PacketStatusFieldLengthsUnknown |
 		PacketStatusResolutionUnknown |
 		PacketStatusLookupsUnknown |
@@ -104,7 +104,7 @@ type PGNField struct {
 
 	/* The following fields are filled by C, no need to set in initializers */
 	Order uint8
-	
+
 	BitOffset int // Bit offset from start of data, e.g. lower 3 bits = bit#, bit 4.. is byte offset
 	CamelName string
 	Lookup    LookupInfo
@@ -212,7 +212,6 @@ func bitlookupField(nam string, dataLen uint32, typ string) PGNField {
 		FieldType: "BITLOOKUP",
 	}
 }
-
 
 func FieldTypeLookup(nam string, dataLen uint32, typ string) PGNField {
 	return PGNField{

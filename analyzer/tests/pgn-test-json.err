@@ -1,3 +1,3 @@
 2022-12-31T18:00:00.000-0500	INFO	cli/cli.go:249	Timestamp fixed
-2022-12-31T18:00:00.000-0500	INFO	analyzer/analyzer.go:445	Detected normal format with all frames on one line
+2022-12-31T18:00:00.000-0500	INFO	analyzer/analyzer.go:447	Detected normal format with all frames on one line
 2022-12-31T18:00:00.000-0500	ERROR	cli/cli.go:612	PGN 129540 has 2 missing fields in repeating set
