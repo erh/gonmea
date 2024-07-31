@@ -20,6 +20,7 @@
 PLATFORM=$(shell uname | tr '[A-Z]' '[a-z]')-$(shell uname -m)
 TARGETDIR=../../rel/$(PLATFORM)
 ANALYZER=$(TARGETDIR)/analyzer_cli
+ANALYZER_LIB=$(TARGETDIR)/analyzer_lib
 TEMPDIR=/tmp
 
 .PHONY: test1 test2 test3 test4 test5 test6 test7 test8 test9 tests
@@ -30,11 +31,13 @@ test1:
 	$(ANALYZER) < recombine-frames.in > $(TEMPDIR)/recombine-frames.out -debug -q -fixtime recombine 2> $(TEMPDIR)/recombine-frames.err
 	diff $(TEMPDIR)/recombine-frames.err recombine-frames.err
 	diff $(TEMPDIR)/recombine-frames.out recombine-frames.out
+	$(ANALYZER_LIB) recombine-frames.in -roundtrip
 
 test2:	
 	$(ANALYZER) < switch-multi-to-one-line.in > $(TEMPDIR)/switch-multi-to-one-line.out -debug -q -fixtime switch-multi-to-one-line 2> $(TEMPDIR)/switch-multi-to-one-line.err
 	diff $(TEMPDIR)/switch-multi-to-one-line.err switch-multi-to-one-line.err
 	diff $(TEMPDIR)/switch-multi-to-one-line.out switch-multi-to-one-line.out
+	$(ANALYZER_LIB) switch-multi-to-one-line.in -roundtrip
 
 #
 # This tests TEXT stability
@@ -43,6 +46,7 @@ test3:
 	$(ANALYZER) < pgn-test.in > $(TEMPDIR)/pgn-test.out -debug -q -fixtime pgn-test 2> $(TEMPDIR)/pgn-test.err
 	diff $(TEMPDIR)/pgn-test.err pgn-test.err
 	diff $(TEMPDIR)/pgn-test.out pgn-test.out
+	$(ANALYZER_LIB) pgn-test.in -roundtrip
 
 #
 # This tests JSON stability
@@ -89,6 +93,7 @@ test8:
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/pgn-test-actisense.out
 	diff $(TEMPDIR)/pgn-test-actisense.err pgn-test-actisense.err
 	diff $(TEMPDIR)/pgn-test-actisense.out pgn-test-actisense.out
+	$(ANALYZER_LIB) pgn-test-actisense.in -roundtrip
 
 #
 # This tests capability to read Digital Yacht NavLink2 format
@@ -98,5 +103,6 @@ test9:
 	python3 ../validate-json.py --line-by-line $(TEMPDIR)/navlink2-test.out
 	diff $(TEMPDIR)/navlink2-test.err navlink2-test.err
 	diff $(TEMPDIR)/navlink2-test.out navlink2-test.out
+	$(ANALYZER_LIB) navlink2-test.in -roundtrip
 
 tests:	test1 test2 test3 test4 test5 test6 test7 test8 test9

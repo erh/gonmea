@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.uber.org/zap"
 	"go.viam.com/rdk/logging"
 )
 
@@ -53,7 +52,7 @@ const (
 )
 
 // NewLogger returns a new logger that appends to the given writer.
-func NewLogger(writer io.Writer, opts ...zap.Option) logging.Logger {
+func NewLogger(writer io.Writer) logging.Logger {
 	logger := logging.NewBlankLogger("")
 	logger.AddAppender(logging.ConsoleAppender{Writer: writer})
 	return logger
@@ -85,12 +84,8 @@ func AllowPGNSingleFrame(n uint32) bool {
 	return ((n) < 0x10000 || (n) >= 0x1F000)
 }
 
-var (
-	// UseFixedTimestamp is for testing purposes only.
-	UseFixedTimestamp atomic.Bool
-
-	IsCLI atomic.Bool
-)
+// UseFixedTimestamp is for testing purposes only.
+var UseFixedTimestamp atomic.Bool
 
 // Now returns the current time.Time.
 func Now() time.Time {
@@ -216,4 +211,11 @@ func (e ExitError) Error() string {
 // Unwrap returns the cause, if present.
 func (e ExitError) Unwrap() error {
 	return e.Cause
+}
+
+// FieldVariable represents a reference to a PGN field at a particular value.
+type FieldVariable struct {
+	PGN   uint32
+	Index uint32
+	Value interface{}
 }

@@ -17,7 +17,7 @@ func TestParser(t *testing.T) {
 		Priority:    6,
 		Src:         200,
 		Dst:         255,
-		Pgn:         130567,
+		PGN:         130567,
 		Description: "Watermaker Input Setting and Status",
 		Fields: map[string]interface{}{
 			"Brine Water Flow":              0.0,
@@ -43,6 +43,7 @@ func TestParser(t *testing.T) {
 	t.Run("one shot", func(t *testing.T) {
 		msg, format, err := ParseMessage(msgData)
 		test.That(t, err, test.ShouldBeNil)
+		msg.CachedRawData = nil
 		test.That(t, format, test.ShouldEqual, RawFormatNavLink2)
 		test.That(t, msg, test.ShouldResemble, expected)
 	})
@@ -50,11 +51,13 @@ func TestParser(t *testing.T) {
 	t.Run("preset parser format", func(t *testing.T) {
 		msg, err := ParseMessageWithFormat(msgData, RawFormatNavLink2)
 		test.That(t, err, test.ShouldBeNil)
+		msg.CachedRawData = nil
 		test.That(t, msg, test.ShouldResemble, expected)
 
 		// try it again
 		msg, err = ParseMessageWithFormat(msgData, RawFormatNavLink2)
 		test.That(t, err, test.ShouldBeNil)
+		msg.CachedRawData = nil
 		test.That(t, msg, test.ShouldResemble, expected)
 	})
 

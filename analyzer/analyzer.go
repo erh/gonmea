@@ -33,6 +33,13 @@ func init() {
 	initLookupTypes()
 	initFieldTypes()
 	initPGNs()
+	fillLookups()
+	if err := fillFieldType(); err != nil {
+		panic(err)
+	}
+	if err := checkPGNs(); err != nil {
+		panic(err)
+	}
 }
 
 // An Analyzer analyzes NMEA 2000 PGN messages.
@@ -59,21 +66,17 @@ type analyzerImpl struct {
 type analyzerImplIfc interface {
 	State() *AnalyzerState
 
-	SearchForPgn(pgn uint32) (*PGNInfo, int)
-	GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, error)
-	SearchForUnknownPgn(pgnID uint32) (*PGNInfo, error)
 	SetCurrentFieldMetadata(
 		fieldName string,
 		data []byte,
 		startBit int,
-		bits int,
+		numBits int,
 	)
-	GetField(pgnID, field uint32) *PGNField
 	ExtractNumberNotEmpty(
 		field *PGNField,
 		data []byte,
 		startBit int,
-		bits int,
+		numBits int,
 		value *int64,
 		maxValue *int64,
 	) (bool, int64) // int is exceptionValue
@@ -92,8 +95,6 @@ type AnalyzerState struct {
 	PreviousFieldValue  int64
 	FTF                 *PGNField
 
-	FieldTypes       []FieldType
-	PGNs             []PGNInfo
 	ReassemblyBuffer [ReassemblyBufferSize]Packet
 }
 
@@ -105,22 +106,8 @@ func NewAnalyzer(conf *Config) (Analyzer, error) {
 			SelectedFormat:      conf.DesiredFormat,
 			MultiPackets:        conf.MultiPacketsHint,
 			VariableFieldRepeat: [2]int64{0, 0}, // Actual number of repetitions
-			FieldTypes:          make([]FieldType, len(immutFieldTypes)),
-			PGNs:                make([]PGNInfo, len(immutPGNs)),
 		},
 	}
-
-	copy(ana.state.FieldTypes, immutFieldTypes)
-	copy(ana.state.PGNs, immutPGNs)
-
-	ana.fillLookups()
-	if err := ana.fillFieldType(true); err != nil {
-		return nil, err
-	}
-	if err := ana.checkPGNs(); err != nil {
-		return nil, err
-	}
-
 	return ana, nil
 }
 
@@ -128,7 +115,6 @@ func NewAnalyzer(conf *Config) (Analyzer, error) {
 type Config struct {
 	DesiredFormat    RawFormat
 	MultiPacketsHint MultiPackets
-	UseSI            bool
 	Logger           logging.Logger
 }
 
@@ -154,9 +140,12 @@ func (ana *analyzerImpl) ProcessMessage(msgData []byte) (*common.Message, bool, 
 	if !hasMsg {
 		return nil, false, nil
 	}
-	converted, err := ana.convertRawMessage(rawMsg)
+	converted, hasMsg, err := ana.convertRawMessage(rawMsg)
 	if err != nil {
 		return nil, false, err
+	}
+	if !hasMsg {
+		return nil, false, nil
 	}
 	return converted, true, nil
 }
@@ -471,28 +460,39 @@ func (h *hexScanner) Scan(state fmt.ScanState, _ rune) error {
 
 func (ana *analyzerImpl) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
 	ana.state.MultiPackets = MultiPacketsCoalesced
-	return ana.convertRawMessage(rawMsg)
+	msg, hasMsg, err := ana.convertRawMessage(rawMsg)
+	if err != nil {
+		return nil, err
+	}
+	if !hasMsg {
+		return nil, errors.New("insufficient data")
+	}
+	return msg, nil
 }
 
-func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
 	if rawMsg == nil {
-		return nil, nil
+		return nil, false, nil
 	}
 
-	pgn, _ := ana.SearchForPgn(rawMsg.PGN)
+	pgn, _ := SearchForPgn(rawMsg.PGN)
 	if ana.state.MultiPackets == MultiPacketsSeparate && pgn == nil {
 		var err error
-		pgn, err = ana.SearchForUnknownPgn(rawMsg.PGN)
+		pgn, err = SearchForUnknownPgn(rawMsg.PGN, ana.Logger)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 	if ana.state.MultiPackets == MultiPacketsCoalesced || pgn == nil || pgn.PacketType != PacketTypeFast {
 		// No reassembly needed
 		if len(rawMsg.Data) < int(rawMsg.Len) {
-			return nil, fmt.Errorf("raw messsage data shorter than expected length %d", rawMsg.Len)
+			return nil, false, fmt.Errorf("raw messsage data shorter than expected length %d", rawMsg.Len)
 		}
-		return ana.convertPGN(rawMsg, rawMsg.Data[:rawMsg.Len])
+		msg, err := ana.convertPGN(rawMsg, rawMsg.Data[:rawMsg.Len])
+		if err != nil {
+			return nil, false, err
+		}
+		return msg, true, nil
 	}
 
 	// Fast packet requires re-asssembly
@@ -518,7 +518,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 			}
 		}
 		if buffer == ReassemblyBufferSize {
-			return nil, fmt.Errorf("out of reassembly buffers for PGN %d", rawMsg.PGN)
+			return nil, false, fmt.Errorf("out of reassembly buffers for PGN %d", rawMsg.PGN)
 		}
 		p.Used = true
 		p.Src = int(rawMsg.Src)
@@ -567,21 +567,21 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 			// Received all data
 			msg, err := ana.convertPGN(rawMsg, p.Data[:p.Size])
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			p.Used = false
 			p.Frames = 0
-			return msg, nil
+			return msg, true, nil
 		}
 	}
-	return nil, errors.New("insufficient data")
+	return nil, false, nil
 }
 
 func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*common.Message, error) {
 	if rawMsg == nil {
 		return nil, errors.New("expected message")
 	}
-	pgn, err := ana.GetMatchingPgn(rawMsg.PGN, data)
+	pgn, err := GetMatchingPgn(rawMsg.PGN, data, ana.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -590,12 +590,13 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 	}
 
 	convertedMsg := &common.Message{
-		Timestamp:   rawMsg.Timestamp,
-		Priority:    int(rawMsg.Prio),
-		Src:         int(rawMsg.Src),
-		Dst:         int(rawMsg.Dst),
-		Pgn:         int(rawMsg.PGN),
-		Description: pgn.Description,
+		Timestamp:     rawMsg.Timestamp,
+		Priority:      int(rawMsg.Prio),
+		Src:           int(rawMsg.Src),
+		Dst:           int(rawMsg.Dst),
+		PGN:           int(rawMsg.PGN),
+		Description:   pgn.Description,
+		CachedRawData: data,
 	}
 	if pgn.FieldCount == 0 {
 		return convertedMsg, nil
@@ -614,6 +615,7 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 	variableFieldCount := 0
 	var repeatingList []interface{}
 	var repeatingListName string
+	var repeatedObj map[string]interface{}
 	for i := 0; (startBit >> 3) < len(data); i++ {
 		field := &pgn.FieldList[i]
 
@@ -634,6 +636,10 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 			// Only now is ana.state.VariableFieldRepeat set
 			variableFields = int64(pgn.RepeatingCount2) * ana.state.VariableFieldRepeat[1]
 			if repeatingList != nil {
+				if repeatedObj != nil {
+					repeatingList = append(repeatingList, repeatedObj)
+					repeatedObj = nil
+				}
 				convertedMsg.Fields[repeatingListName] = repeatingList
 			}
 			repeatingList = make([]interface{}, 0, variableFields)
@@ -648,6 +654,11 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 				i = variableFieldStart - 1
 				field = &pgn.FieldList[i]
 				repetition++
+
+				if repeatedObj != nil {
+					repeatingList = append(repeatingList, repeatedObj)
+					repeatedObj = nil
+				}
 			}
 			ana.Logger.Debugf("variableFields: repetition=%d field=%d variableFieldStart=%d variableFieldCount=%d remaining=%d",
 				repetition,
@@ -677,9 +688,10 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 			if repeatingList == nil {
 				convertedMsg.Fields[fieldName] = fieldValue
 			} else {
-				repeatingList = append(repeatingList, map[string]interface{}{
-					fieldName: fieldValue,
-				})
+				if repeatedObj == nil {
+					repeatedObj = map[string]interface{}{}
+				}
+				repeatedObj[fieldName] = fieldValue
 			}
 		}
 
@@ -687,6 +699,7 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 	}
 
 	if repeatingList != nil {
+		repeatingList = append(repeatingList, repeatedObj)
 		convertedMsg.Fields[repeatingListName] = repeatingList
 	}
 	return convertedMsg, nil
@@ -760,20 +773,20 @@ func (ana *analyzerImpl) SetCurrentFieldMetadata(
 	fieldName string,
 	data []byte,
 	startBit int,
-	bits int,
+	numBits int,
 ) {
 	var value int64
 	var maxValue int64
 
 	if fieldName == "PGN" {
-		ExtractNumber(nil, data, startBit, bits, &value, &maxValue, ana.Logger)
+		ExtractNumber(nil, data, startBit, numBits, &value, &maxValue, ana.Logger)
 		ana.Logger.Debugf("Reference PGN = %d", value)
 		ana.state.RefPgn = value
 		return
 	}
 
 	if fieldName == "Length" {
-		ExtractNumber(nil, data, startBit, bits, &value, &maxValue, ana.Logger)
+		ExtractNumber(nil, data, startBit, numBits, &value, &maxValue, ana.Logger)
 		ana.Logger.Debugf("for next field: length = %d", value)
 		ana.state.Length = value
 		return

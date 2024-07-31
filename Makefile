@@ -22,15 +22,19 @@ PLATFORM=$(shell uname | tr '[A-Z]' '[a-z]')-$(shell uname -m)
 BUILDDIR?=rel/$(PLATFORM)
 TARGETDIR=$(BUILDDIR)
 ANALYZER=$(TARGETDIR)/analyzer_cli
-TARGETS=$(ANALYZER)
+ANALYZER_LIB=$(TARGETDIR)/analyzer_lib
+TARGETS=$(ANALYZER) $(ANALYZER_LIB)
 
 all: $(TARGETS)
 
 analyzer: $(ANALYZER)
 
+analyzer_lib: $(ANALYZER)
+
 $(ANALYZER):
 	@mkdir -p $(TARGETDIR)
 	go build -o $(ANALYZER) cmd/analyzer_cli/main.go
+	go build -o $(ANALYZER_LIB) cmd/analyzer_lib/main.go
 
 tests:	$(ANALYZER)
 	(cd analyzer/tests; make tests)
