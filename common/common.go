@@ -197,6 +197,25 @@ func GetISO11783BitsFromCanID(id uint) (uint8, uint32, uint8, uint8) {
 	return prio, pgn, src, dst
 }
 
+func GetCanIDFromISO11783Bits(prio uint8, pgn uint32, src uint8, dst uint8) int {
+
+	id := 0
+
+	id |= int(src)
+	id |= int(prio) << 26
+
+	PF := (int(pgn) >> 8) & 0xff
+
+	if PF < 240 { // PDU1
+		id |= int(dst) << 8
+		id |= int(pgn) << 8
+	} else { // PDU 2
+		id |= int(pgn) << 8
+	}
+
+	return id
+}
+
 // ExitError is an error for exit codes.
 type ExitError struct {
 	Code  int
