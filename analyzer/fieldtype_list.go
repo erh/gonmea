@@ -38,10 +38,12 @@ func initFieldTypes() {
 				"encodings. The maximum positive value means that the field is not present. The maximum positive value minus 1 means that " +
 				"the field has an error. For instance, a broken sensor. For signed numbers the maximum values are the maximum positive " +
 				"value and that minus 1, not the all-ones bit encoding which is the maximum negative value.",
-			URL:    "https://en.wikipedia.org/wiki/Binary_number",
-			V1Type: "Number",
-			CF:     convertFieldNumber,
-			PF:     Printer.PrintFieldNumber,
+			URL:               "https://en.wikipedia.org/wiki/Binary_number",
+			V1Type:            "Number",
+			CF:                convertFieldNumber,
+			MF:                marshalFieldNumber,
+			PF:                Printer.PrintFieldNumber,
+			MissingValueIsOne: &trueValue,
 		},
 
 		{
@@ -154,6 +156,7 @@ func initFieldTypes() {
 			HasSign:     &trueValue,
 			URL:         "https://en.wikipedia.org/wiki/IEEE_754",
 			CF:          convertFieldFloat,
+			MF:          marshalFieldFloat,
 			PF:          Printer.PrintFieldFloat,
 		},
 
@@ -165,6 +168,7 @@ func initFieldTypes() {
 			HasSign: &falseValue,
 			URL:     "https://en.wikipedia.org/wiki/Binary-coded_decimal",
 			CF:      convertFieldDecimal,
+			MF:      marshalFieldDecimal,
 			PF:      Printer.PrintFieldDecimal,
 		},
 
@@ -174,10 +178,12 @@ func initFieldTypes() {
 			EncodingDescription: "Each lookup has a LookupEnumeration defining what the possible values mean",
 			Comment: "For almost all lookups the list of values is known with some precision, but it is quite possible that a value " +
 				"occurs that has no corresponding textual explanation.",
-			HasSign: &falseValue,
-			CF:      convertFieldLookup,
-			PF:      Printer.PrintFieldLookup,
-			V1Type:  "Lookup table",
+			HasSign:           &falseValue,
+			CF:                convertFieldLookup,
+			MF:                marshalFieldLookup,
+			PF:                Printer.PrintFieldLookup,
+			V1Type:            "Lookup table",
+			MissingValueIsOne: &trueValue,
 		},
 
 		{
@@ -188,6 +194,7 @@ func initFieldTypes() {
 				"occurs that has no corresponding textual explanation.",
 			HasSign: &falseValue,
 			CF:      convertFieldLookup,
+			MF:      marshalFieldLookup,
 			PF:      Printer.PrintFieldLookup,
 			V1Type:  "Integer",
 		},
@@ -200,6 +207,7 @@ func initFieldTypes() {
 			Comment: "For almost all lookups the list of values is known with some precision, but it is quite possible that a value " +
 				"occurs that has no corresponding textual explanation.",
 			CF:     convertFieldBitLookup,
+			MF:     marshalFieldBitLookup,
 			PF:     Printer.PrintFieldBitLookup,
 			V1Type: "Bitfield",
 		},
@@ -212,6 +220,7 @@ func initFieldTypes() {
 				"unknown enumeration values and some known values have incorrect datatypes",
 			HasSign: &falseValue,
 			CF:      convertFieldLookup,
+			MF:      marshalFieldLookup,
 			PF:      Printer.PrintFieldLookup,
 		},
 
@@ -220,6 +229,7 @@ func initFieldTypes() {
 			Description:   "Manufacturer",
 			Size:          11,
 			CF:            convertFieldLookup,
+			MF:            marshalFieldLookup,
 			PF:            Printer.PrintFieldLookup,
 			BaseFieldType: "LOOKUP",
 			V1Type:        "Manufacturer code",
@@ -230,6 +240,7 @@ func initFieldTypes() {
 			Description:   "Industry",
 			Size:          3,
 			CF:            convertFieldLookup,
+			MF:            marshalFieldLookup,
 			PF:            Printer.PrintFieldLookup,
 			BaseFieldType: "LOOKUP",
 		},
@@ -311,6 +322,7 @@ func initFieldTypes() {
 			Resolution:    1.0e-7,
 			Physical:      &geoCoordinateQuantity,
 			CF:            convertFieldLatLon,
+			MF:            marshalFieldLatLon,
 			PF:            Printer.PrintFieldLatLon,
 			BaseFieldType: "FIX32",
 			V1Type:        "Lat/Lon",
@@ -324,6 +336,7 @@ func initFieldTypes() {
 			Resolution:    1.0e-16,
 			Physical:      &geoCoordinateQuantity,
 			CF:            convertFieldLatLon,
+			MF:            marshalFieldLatLon,
 			PF:            Printer.PrintFieldLatLon,
 			BaseFieldType: "FIX64",
 			V1Type:        "Lat/Lon",
@@ -494,12 +507,14 @@ func initFieldTypes() {
 		{Name: "VOLUME_UFIX32_DL", Description: "Volume", Resolution: 0.1, Physical: &volumeQuantity, BaseFieldType: "UFIX32"},
 
 		{
-			Name:        "TIME",
-			Description: "Time",
-			Physical:    &timeQuantity,
-			CF:          convertFieldTime,
-			PF:          Printer.PrintFieldTime,
-			V1Type:      "Time",
+			Name:              "TIME",
+			Description:       "Time",
+			Physical:          &timeQuantity,
+			CF:                convertFieldTime,
+			MF:                marshalFieldTime,
+			PF:                Printer.PrintFieldTime,
+			V1Type:            "Time",
+			MissingValueIsOne: &trueValue,
 		},
 
 		{
@@ -629,6 +644,7 @@ func initFieldTypes() {
 			Size:                16,
 			HasSign:             &falseValue,
 			CF:                  convertFieldDate,
+			MF:                  marshalFieldDate,
 			PF:                  Printer.PrintFieldDate,
 			V1Type:              "Date",
 		},
@@ -1124,6 +1140,7 @@ func initFieldTypes() {
 			Comment: "It is unclear what character sets are allowed/supported. Possibly UTF-8 but it could also be that only ASCII values " +
 				"are supported.",
 			CF:     convertFieldStringFix,
+			MF:     marshalFieldStringFix,
 			PF:     Printer.PrintFieldStringFix,
 			V1Type: "ASCII text",
 		},
@@ -1137,6 +1154,7 @@ func initFieldTypes() {
 				"are supported.",
 			VariableSize: true,
 			CF:           convertFieldStringLZ,
+			MF:           marshalFieldStringLZ,
 			PF:           Printer.PrintFieldStringLZ,
 			V1Type:       "ASCII string starting with length byte",
 		},
@@ -1149,6 +1167,7 @@ func initFieldTypes() {
 				"but this has not been seen in the wild yet.",
 			VariableSize: true,
 			CF:           convertFieldStringLAU,
+			MF:           marshalFieldStringLAU,
 			PF:           Printer.PrintFieldStringLAU,
 			V1Type:       "ASCII or UNICODE string starting with length and control byte",
 		},
@@ -1159,6 +1178,7 @@ func initFieldTypes() {
 			Description:         "Binary field",
 			EncodingDescription: "Unspecified content consisting of any number of bits.",
 			CF:                  convertFieldBinary,
+			MF:                  marshalFieldBinary,
 			PF:                  Printer.PrintFieldBinary,
 			V1Type:              "Binary data",
 		},
@@ -1169,7 +1189,9 @@ func initFieldTypes() {
 			EncodingDescription: "All reserved bits shall be 1",
 			Comment:             "NMEA reserved for future expansion and/or to align next data on byte boundary",
 			CF:                  convertFieldReserved,
+			MF:                  marshalFieldReserved,
 			PF:                  Printer.PrintFieldReserved,
+			MissingValueIsOne:   &trueValue,
 		},
 
 		{
@@ -1178,8 +1200,10 @@ func initFieldTypes() {
 			EncodingDescription: "All spare bits shall be 0",
 			Comment: "This is like a reserved field but originates from other sources where unused fields shall be 0, like the AIS " +
 				"ITU-1371 standard.",
-			CF: convertFieldSpare,
-			PF: Printer.PrintFieldSpare,
+			CF:                convertFieldSpare,
+			MF:                marshalFieldSpare,
+			PF:                Printer.PrintFieldSpare,
+			MissingValueIsOne: &falseValue,
 		},
 
 		{
@@ -1194,6 +1218,7 @@ func initFieldTypes() {
 				"The first three or four digits are special, see the USCG link for a detailed explanation.",
 			URL: "https://navcen.uscg.gov/maritime-mobile-service-identity",
 			CF:  convertFieldMMSI,
+			MF:  marshalFieldMMSI,
 			PF:  Printer.PrintFieldMMSI,
 		},
 
@@ -1202,6 +1227,7 @@ func initFieldTypes() {
 			Description:         "Variable",
 			EncodingDescription: "The definition of the field is that of the reference PGN and reference field, this is totally variable.",
 			CF:                  convertFieldVariable,
+			MF:                  marshalFieldVariable,
 			PF:                  Printer.PrintFieldVariable,
 			PFIsPrintVariable:   true,
 		},
@@ -1212,6 +1238,7 @@ func initFieldTypes() {
 			EncodingDescription: "The type definition of the field is defined by an earlier LookupFieldTypeEnumeration field. The length is defined by " +
 				"the preceding length field.",
 			CF: convertFieldKeyValue,
+			MF: marshalFieldKeyValue,
 			PF: Printer.PrintFieldKeyValue,
 		},
 
@@ -1225,6 +1252,7 @@ func initFieldTypes() {
 			RangeMax:            253,
 			EncodingDescription: "Index of the specified field in the PGN referenced.",
 			CF:                  convertFieldNumber,
+			MF:                  marshalFieldNumber,
 			PF:                  Printer.PrintFieldNumber,
 		},
 	}

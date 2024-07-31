@@ -90,21 +90,17 @@ func newConfig(
 type analyzerImpl interface {
 	State() *analyzer.AnalyzerState
 
-	SearchForPgn(pgn uint32) (*analyzer.PGNInfo, int)
-	GetMatchingPgn(pgnID uint32, data []byte) (*analyzer.PGNInfo, error)
-	SearchForUnknownPgn(pgnID uint32) (*analyzer.PGNInfo, error)
 	SetCurrentFieldMetadata(
 		fieldName string,
 		data []byte,
 		startBit int,
-		bits int,
+		numBits int,
 	)
-	GetField(pgnID, field uint32) *analyzer.PGNField
 	ExtractNumberNotEmpty(
 		field *analyzer.PGNField,
 		data []byte,
 		startBit int,
-		bits int,
+		numBits int,
 		value *int64,
 		maxValue *int64,
 	) (bool, int64)
@@ -281,7 +277,6 @@ func (c *CLI) Run() error {
 		}
 		rawMsg, hasMsg, err := c.ana.ProcessRawMessage(msg)
 		if err != nil {
-			//nolint:nilerr
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
@@ -346,20 +341,17 @@ func (c *CLI) printCanFormat(
 	impl := c.ana.(analyzerImpl)
 	state := impl.State()
 
-	pgn, _ := impl.SearchForPgn(msg.PGN)
+	pgn, _ := analyzer.SearchForPgn(msg.PGN)
 	if state.MultiPackets == analyzer.MultiPacketsSeparate && pgn == nil {
 		var err error
-		pgn, err = impl.SearchForUnknownPgn(msg.PGN)
+		pgn, err = analyzer.SearchForUnknownPgn(msg.PGN, c.config.Logger)
 		if err != nil {
 			return err
 		}
 	}
 	if state.MultiPackets == analyzer.MultiPacketsCoalesced || pgn == nil || pgn.PacketType != analyzer.PacketTypeFast {
 		// No reassembly needed
-		if err := c.printPgn(msg, msg.Data[:msg.Len], writer); err != nil {
-			return err
-		}
-		return nil
+		return c.printPgn(msg, msg.Data[:msg.Len], writer)
 	}
 
 	// Fast packet requires re-asssembly
@@ -385,7 +377,6 @@ func (c *CLI) printCanFormat(
 			}
 		}
 		if buffer == analyzer.ReassemblyBufferSize {
-
 			c.config.Logger.Errorf("Out of reassembly buffers; ignoring PGN %d", msg.PGN)
 			return nil
 		}
@@ -454,7 +445,7 @@ func (c *CLI) printPgn(
 	}
 
 	impl := c.ana.(analyzerImpl)
-	pgn, err := impl.GetMatchingPgn(msg.PGN, data)
+	pgn, err := analyzer.GetMatchingPgn(msg.PGN, data, c.config.Logger)
 	if err != nil {
 		return err
 	}
@@ -845,7 +836,7 @@ func (c *CLI) PrintFieldVariable(
 	bits *int,
 ) (bool, error) {
 	impl := c.ana.(analyzerImpl)
-	refField := impl.GetField(uint32(impl.State().RefPgn), uint32(data[startBit/8-1]-1))
+	refField := analyzer.GetField(uint32(impl.State().RefPgn), uint32(data[startBit/8-1]-1), c.config.Logger)
 	if refField != nil {
 		c.config.Logger.Debugf("Field %s: found variable field %d '%s'", fieldName, impl.State().RefPgn, refField.Name)
 		r, err := c.printField(refField, fieldName, data, startBit, bits)

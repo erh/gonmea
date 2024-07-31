@@ -18,11 +18,11 @@ package analyzer
 // limitations under the License.
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"strconv"
-	"unicode"
+
+	"go.viam.com/rdk/logging"
 
 	"github.com/erh/gonmea/common"
 )
@@ -105,13 +105,14 @@ type PGNField struct {
 	/* The following fields are filled by C, no need to set in initializers */
 	Order uint8
 
-	BitOffset int // Bit offset from start of data, e.g. lower 3 bits = bit#, bit 4.. is byte offset
-	CamelName string
-	Lookup    LookupInfo
-	FT        *FieldType
-	PGN       *PGNInfo
-	RangeMin  float64
-	RangeMax  float64
+	BitOffset         int // Bit offset from start of data, e.g. lower 3 bits = bit#, bit 4.. is byte offset
+	CamelName         string
+	Lookup            LookupInfo
+	FT                *FieldType
+	PGN               *PGNInfo
+	RangeMin          float64
+	RangeMax          float64
+	MissingValueIsOne *bool // write 0s if false or 1s if true
 }
 
 type PGNInfo struct {
@@ -142,9 +143,10 @@ func lookupField(nam string, dataLen uint32, typ string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypePair,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypePair,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType: "LOOKUP",
 	}
@@ -157,9 +159,10 @@ func lookupFieldtypeField(nam string, dataLen uint32, typ string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypeFieldType,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypeFieldType,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType: "FieldType_LOOKUP",
 	}
@@ -172,10 +175,11 @@ func lookupTripletField(nam string, dataLen uint32, typ, desc string, order uint
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:      LookupTypeTriplet,
-			FunctionTriplet: lookupFunctionTripletForTyp[typ],
-			Name:            typ,
-			Val1Order:       order,
+			LookupType:             LookupTypeTriplet,
+			FunctionTriplet:        lookupFunctionTripletForTyp[typ],
+			FunctionTripletReverse: lookupFunctionTripletReverseForTyp[typ],
+			Name:                   typ,
+			Val1Order:              order,
 		},
 		FieldType:   "INDIRECT_LOOKUP",
 		Description: desc,
@@ -189,9 +193,10 @@ func lookupFieldDesc(nam string, dataLen uint32, typ, desc string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypePair,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypePair,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType:   "LOOKUP",
 		Description: desc,
@@ -205,9 +210,10 @@ func bitlookupField(nam string, dataLen uint32, typ string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypeBit,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypeBit,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType: "BITLOOKUP",
 	}
@@ -220,9 +226,10 @@ func FieldTypeLookup(nam string, dataLen uint32, typ string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypeFieldType,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypeFieldType,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType: "LOOKUP_TYPE_FieldType",
 	}
@@ -586,9 +593,10 @@ func manufacturerField(unt, desc string, prop bool) PGNField {
 	return PGNField{
 		Name: "Manufacturer Code", Size: 11, Resolution: 1, Description: desc, Unit: unt,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypePair,
-			FunctionPair: lookupFunctionPairForTyp["MANUFACTURER_CODE"],
-			Name:         "MANUFACTURER_CODE",
+			LookupType:          LookupTypePair,
+			FunctionPair:        lookupFunctionPairForTyp["MANUFACTURER_CODE"],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp["MANUFACTURER_CODE"],
+			Name:                "MANUFACTURER_CODE",
 		},
 		Proprietary: prop,
 		FieldType:   "MANUFACTURER",
@@ -599,9 +607,10 @@ func industryField(unt, desc string, prop bool) PGNField {
 	return PGNField{
 		Name: "Industry Code", Size: 3, Resolution: 1, Unit: unt, Description: desc,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypePair,
-			FunctionPair: lookupFunctionPairForTyp["INDUSTRY_CODE"],
-			Name:         "INDUSTRY_CODE",
+			LookupType:          LookupTypePair,
+			FunctionPair:        lookupFunctionPairForTyp["INDUSTRY_CODE"],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp["INDUSTRY_CODE"],
+			Name:                "INDUSTRY_CODE",
 		},
 		Proprietary: prop,
 		FieldType:   "INDUSTRY",
@@ -609,7 +618,7 @@ func industryField(unt, desc string, prop bool) PGNField {
 }
 
 func marineIndustryField() PGNField {
-	return industryField("=4", "Marine Industry", false)
+	return industryField("=4", "Marine", false)
 }
 
 func company(id string) []PGNField {
@@ -703,9 +712,10 @@ func matchLookupField(nam string, dataLen uint32, id, typ string) PGNField {
 		Resolution: 1,
 		HasSign:    false,
 		Lookup: LookupInfo{
-			LookupType:   LookupTypePair,
-			FunctionPair: lookupFunctionPairForTyp[typ],
-			Name:         typ,
+			LookupType:          LookupTypePair,
+			FunctionPair:        lookupFunctionPairForTyp[typ],
+			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			Name:                typ,
 		},
 		FieldType: "LOOKUP",
 		Unit:      "=" + id,
@@ -1155,13 +1165,13 @@ var pgnRanges = []pgnRange{
 	{0x1ff00, 0x1ffff, 1, "Manufacturer", PacketTypeFast},
 }
 
-func (ana *analyzerImpl) checkPGNs() error {
+func checkPGNs() error {
 	var i int
 	prevPRN := uint32(0)
 
-	for i = 0; i < len(ana.state.PGNs); i++ {
+	for i = 0; i < len(immutPGNs); i++ {
 		pgnRangeIndex := 0
-		prn := ana.state.PGNs[i].PGN
+		prn := immutPGNs[i].PGN
 		var pgn *PGNInfo
 
 		if prn < prevPRN {
@@ -1178,9 +1188,9 @@ func (ana *analyzerImpl) checkPGNs() error {
 			if pgnRanges[pgnRangeIndex].PGNStep == 256 && (prn&0xff) != 0 {
 				return fmt.Errorf("Internal error: PGN %d (0x%x) is PDU1 and must have a PGN ending in 0x00", prn, prn)
 			}
-			if !(pgnRanges[pgnRangeIndex].PacketType == ana.state.PGNs[i].PacketType ||
+			if !(pgnRanges[pgnRangeIndex].PacketType == immutPGNs[i].PacketType ||
 				pgnRanges[pgnRangeIndex].PacketType == PacketTypeMixed ||
-				ana.state.PGNs[i].PacketType == PacketTypeISOTP) {
+				immutPGNs[i].PacketType == PacketTypeISOTP) {
 				return fmt.Errorf("Internal error: PGN %d (0x%x) is in range 0x%x-0x%x and must have packet type %s",
 					prn,
 					prn,
@@ -1190,12 +1200,12 @@ func (ana *analyzerImpl) checkPGNs() error {
 			}
 		}
 
-		if prn == prevPRN || ana.state.PGNs[i].Fallback {
+		if prn == prevPRN || immutPGNs[i].Fallback {
 			continue
 		}
 		prevPRN = prn
-		pgn, _ = ana.SearchForPgn(prevPRN)
-		if pgn != &ana.state.PGNs[i] {
+		pgn, _ = SearchForPgn(prevPRN)
+		if pgn != &immutPGNs[i] {
 			return fmt.Errorf("Internal error: PGN %d is not found correctly", prevPRN)
 		}
 	}
@@ -1207,27 +1217,27 @@ func (ana *analyzerImpl) checkPGNs() error {
  * Return the first Pgn entry for which the pgn is found.
  * There can be multiple (with differing 'match' fields).
  */
-func (ana *analyzerImpl) SearchForPgn(pgn uint32) (*PGNInfo, int) {
+func SearchForPgn(pgn uint32) (*PGNInfo, int) {
 	start := 0
-	end := len(ana.state.PGNs)
+	end := len(immutPGNs)
 	var mid int
 
 	for start <= end {
 		mid = (start + end) / 2
-		if pgn == ana.state.PGNs[mid].PGN {
+		if pgn == immutPGNs[mid].PGN {
 			// Return the first one, unless it is the catch-all
-			for mid > 0 && pgn == ana.state.PGNs[mid-1].PGN {
+			for mid > 0 && pgn == immutPGNs[mid-1].PGN {
 				mid--
 			}
-			if ana.state.PGNs[mid].Fallback {
+			if immutPGNs[mid].Fallback {
 				mid++
-				if pgn != ana.state.PGNs[mid].PGN {
+				if pgn != immutPGNs[mid].PGN {
 					return nil, -1
 				}
 			}
-			return &ana.state.PGNs[mid], mid
+			return &immutPGNs[mid], mid
 		}
-		if pgn < ana.state.PGNs[mid].PGN {
+		if pgn < immutPGNs[mid].PGN {
 			if mid == 0 {
 				return nil, -1
 			}
@@ -1243,10 +1253,10 @@ func (ana *analyzerImpl) SearchForPgn(pgn uint32) (*PGNInfo, int) {
  * Return the last Pgn entry for which fallback == true && prn is smaller than requested.
  * This is slower, but is not used often.
  */
-func (ana *analyzerImpl) SearchForUnknownPgn(pgnID uint32) (*PGNInfo, error) {
+func SearchForUnknownPgn(pgnID uint32, logger logging.Logger) (*PGNInfo, error) {
 	var fallback *PGNInfo
 
-	for _, pgn := range ana.state.PGNs {
+	for _, pgn := range immutPGNs {
 		if pgn.Fallback {
 			pgnCopy := pgn
 			fallback = &pgnCopy
@@ -1258,21 +1268,21 @@ func (ana *analyzerImpl) SearchForUnknownPgn(pgnID uint32) (*PGNInfo, error) {
 	if fallback == nil {
 		return nil, fmt.Errorf("Cannot find catch-all PGN definition for PGN %d; internal definition error", pgnID)
 	}
-	ana.Logger.Debugf("Found catch-all PGN %d for PGN %d", fallback.PGN, pgnID)
+	logger.Debugf("Found catch-all PGN %d for PGN %d", fallback.PGN, pgnID)
 	return fallback, nil
 }
 
-func (ana *analyzerImpl) GetField(pgnID, field uint32) *PGNField {
-	pgn, _ := ana.SearchForPgn(pgnID)
+func GetField(pgnID, field uint32, logger logging.Logger) *PGNField {
+	pgn, _ := SearchForPgn(pgnID)
 
 	if pgn == nil {
-		ana.Logger.Debugf("PGN %d is unknown", pgnID)
+		logger.Debugf("PGN %d is unknown", pgnID)
 		return nil
 	}
 	if field < pgn.FieldCount {
 		return &pgn.FieldList[field]
 	}
-	ana.Logger.Debugf("PGN %d does not have field %d", pgnID, field)
+	logger.Debugf("PGN %d does not have field %d", pgnID, field)
 	return nil
 }
 
@@ -1281,12 +1291,12 @@ func (ana *analyzerImpl) GetField(pgnID, field uint32) *PGNField {
  * If all else fails, return an 'Fallback' match-all PGN that
  * matches the fast/single frame, PDU1/PDU2 and Proprietary/generic range.
  */
-func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, error) {
-	pgn, pgnIdx := ana.SearchForPgn(pgnID)
+func GetMatchingPgn(pgnID uint32, data []byte, logger logging.Logger) (*PGNInfo, error) {
+	pgn, pgnIdx := SearchForPgn(pgnID)
 
 	if pgn == nil {
 		var err error
-		pgn, err = ana.SearchForUnknownPgn(pgnID)
+		pgn, err = SearchForUnknownPgn(pgnID, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -1294,12 +1304,12 @@ func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, er
 		if pgn != nil {
 			FallbackPGN = int(pgn.PGN)
 		}
-		ana.Logger.Debugf("GetMatchingPgn: Unknown PGN %d . Fallback %d", pgnID, FallbackPGN)
+		logger.Debugf("GetMatchingPgn: Unknown PGN %d . Fallback %d", pgnID, FallbackPGN)
 		return pgn, nil
 	}
 
 	if !pgn.HasMatchFields {
-		ana.Logger.Debugf("GetMatchingPgn: PGN %d has no match fields, returning '%s'", pgnID, pgn.Description)
+		logger.Debugf("GetMatchingPgn: PGN %d has no match fields, returning '%s'", pgnID, pgn.Description)
 		return pgn, nil
 	}
 
@@ -1310,7 +1320,7 @@ func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, er
 		matchedFixedField := true
 		hasFixedField := false
 
-		ana.Logger.Debugf("GetMatchingPgn: PGN %d matching with manufacturer specific '%s'", prn, pgn.Description)
+		logger.Debugf("GetMatchingPgn: PGN %d matching with manufacturer specific '%s'", prn, pgn.Description)
 
 		// Iterate over fields
 		startBit := uint32(0)
@@ -1326,8 +1336,8 @@ func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, er
 				//nolint:errcheck
 				desiredValue, _ := strconv.ParseInt(field.Unit[1:], 10, 64)
 				fieldSize := int(field.Size)
-				if !ExtractNumber(field, data, int(startBit), fieldSize, &value, &maxValue, ana.Logger) || value != desiredValue {
-					ana.Logger.Debugf("GetMatchingPgn: PGN %d field '%s' value %d does not match %d",
+				if !ExtractNumber(field, data, int(startBit), fieldSize, &value, &maxValue, logger) || value != desiredValue {
+					logger.Debugf("GetMatchingPgn: PGN %d field '%s' value %d does not match %d",
 						prn,
 						field.Name,
 						value,
@@ -1335,25 +1345,25 @@ func (ana *analyzerImpl) GetMatchingPgn(pgnID uint32, data []byte) (*PGNInfo, er
 					matchedFixedField = false
 					break
 				}
-				ana.Logger.Debugf(
+				logger.Debugf(
 					"GetMatchingPgn: PGN %d field '%s' value %d matches %d", prn, field.Name, value, desiredValue)
 			}
 			startBit += bits
 		}
 		if !hasFixedField {
-			ana.Logger.Debugf("GetMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'", prn, pgn.Description)
+			logger.Debugf("GetMatchingPgn: Cant determine prn choice, return prn=%d variation '%s'", prn, pgn.Description)
 			return pgn, nil
 		}
 		if matchedFixedField {
-			ana.Logger.Debugf("GetMatchingPgn: PGN %d selected manufacturer specific '%s'", prn, pgn.Description)
+			logger.Debugf("GetMatchingPgn: PGN %d selected manufacturer specific '%s'", prn, pgn.Description)
 			return pgn, nil
 		}
 
 		pgnIdx++
-		pgn = &ana.state.PGNs[pgnIdx]
+		pgn = &immutPGNs[pgnIdx]
 	}
 
-	return ana.SearchForUnknownPgn(pgnID)
+	return SearchForUnknownPgn(pgnID, logger)
 }
 
 func varLenFieldListToFixed(list []PGNField) [33]PGNField {
@@ -1365,46 +1375,81 @@ func varLenFieldListToFixed(list []PGNField) [33]PGNField {
 	return out
 }
 
-func (ana *analyzerImpl) camelCase(upperCamelCase bool) {
-	var haveEarlierSpareOrReserved bool
+/*
+ * Return the best match for this pgnId.
+ * If all else fails, return an 'Fallback' match-all PGN that
+ * matches the fast/single frame, PDU1/PDU2 and Proprietary/generic range.
+ */
+func GetMatchingPgnWithFields(pgnID uint32, fields map[string]interface{}, logger logging.Logger) (*PGNInfo, error) {
+	pgn, pgnIdx := SearchForPgn(pgnID)
 
-	for i := 0; i < len(ana.state.PGNs); i++ {
-		ana.state.PGNs[i].CamelDescription = camelize(ana.state.PGNs[i].Description, upperCamelCase, 0)
-		haveEarlierSpareOrReserved = false
-		for j := 0; j < len(ana.state.PGNs[i].FieldList) && ana.state.PGNs[i].FieldList[j].Name != ""; j++ {
-			name := ana.state.PGNs[i].FieldList[j].Name
+	if pgn == nil {
+		var err error
+		pgn, err = SearchForUnknownPgn(pgnID, logger)
+		if err != nil {
+			return nil, err
+		}
+		FallbackPGN := 0
+		if pgn != nil {
+			FallbackPGN = int(pgn.PGN)
+		}
+		logger.Debugf("GetMatchingPgnWithFields: Unknown PGN %d . Fallback %d", pgnID, FallbackPGN)
+		return pgn, nil
+	}
 
-			var order int
-			if haveEarlierSpareOrReserved {
-				order = j + 1
-			}
-			ana.state.PGNs[i].FieldList[j].CamelName = camelize(name, upperCamelCase, order)
-			if name == "Reserved" || name == "Spare" {
-				haveEarlierSpareOrReserved = true
+	if !pgn.HasMatchFields {
+		logger.Debugf("GetMatchingPgnWithFields: PGN %d has no match fields, returning '%s'", pgnID, pgn.Description)
+		return pgn, nil
+	}
+
+	// Here if we have a PGN but it must be matched to the list of match fields.
+	// This might end up without a solution, in that case return the catch-all Fallback PGN.
+
+	for prn := pgn.PGN; pgn.PGN == prn; {
+		matchedFixedField := true
+		hasFixedField := false
+
+		logger.Debugf("GetMatchingPgnWithFields: PGN %d matching with manufacturer specific '%s'", prn, pgn.Description)
+
+		// Iterate over fields
+		for i := uint32(0); i < pgn.FieldCount; i++ {
+			field := &pgn.FieldList[i]
+
+			if field.Unit != "" && field.Unit[0] == '=' {
+				value, hasFieldValue := fields[field.Name]
+				valueStr, isValueStr := value.(string)
+
+				hasFixedField = true
+				//nolint:errcheck
+				desiredValue, _ := strconv.ParseInt(field.Unit[1:], 10, 64)
+
+				if !isValueStr || !hasFieldValue ||
+					field.Lookup.FunctionPairReverse == nil ||
+					field.Lookup.FunctionPairReverse(valueStr) != int(desiredValue) {
+					logger.Debugf("GetMatchingPgnWithFields: PGN %d field '%s' value %d does not match %d",
+						prn,
+						field.Name,
+						value,
+						desiredValue)
+					matchedFixedField = false
+					break
+				}
+				logger.Debugf(
+					"GetMatchingPgnWithFields: PGN %d field '%s' value %d matches %d", prn, field.Name, value, desiredValue)
 			}
 		}
-	}
-}
-
-func camelize(str string, upperCamelCase bool, order int) string {
-	lastIsAlpha := !upperCamelCase
-
-	var p bytes.Buffer
-	for _, c := range str {
-		if unicode.IsLetter(c) || unicode.IsDigit(c) {
-			if lastIsAlpha {
-				p.WriteRune(unicode.ToLower(c))
-			} else {
-				p.WriteRune(unicode.ToUpper(c))
-				lastIsAlpha = true
-			}
-		} else {
-			lastIsAlpha = false
+		if !hasFixedField {
+			logger.Debugf("GetMatchingPgnWithFields: Cant determine prn choice, return prn=%d variation '%s'", prn, pgn.Description)
+			return pgn, nil
 		}
+		if matchedFixedField {
+			logger.Debugf("GetMatchingPgnWithFields: PGN %d selected manufacturer specific '%s'", prn, pgn.Description)
+			return pgn, nil
+		}
+
+		pgnIdx++
+		pgn = &immutPGNs[pgnIdx]
 	}
 
-	if order > 0 && (str == "Reserved" || str == "Spare") {
-		p.WriteString(strconv.Itoa(order))
-	}
-	return p.String()
+	return SearchForUnknownPgn(pgnID, logger)
 }

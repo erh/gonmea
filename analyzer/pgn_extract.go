@@ -72,7 +72,7 @@ func ExtractNumber(
 	field *PGNField,
 	data []byte,
 	startBit int,
-	bits int,
+	numBits int,
 	value *int64,
 	maxValue *int64,
 	logger logging.Logger,
@@ -90,7 +90,7 @@ func ExtractNumber(
 		name = field.Name
 	}
 
-	bitsRemaining := bits
+	bitsRemaining := numBits
 	magnitude := 0
 	var bitsInThisByte int
 	var bitMask uint64
@@ -98,7 +98,7 @@ func ExtractNumber(
 	var valueInThisByte uint64
 	var maxv uint64
 
-	logger.Debugf("ExtractNumber <%s> startBit=%d bits=%d", name, startBit, bits)
+	logger.Debugf("ExtractNumber <%s> startBit=%d bits=%d", name, startBit, numBits)
 
 	data, adjusted := AdjustDataLenStart(data, &startBit)
 	if !adjusted {
@@ -142,7 +142,7 @@ func ExtractNumber(
 			*value += int64(field.Offset)
 			maxv += uint64(field.Offset)
 		} else {
-			negative := (*value & int64(((uint64(1)) << (bits - 1)))) > 0
+			negative := (*value & int64(((uint64(1)) << (numBits - 1)))) > 0
 
 			if negative {
 				/* Sign extend value for cases where bits < 64 */
@@ -160,7 +160,7 @@ func ExtractNumber(
 
 	*maxValue = int64(maxv)
 
-	logger.Debugf("ExtractNumber <%s> startBit=%d bits=%d value=%d max=%d", name, startBit, bits, *value, *maxValue)
+	logger.Debugf("ExtractNumber <%s> startBit=%d bits=%d value=%d max=%d", name, startBit, numBits, *value, *maxValue)
 
 	return true
 }
@@ -169,13 +169,13 @@ func (ana *analyzerImpl) ExtractNumberNotEmpty(
 	field *PGNField,
 	data []byte,
 	startBit int,
-	bits int,
+	numBits int,
 	value *int64,
 	maxValue *int64,
 ) (bool, int64) { // int is exceptionValue
 	var reserved int64
 
-	if !ExtractNumber(field, data, startBit, bits, value, maxValue, ana.Logger) {
+	if !ExtractNumber(field, data, startBit, numBits, value, maxValue, ana.Logger) {
 		return false, 0
 	}
 

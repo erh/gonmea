@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"math"
 
-	"go.viam.com/rdk/logging"
-
 	"github.com/erh/gonmea/common"
 )
 
@@ -53,6 +51,14 @@ type convertFieldFunctionType func(
 	bits *int,
 ) (interface{}, bool, error)
 
+type marshalFieldFunctionType func(
+	ana *analyzerImpl,
+	field *PGNField,
+	value interface{},
+	numBits int,
+	writer *bitWriter,
+) error
+
 type FieldType struct {
 	Name                string // Name, UPPERCASE_WITH_UNDERSCORE
 	Description         string // English description, shortish
@@ -77,17 +83,20 @@ type FieldType struct {
 	// How to print this field
 	PF                fieldPrintFunctionType
 	CF                convertFieldFunctionType
+	MF                marshalFieldFunctionType
 	PFIsPrintVariable bool
 	Physical          *PhysicalQuantity
 
 	// Filled by initializer
 	BaseFieldTypePtr *FieldType
+
+	MissingValueIsOne *bool // write 0s if false or 1s if true
 }
 
-func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
+func fillFieldType() error {
 	// Percolate fields from Physical quantity to Fieldtype
-	for i := 0; i < len(ana.state.FieldTypes); i++ {
-		ft := &ana.state.FieldTypes[i]
+	for i := 0; i < len(immutFieldTypes); i++ {
+		ft := &immutFieldTypes[i]
 
 		if ft.Physical != nil {
 			if !isPhysicalQuantityListed(ft.Physical) {
@@ -95,7 +104,6 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 			}
 			if ft.Unit == "" {
 				ft.Unit = ft.Physical.Abbreviation
-				ana.Logger.Debugf("Fieldtype '%s' inherits Unit '%s' from Physical type '%s'", ft.Name, ft.Unit, ft.Physical.Name)
 			}
 			if ft.URL == "" {
 				ft.URL = ft.Physical.URL
@@ -104,13 +112,11 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 	}
 
 	// Percolate fields from base to derived field
-	for ftIDx := 0; ftIDx < len(ana.state.FieldTypes); ftIDx++ {
-		ft := &ana.state.FieldTypes[ftIDx]
-
-		ana.Logger.Debugf("filling '%s'", ft.Name)
+	for ftIDx := 0; ftIDx < len(immutFieldTypes); ftIDx++ {
+		ft := &immutFieldTypes[ftIDx]
 
 		if ft.BaseFieldType != "" {
-			base, baseIdx := ana.GetFieldType(ft.BaseFieldType)
+			base, baseIdx := GetFieldType(ft.BaseFieldType)
 
 			if base == nil {
 				return fmt.Errorf("invalid BaseFieldType '%s' found in FieldType '%s'", ft.BaseFieldType, ft.Name)
@@ -129,15 +135,12 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 			}
 			if ft.Unit == "" && base.Unit != "" {
 				ft.Unit = base.Unit
-				ana.Logger.Debugf("Fieldtype '%s' inherits Unit '%s' from base type '%s'", ft.Name, ft.Unit, base.Name)
 			}
 			if ft.Size == 0 && base.Size != 0 {
 				ft.Size = base.Size
-				ana.Logger.Debugf("Fieldtype '%s' inherits size %d from base type '%s'", ft.Name, ft.Size, base.Name)
 			}
 			if ft.Resolution == 0.0 && base.Resolution != 0.0 {
 				ft.Resolution = base.Resolution
-				ana.Logger.Debugf("Fieldtype '%s' inherits Resolution %g from base type '%s'", ft.Name, ft.Resolution, base.Name)
 			} else if ft.Resolution != 0.0 && base.Resolution != 0.0 && ft.Resolution != base.Resolution {
 				return fmt.Errorf("Cannot overrule Resolution %g in '%s' with %g in '%s'", base.Resolution, base.Name, ft.Resolution, ft.Name)
 			}
@@ -147,6 +150,12 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 			if ft.CF == nil {
 				ft.CF = base.CF
 			}
+			if ft.MF == nil {
+				ft.MF = base.MF
+			}
+			if ft.MissingValueIsOne == nil {
+				ft.MissingValueIsOne = base.MissingValueIsOne
+			}
 		}
 
 		if ft.PF == nil {
@@ -155,29 +164,32 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 		if ft.CF == nil {
 			return fmt.Errorf("FieldType '%s' has no convert function", ft.Name)
 		}
+		if ft.MF == nil {
+			return fmt.Errorf("FieldType '%s' has no marshal function", ft.Name)
+		}
 
 		// Set the field range
 		if ft.Size != 0 && ft.Resolution != 0.0 && ft.HasSign != nil && ft.RangeMax == 0.0 {
-			ft.RangeMin = getMinRange(ft.Name, ft.Size, ft.Resolution, ft.HasSign == &trueValue, ft.Offset, ana.Logger)
-			ft.RangeMax = getMaxRange(ft.Name, ft.Size, ft.Resolution, ft.HasSign == &trueValue, ft.Offset, ana.Logger)
+			ft.RangeMin = getMinRange(ft.Name, ft.Size, ft.Resolution, ft.HasSign == &trueValue, ft.Offset)
+			ft.RangeMax = getMaxRange(ft.Name, ft.Size, ft.Resolution, ft.HasSign == &trueValue, ft.Offset)
 		} else {
 			ft.RangeMin = math.NaN()
 			ft.RangeMax = math.NaN()
 		}
 	}
 
-	for i := 0; i < len(ana.state.PGNs); i++ {
-		pgn := ana.state.PGNs[i].PGN
-		pName := ana.state.PGNs[i].Description
+	for i := 0; i < len(immutPGNs); i++ {
+		pgn := immutPGNs[i].PGN
+		pName := immutPGNs[i].Description
 
 		var j int
-		for j = 0; j < len(ana.state.PGNs[i].FieldList) && ana.state.PGNs[i].FieldList[j].Name != ""; j++ {
-			f := &ana.state.PGNs[i].FieldList[j]
+		for j = 0; j < len(immutPGNs[i].FieldList) && immutPGNs[i].FieldList[j].Name != ""; j++ {
+			f := &immutPGNs[i].FieldList[j]
 
 			if f.FieldType == "" {
 				return fmt.Errorf("PGN %d '%s' field '%s' contains nil FieldType", pgn, pName, f.Name)
 			}
-			ft, _ := ana.GetFieldType(f.FieldType)
+			ft, _ := GetFieldType(f.FieldType)
 			if ft == nil {
 				return fmt.Errorf("PGN %d '%s' field '%s' contains invalid FieldType '%s'", pgn, pName, f.Name, f.FieldType)
 			}
@@ -195,7 +207,7 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 					ft.Resolution,
 					ft.Name,
 					f.Resolution,
-					ana.state.PGNs[i].PGN,
+					immutPGNs[i].PGN,
 					f.Name)
 			}
 
@@ -203,7 +215,7 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 				f.Size = ft.Size
 			}
 			if ft.Size != 0 && ft.Size != f.Size {
-				return fmt.Errorf("Cannot overrule size %d in '%s' with %d in PGN %d field '%s'", ft.Size, ft.Name, f.Size, ana.state.PGNs[i].PGN, f.Name)
+				return fmt.Errorf("Cannot overrule size %d in '%s' with %d in PGN %d field '%s'", ft.Size, ft.Name, f.Size, immutPGNs[i].PGN, f.Name)
 			}
 
 			if ft.Offset != 0 && f.Offset == 0 {
@@ -214,7 +226,7 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 					ft.Offset,
 					ft.Name,
 					f.Offset,
-					ana.state.PGNs[i].PGN,
+					immutPGNs[i].PGN,
 					f.Name)
 			}
 
@@ -235,118 +247,92 @@ func (ana *analyzerImpl) fillFieldType(doUnitFixup bool) error {
 				f.RangeMin = ft.RangeMin
 				f.RangeMax = ft.RangeMax
 			}
-			if doUnitFixup && f.Unit != "" && f.Resolution != 0.0 {
-				ana.fixupUnit(f)
+			if f.Unit != "" && f.Resolution != 0.0 {
+				fixupUnit(f)
 			}
 			if f.Unit != "" && f.Unit[0] == '=' { // Is a match field
-				ana.state.PGNs[i].HasMatchFields = true
+				immutPGNs[i].HasMatchFields = true
 			}
-
-			ana.Logger.Debugf("%s size=%d res=%g sign=%v RangeMax=%g", f.Name, f.Size, f.Resolution, ft.HasSign, f.RangeMax)
 
 			if f.Size != 0 && f.Resolution != 0.0 && ft.HasSign != nil && math.IsNaN(f.RangeMax) {
-				f.RangeMin = getMinRange(f.Name, f.Size, f.Resolution, f.HasSign, f.Offset, ana.Logger)
-				f.RangeMax = getMaxRange(f.Name, f.Size, f.Resolution, f.HasSign, f.Offset, ana.Logger)
+				f.RangeMin = getMinRange(f.Name, f.Size, f.Resolution, f.HasSign, f.Offset)
+				f.RangeMax = getMaxRange(f.Name, f.Size, f.Resolution, f.HasSign, f.Offset)
 			}
 
-			f.PGN = &ana.state.PGNs[i]
+			f.PGN = &immutPGNs[i]
 			f.Order = uint8(j + 1)
+			if f.MissingValueIsOne == nil {
+				f.MissingValueIsOne = ft.MissingValueIsOne
+			}
 		}
-		if ana.state.PGNs[i].PacketType == PacketTypeFast && !common.AllowPGNFastPacket(pgn) {
-			return fmt.Errorf("PGN %d '%s' is outside fast-packet range", pgn, ana.state.PGNs[i].Description)
+		if immutPGNs[i].PacketType == PacketTypeFast && !common.AllowPGNFastPacket(pgn) {
+			return fmt.Errorf("PGN %d '%s' is outside fast-packet range", pgn, immutPGNs[i].Description)
 		}
-		if ana.state.PGNs[i].PacketType != PacketTypeFast && !common.AllowPGNSingleFrame(pgn) {
-			ana.Logger.Errorf("PGN %d '%s' is outside single-frame range", pgn, ana.state.PGNs[i].Description)
+		if immutPGNs[i].RepeatingCount1 != 0 && immutPGNs[i].RepeatingStart1 == 0 {
+			return fmt.Errorf("PGN %d '%s' has no way to determine repeating field set 1", pgn, immutPGNs[i].Description)
 		}
-		if ana.state.PGNs[i].RepeatingCount1 != 0 && ana.state.PGNs[i].RepeatingStart1 == 0 {
-			return fmt.Errorf("PGN %d '%s' has no way to determine repeating field set 1", pgn, ana.state.PGNs[i].Description)
-		}
-		if ana.state.PGNs[i].RepeatingCount2 != 0 && ana.state.PGNs[i].RepeatingStart2 == 0 {
-			return fmt.Errorf("PGN %d '%s' has no way to determine repeating field set 2", pgn, ana.state.PGNs[i].Description)
-		}
-
-		if ana.state.PGNs[i].Interval == 0 {
-			ana.state.PGNs[i].Complete |= PacketStatusIntervalUnknown
+		if immutPGNs[i].RepeatingCount2 != 0 && immutPGNs[i].RepeatingStart2 == 0 {
+			return fmt.Errorf("PGN %d '%s' has no way to determine repeating field set 2", pgn, immutPGNs[i].Description)
 		}
 
-		if j == 0 && ana.state.PGNs[i].Complete == PacketStatusComplete {
-			return fmt.Errorf("Internal error: PGN %d '%s' does not have fields.", ana.state.PGNs[i].PGN, ana.state.PGNs[i].Description)
+		if immutPGNs[i].Interval == 0 {
+			immutPGNs[i].Complete |= PacketStatusIntervalUnknown
 		}
-		ana.state.PGNs[i].FieldCount = uint32(j)
-		ana.Logger.Debugf("PGN %d '%s' has %d fields", ana.state.PGNs[i].PGN, pName, j)
+
+		if j == 0 && immutPGNs[i].Complete == PacketStatusComplete {
+			return fmt.Errorf("Internal error: PGN %d '%s' does not have fields.", immutPGNs[i].PGN, immutPGNs[i].Description)
+		}
+		immutPGNs[i].FieldCount = uint32(j)
 	}
 
-	ana.Logger.Debug("Filled all Fieldtypes")
 	return nil
 }
 
-func (ana *analyzerImpl) GetFieldType(name string) (*FieldType, int) {
-	for i := 0; i < len(ana.state.FieldTypes); i++ {
-		if name == ana.state.FieldTypes[i].Name {
-			return &ana.state.FieldTypes[i], i
+func GetFieldType(name string) (*FieldType, int) {
+	for i := 0; i < len(immutFieldTypes); i++ {
+		if name == immutFieldTypes[i].Name {
+			return &immutFieldTypes[i], i
 		}
 	}
-	ana.Logger.Errorf("FieldType '%s' not found", name)
 	return nil, 0
 }
 
 const radianToDegree = (360.0 / 2 / math.Pi)
 
-func (ana *analyzerImpl) fixupUnit(f *PGNField) {
-	if ana.UseSI {
-		if f.Unit == "kWh" {
-			f.Resolution *= 3.6e6 // 1 kWh = 3.6 MJ.
-			f.RangeMin *= 3.6e6
-			f.RangeMax *= 3.6e6
-			f.Unit = "J"
-		} else if f.Unit == "Ah" {
-			f.Resolution *= 3600.0 // 1 Ah = 3600 C.
-			f.RangeMin *= 3600.0
-			f.RangeMax *= 3600.0
-			f.Unit = "C"
-		}
-
-		// Many more to follow, but pgn.h is not yet Complete enough...
-	} else { // NOT SI
-		switch f.Unit {
-		case "C":
-			f.Resolution /= 3600.0 // 3600 C = 1 Ah
-			f.RangeMin /= 3600.0
-			f.RangeMax /= 3600.0
-			f.Unit = "Ah"
-			ana.Logger.Debugf("fixup <%s> to '%s'", f.Name, f.Unit)
-		case "Pa":
-			f.Resolution /= 100000.0
-			f.RangeMin /= 100000.0
-			f.RangeMax /= 100000.0
-			f.Precision = 3
-			f.Unit = "bar"
-			ana.Logger.Debugf("fixup <%s> to '%s'", f.Name, f.Unit)
-		case "K":
-			f.UnitOffset = -273.15
-			f.RangeMin += -273.15
-			f.RangeMax += -275.15
-			f.Precision = 2
-			f.Unit = "C"
-			ana.Logger.Debugf("fixup <%s> to '%s'", f.Name, f.Unit)
-		case "rad":
-			f.Resolution *= radianToDegree
-			f.RangeMin *= radianToDegree
-			f.RangeMax *= radianToDegree
-			f.Unit = "deg"
-			f.Precision = 1
-			ana.Logger.Debugf("fixup <%s> to '%s'", f.Name, f.Unit)
-		case "rad/s":
-			f.Resolution *= radianToDegree
-			f.RangeMin *= radianToDegree
-			f.RangeMax *= radianToDegree
-			f.Unit = "deg/s"
-			ana.Logger.Debugf("fixup <%s> to '%s'", f.Name, f.Unit)
-		}
+func fixupUnit(f *PGNField) {
+	switch f.Unit {
+	case "C":
+		f.Resolution /= 3600.0 // 3600 C = 1 Ah
+		f.RangeMin /= 3600.0
+		f.RangeMax /= 3600.0
+		f.Unit = "Ah"
+	case "Pa":
+		f.Resolution /= 100000.0
+		f.RangeMin /= 100000.0
+		f.RangeMax /= 100000.0
+		f.Precision = 3
+		f.Unit = "bar"
+	case "K":
+		f.UnitOffset = -273.15
+		f.RangeMin += -273.15
+		f.RangeMax += -275.15
+		f.Precision = 2
+		f.Unit = "C"
+	case "rad":
+		f.Resolution *= radianToDegree
+		f.RangeMin *= radianToDegree
+		f.RangeMax *= radianToDegree
+		f.Unit = "deg"
+		f.Precision = 1
+	case "rad/s":
+		f.Resolution *= radianToDegree
+		f.RangeMin *= radianToDegree
+		f.RangeMax *= radianToDegree
+		f.Unit = "deg/s"
 	}
 }
 
-func getMinRange(name string, size uint32, resolution float64, sign bool, offset int32, logger logging.Logger) float64 {
+func getMinRange(name string, size uint32, resolution float64, sign bool, offset int32) float64 {
 	highbit := size
 	if sign && offset == 0 {
 		highbit = (size - 1)
@@ -361,8 +347,6 @@ func getMinRange(name string, size uint32, resolution float64, sign bool, offset
 		minValue = int64((uint64(1) << highbit) - 1)
 		r = float64(minValue) * resolution * -1.0
 	}
-	logger.Debugf(
-		"%s bits=%d sign=%t minValue=%d res=%g offset=%d . rangeMin %g", name, highbit, sign, minValue, resolution, offset, r)
 	return r
 }
 
@@ -372,7 +356,6 @@ func getMaxRange(
 	resolution float64,
 	sign bool,
 	offset int32,
-	logger logging.Logger,
 ) float64 {
 	specialvalues := uint64(0)
 	if size >= 4 {
@@ -391,8 +374,6 @@ func getMaxRange(
 	}
 
 	r := float64(maxValue) * resolution
-	logger.Debugf(
-		"%s bits=%d sign=%t maxValue=%d res=%g offset=%d . rangeMax %g", name, highbit, sign, maxValue, resolution, offset, r)
 	return r
 }
 
@@ -671,7 +652,7 @@ func (ana *analyzerImpl) fillFieldTypeLookupField(
 	str string,
 	ft string,
 ) error {
-	f.FT, _ = ana.GetFieldType(ft)
+	f.FT, _ = GetFieldType(ft)
 	if f.FT == nil {
 		return fmt.Errorf("LookuPFieldType %s(%d) contains an invalid Fieldtype '%s'", lookup, key, ft)
 	}
@@ -683,7 +664,7 @@ func (ana *analyzerImpl) fillFieldTypeLookupField(
 	}
 	f.Name = str
 	if f.Unit != "" {
-		ana.fixupUnit(f)
+		fixupUnit(f)
 	}
 
 	UnitStr := f.Unit

@@ -59,26 +59,14 @@ func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen 
 // Message is a NMEA 2000 PGN message.
 type Message struct {
 	// if relative, then it's from January 1, year 1, 00:00:00.000000000 UTC
-	Timestamp   time.Time              `json:"timestamp"`
-	Priority    int                    `json:"prio"`
-	Src         int                    `json:"src"`
-	Dst         int                    `json:"dst"`
-	Pgn         int                    `json:"pgn"`
-	Description string                 `json:"description"`
-	Fields      map[string]interface{} `json:"fields"`
-}
-
-// TODO(erd): unfinished
-func (m *Message) ToRaw() (*RawMessage, error) {
-	raw := RawMessage{
-		Timestamp: m.Timestamp,
-		Prio:      uint8(m.Priority),
-		PGN:       uint32(m.Pgn),
-		Dst:       uint8(m.Dst),
-		Src:       uint8(m.Src),
-		// TODO(erd): data is opposite of convert
-	}
-	return &raw, nil
+	Timestamp     time.Time              `json:"timestamp"`
+	Priority      int                    `json:"prio"`
+	Src           int                    `json:"src"`
+	Dst           int                    `json:"dst"`
+	PGN           int                    `json:"pgn"`
+	Description   string                 `json:"description"`
+	Fields        map[string]interface{} `json:"fields"`
+	CachedRawData []byte                 `json:"-"`
 }
 
 func findOccurrence(msg []byte, c rune, count int) int {

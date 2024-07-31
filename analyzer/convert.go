@@ -165,6 +165,15 @@ func convertFieldLookup(
 		return nil, false, nil
 	}
 
+	maxValBuf := 1
+	if *bits > 2 {
+		maxValBuf = 2
+	}
+	if *bits > 1 && (value >= maxValue-int64(maxValBuf)) {
+		ana.state.Skip = true
+		return nil, false, nil
+	}
+
 	if field.Unit != "" && field.Unit[0] == '=' && unicode.IsDigit(rune(field.Unit[1])) {
 		lookfor := fmt.Sprintf("=%d", value)
 		if lookfor != field.Unit {
@@ -195,14 +204,6 @@ func convertFieldLookup(
 
 	if s != "" {
 		return s, true, nil
-	}
-	maxValueBitCheck := int64(1)
-	if *bits > 2 {
-		maxValueBitCheck = 2
-	}
-
-	if *bits > 1 && (value >= maxValue-maxValueBitCheck) {
-		return nil, false, nil
 	}
 
 	return int(value), true, nil
@@ -241,6 +242,8 @@ func convertFieldBitLookup(
 			} else {
 				values = append(values, bitValue)
 			}
+		} else {
+			values = append(values, 0)
 		}
 		bitValue <<= 1
 	}
@@ -697,9 +700,11 @@ func convertFieldVariable(
 	startBit int,
 	bits *int,
 ) (interface{}, bool, error) {
-	refField := ana.GetField(uint32(ana.state.RefPgn), uint32(data[startBit/8-1]-1))
+	pgn := uint32(ana.state.RefPgn)
+	index := uint32(data[startBit/8-1] - 1)
+	refField := GetField(pgn, index, ana.Logger)
 	if refField != nil {
-		ana.Logger.Debugf("Field %s: found variable field %d '%s'", fieldName, ana.state.RefPgn, refField.Name)
+		ana.Logger.Debugf("Field %s: found variable field %d '%s'", fieldName, pgn, refField.Name)
 		val, ok, err := ana.convertField(refField, fieldName, data, startBit, bits)
 		if err != nil {
 			return nil, false, err
@@ -708,7 +713,7 @@ func convertFieldVariable(
 		if !ok {
 			return nil, false, nil
 		}
-		return val, true, nil
+		return common.FieldVariable{PGN: pgn, Index: index + 1, Value: val}, true, nil
 	}
 
 	ana.Logger.Errorf("Field %s: cannot derive variable length for PGN %d field # %d", fieldName, ana.state.RefPgn, data[len(data)-1])
