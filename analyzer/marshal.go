@@ -278,7 +278,7 @@ func marshalFieldNumber(
 		writer.writeIntBits(toWrite, numBits)
 		return nil
 	default:
-		return fmt.Errorf("expected int or float64 but got %T", v)
+		return fmt.Errorf("expected int or float64 but got %T (%v)", v, v)
 	}
 }
 
@@ -292,7 +292,7 @@ func marshalFieldFloat(
 ) error {
 	valueFloat, ok := value.(float64)
 	if !ok {
-		return fmt.Errorf("expected value to be a float64 but got a %T", value)
+		return wrongTypeError("float64", value, field)
 	}
 
 	writer.flush()
@@ -303,14 +303,14 @@ func marshalFieldFloat(
 // Note(UNTESTED): See README.md.
 func marshalFieldDecimal(
 	ana *analyzerImpl,
-	_ *PGNField,
+	field *PGNField,
 	value interface{},
 	numBits int,
 	writer *bitWriter,
 ) error {
 	valueFloat, ok := value.(float64)
 	if !ok {
-		return fmt.Errorf("expected value to be a float64 but got a %T", value)
+		return wrongTypeError("float64", value, field)
 	}
 
 	writer.flush()
@@ -332,7 +332,7 @@ func marshalFieldLookup(
 	case string:
 		valueStr, ok := value.(string)
 		if !ok {
-			return fmt.Errorf("expected value to be a string but got a %T", value)
+			return wrongTypeError("string", value, field)
 		}
 
 		var ret int
@@ -361,7 +361,7 @@ func marshalFieldBitLookup(
 ) error {
 	valueIfcs, ok := value.([]interface{})
 	if !ok {
-		return fmt.Errorf("expected value to be a []interface{} but got a %T", value)
+		return wrongTypeError("[]interface{}", value, field)
 	}
 
 	for _, valueIfc := range valueIfcs {
@@ -386,7 +386,7 @@ func marshalFieldBinary(
 ) error {
 	valueBin, ok := value.([]uint8)
 	if !ok {
-		return fmt.Errorf("expected value to be a []uint8 but got a %T", value)
+		return wrongTypeError("[]uint8", value, field)
 	}
 
 	writer.writeBytesAsBits(valueBin, numBits)
@@ -429,7 +429,7 @@ func marshalFieldMMSI(
 ) error {
 	valueInt, ok := value.(int)
 	if !ok {
-		return fmt.Errorf("expected value to be an int but got a %T", value)
+		return wrongTypeError("int", value, field)
 	}
 
 	writer.writeIntBits(int64(valueInt), numBits)
@@ -456,7 +456,7 @@ func marshalFieldLatLon(
 ) error {
 	valueFloat, ok := value.(float64)
 	if !ok {
-		return fmt.Errorf("expected value to be a float64 but got a %T", value)
+		return wrongTypeError("float64", value, field)
 	}
 
 	// rounding seems to help with floating point imprecision but may not be the best
@@ -467,14 +467,14 @@ func marshalFieldLatLon(
 
 func marshalFieldDate(
 	ana *analyzerImpl,
-	_ *PGNField,
+	field *PGNField,
 	value interface{},
 	numBits int,
 	writer *bitWriter,
 ) error {
 	valueTime, ok := value.(time.Time)
 	if !ok {
-		return fmt.Errorf("expected value to be a time.Time but got a %T", value)
+		return wrongTypeError("time.Time", value, field)
 	}
 
 	days := uint16(valueTime.Unix() / 86400)
@@ -503,7 +503,7 @@ func marshalFieldStringFix(
 ) error {
 	valueStr, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("expected value to be a string but got a %T", value)
+		return wrongTypeError("string", value, field)
 	}
 
 	marshalString(valueStr, writer, numBits)
@@ -513,14 +513,14 @@ func marshalFieldStringFix(
 // Note(UNTESTED): See README.md.
 func marshalFieldStringLZ(
 	ana *analyzerImpl,
-	_ *PGNField,
+	field *PGNField,
 	value interface{},
 	numBits int,
 	writer *bitWriter,
 ) error {
 	valueStr, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("expected value to be a string but got a %T", value)
+		return wrongTypeError("string", value, field)
 	}
 
 	writer.data = append(writer.data, byte(len(valueStr)))
@@ -530,14 +530,14 @@ func marshalFieldStringLZ(
 
 func marshalFieldStringLAU(
 	ana *analyzerImpl,
-	_ *PGNField,
+	field *PGNField,
 	value interface{},
 	numBits int,
 	writer *bitWriter,
 ) error {
 	valueStr, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("expected value to be a string but got a %T", value)
+		return wrongTypeError("string", value, field)
 	}
 
 	writer.data = append(writer.data, byte(len(valueStr)+2), 0x01) // len including this, control=1 (utf8)
@@ -554,7 +554,7 @@ func marshalFieldTime(
 ) error {
 	valueDur, ok := value.(time.Duration)
 	if !ok {
-		return fmt.Errorf("expected value to be a time.Duration but got a %T", value)
+		return wrongTypeError("time.Duration", value, field)
 	}
 
 	positive := true
@@ -582,14 +582,14 @@ func marshalFieldTime(
 
 func marshalFieldVariable(
 	ana *analyzerImpl,
-	_ *PGNField,
+	field *PGNField,
 	value interface{},
 	_ int,
 	writer *bitWriter,
 ) error {
 	valueFieldVar, ok := value.(common.FieldVariable)
 	if !ok {
-		return fmt.Errorf("expected value to be a common.FieldVariable but got a %T", value)
+		return wrongTypeError("common.FieldVariable", value, field)
 	}
 
 	refField := GetField(valueFieldVar.PGN, valueFieldVar.Index-1, ana.Logger)
@@ -618,4 +618,8 @@ func marshalFieldVariable(
 	}
 
 	return fmt.Errorf("cannot derive variable length for PGN %d field # %d", valueFieldVar.PGN, valueFieldVar.Index)
+}
+
+func wrongTypeError(expected string, value interface{}, field *PGNField) error {
+	return fmt.Errorf("expected value to be a %s but got a %T (%v) for %s", expected, value, value, field.Name)
 }
