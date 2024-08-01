@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/bits"
 	"time"
 	"unicode"
 	"unicode/utf16"
@@ -284,8 +285,9 @@ func convertFieldBinary(
 			dataByte >>= startBit // Shift off older bits
 			if remainingBits+startBit < 8 {
 				dataByte &= ((1 << remainingBits) - 1)
+			} else {
+				dataByte <<= startBit // Shift zeros back in
 			}
-			dataByte <<= startBit // Shift zeros back in
 			remainingBits -= (8 - startBit)
 		} else {
 			if remainingBits < 8 {
@@ -299,22 +301,18 @@ func convertFieldBinary(
 	return convertedData, true, nil
 }
 
-/*
- * Only print reserved fields if they are NOT all ones, in that case we have an incorrect
- * PGN definition.
- */
 func convertFieldReserved(
 	ana *analyzerImpl,
 	field *PGNField,
 	fieldName string,
 	data []byte,
 	startBit int,
-	bits *int,
+	numBits *int,
 ) (interface{}, bool, error) {
 	var value int64
 	var maxValue int64
 
-	if !ExtractNumber(field, data, startBit, *bits, &value, &maxValue, ana.Logger) {
+	if !ExtractNumber(field, data, startBit, *numBits, &value, &maxValue, ana.Logger) {
 		return nil, false, nil
 	}
 	if value == maxValue {
@@ -322,13 +320,23 @@ func convertFieldReserved(
 		return nil, false, nil
 	}
 
-	return convertFieldBinary(ana, field, fieldName, data, startBit, bits)
+	val, ok, err := convertFieldBinary(ana, field, fieldName, data, startBit, numBits)
+	if !ok || err != nil {
+		return nil, ok, err
+	}
+	allOnes := true
+	for _, b := range val.([]byte) {
+		if bits.OnesCount(uint(b)) != 8 {
+			allOnes = false
+			break
+		}
+	}
+	if allOnes {
+		return nil, false, nil
+	}
+	return val, true, nil
 }
 
-/*
- * Only print spare fields if they are NOT all zeroes, in that case we have an incorrect
- * PGN definition.
- */
 func convertFieldSpare(
 	ana *analyzerImpl,
 	field *PGNField,

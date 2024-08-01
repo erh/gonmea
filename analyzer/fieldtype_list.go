@@ -647,6 +647,7 @@ func initFieldTypes() {
 			MF:                  marshalFieldDate,
 			PF:                  Printer.PrintFieldDate,
 			V1Type:              "Date",
+			MissingValueIsOne:   &trueValue,
 		},
 
 		{

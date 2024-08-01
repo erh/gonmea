@@ -192,6 +192,9 @@ func (c *CLI) printString(data []byte) (bool, error) {
 		for dataLen > 0 && (*lastbyte == 0xff || unicode.IsSpace(rune(*lastbyte)) || *lastbyte == 0 || *lastbyte == '@') {
 			dataLen--
 			lastbyteCount++
+			if len(data)-1-lastbyteCount < 0 {
+				break
+			}
 			lastbyte = &data[len(data)-1-lastbyteCount]
 		}
 	}
@@ -548,8 +551,9 @@ func (c *CLI) PrintFieldBinary(
 			dataByte >>= startBit // Shift off older bits
 			if remainingBits+startBit < 8 {
 				dataByte &= ((1 << remainingBits) - 1)
+			} else {
+				dataByte <<= startBit // Shift zeros back in
 			}
-			dataByte <<= startBit // Shift zeros back in
 			remainingBits -= (8 - startBit)
 		} else {
 			if remainingBits < 8 {

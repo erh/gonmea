@@ -393,10 +393,6 @@ func marshalFieldBinary(
 	return nil
 }
 
-/*
- * Only print reserved fields if they are NOT all ones, in that case we have an incorrect
- * PGN definition.
- */
 func marshalFieldReserved(
 	ana *analyzerImpl,
 	field *PGNField,
