@@ -510,6 +510,9 @@ func convertString(data []byte) (string, bool) {
 		for dataLen > 0 && (*lastbyte == 0xff || unicode.IsSpace(rune(*lastbyte)) || *lastbyte == 0 || *lastbyte == '@') {
 			dataLen--
 			lastbyteCount++
+			if len(data)-1-lastbyteCount < 0 {
+				break
+			}
 			lastbyte = &data[len(data)-1-lastbyteCount]
 		}
 	}
