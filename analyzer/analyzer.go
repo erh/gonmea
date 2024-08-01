@@ -640,7 +640,9 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 					repeatingList = append(repeatingList, repeatedObj)
 					repeatedObj = nil
 				}
-				convertedMsg.Fields[repeatingListName] = repeatingList
+				if len(repeatingList) != 0 {
+					convertedMsg.Fields[repeatingListName] = repeatingList
+				}
 			}
 			repeatingList = make([]interface{}, 0, variableFields)
 			repeatingListName = "list2"
@@ -699,8 +701,12 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 	}
 
 	if repeatingList != nil {
-		repeatingList = append(repeatingList, repeatedObj)
-		convertedMsg.Fields[repeatingListName] = repeatingList
+		if repeatedObj != nil {
+			repeatingList = append(repeatingList, repeatedObj)
+		}
+		if len(repeatingList) != 0 {
+			convertedMsg.Fields[repeatingListName] = repeatingList
+		}
 	}
 	return convertedMsg, nil
 }
