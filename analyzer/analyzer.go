@@ -459,13 +459,12 @@ func (h *hexScanner) Scan(state fmt.ScanState, _ rune) error {
 }
 
 func (ana *analyzerImpl) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
-	ana.state.MultiPackets = MultiPacketsCoalesced
 	msg, hasMsg, err := ana.convertRawMessage(rawMsg)
 	if err != nil {
 		return nil, err
 	}
 	if !hasMsg {
-		return nil, errors.New("insufficient data")
+		return nil, nil
 	}
 	return msg, nil
 }
@@ -483,6 +482,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 			return nil, false, err
 		}
 	}
+
 	if ana.state.MultiPackets == MultiPacketsCoalesced || pgn == nil || pgn.PacketType != PacketTypeFast {
 		// No reassembly needed
 		if len(rawMsg.Data) < int(rawMsg.Len) {
