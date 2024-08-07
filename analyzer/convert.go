@@ -190,14 +190,44 @@ func convertFieldLookup(
 
 	if s == "" && field.Lookup.LookupType != LookupTypeNone && value >= 0 {
 		if field.Lookup.LookupType == LookupTypePair || field.Lookup.LookupType == LookupTypeFieldType {
-			s = field.Lookup.FunctionPair(int(value))
+			if field.Lookup.FunctionPair == nil {
+				return nil, false, fmt.Errorf(
+					"field '%s' (pgn=%d field_num=%d) should have a lookup function pair",
+					field.PGN.Description,
+					field.PGN.PGN,
+					field.Order)
+			}
+			var err error
+			var ok bool
+			s, ok, err = field.Lookup.FunctionPair(ana, int(value))
+			if err != nil {
+				return nil, false, err
+			}
+			if !ok {
+				s = ""
+			}
 		} else if field.Lookup.LookupType == LookupTypeTriplet {
 			var val1 int64
 
 			ana.Logger.Debugf("Triplet extraction for field '%s'", field.Name)
 
 			if field.PGN != nil && ExtractNumberByOrder(field.PGN, int(field.Lookup.Val1Order), data, &val1, ana.Logger) {
-				s = field.Lookup.FunctionTriplet(int(val1), int(value))
+				if field.Lookup.FunctionTriplet == nil {
+					return nil, false, fmt.Errorf(
+						"field '%s' (pgn=%d field_num=%d) should have a lookup function triplet",
+						field.PGN.Description,
+						field.PGN.PGN,
+						field.Order)
+				}
+				var err error
+				var ok bool
+				s, ok, err = field.Lookup.FunctionTriplet(ana, int(val1), int(value))
+				if err != nil {
+					return nil, false, err
+				}
+				if !ok {
+					s = ""
+				}
 			}
 		}
 		// BIT is handled in convertFieldBitLookup
@@ -236,7 +266,13 @@ func convertFieldBitLookup(
 		isSet := (value & bitValue) != 0
 		ana.Logger.Debugf("RES_BITFIELD is bit %d value %d set? = %t", bit, bitValue, isSet)
 		if isSet {
-			s := field.Lookup.FunctionPair(bit)
+			s, ok, err := field.Lookup.FunctionPair(ana, bit)
+			if err != nil {
+				return nil, false, err
+			}
+			if !ok {
+				s = ""
+			}
 
 			if s != "" {
 				values = append(values, s)

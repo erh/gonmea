@@ -211,14 +211,17 @@ func parseCLIArgs(args []string) (*cliConfig, *os.File, error) {
 			for _, format := range analyzer.RawFormats {
 				if strings.EqualFold(nextArg, string(format)) {
 					conf.DesiredFormat = format
-					if conf.DesiredFormat != analyzer.RawFormatPlain && conf.DesiredFormat != analyzer.RawFormatPlainOrFast {
-						conf.MultiPacketsHint = analyzer.MultiPacketsCoalesced
+					if conf.DesiredFormat != analyzer.RawFormatPlain &&
+						conf.DesiredFormat != analyzer.RawFormatPlainOrFast &&
+						conf.DesiredFormat != analyzer.RawFormatPlainMixFast &&
+						conf.DesiredFormat != analyzer.RawFormatYDWG02 {
+						conf.MultiPacketsHint = common.MultiPacketsCoalesced
 					}
 					break
 				}
-				if conf.DesiredFormat == analyzer.RawFormatUnknown {
-					return nil, nil, fmt.Errorf("Unknown message format '%s'", nextArg)
-				}
+			}
+			if conf.DesiredFormat == analyzer.RawFormatUnknown {
+				return nil, nil, fmt.Errorf("Unknown message format '%s'", nextArg)
 			}
 			argIdx++
 		} else {
@@ -342,14 +345,17 @@ func (c *CLI) printCanFormat(
 	state := impl.State()
 
 	pgn, _ := analyzer.SearchForPgn(msg.PGN)
-	if state.MultiPackets == analyzer.MultiPacketsSeparate && pgn == nil {
+	if state.MultiPackets == common.MultiPacketsSeparate && pgn == nil {
 		var err error
 		pgn, err = analyzer.SearchForUnknownPgn(msg.PGN, c.config.Logger)
 		if err != nil {
 			return err
 		}
 	}
-	if state.MultiPackets == analyzer.MultiPacketsCoalesced || pgn == nil || pgn.PacketType != analyzer.PacketTypeFast {
+	if state.MultiPackets == common.MultiPacketsCoalesced ||
+		pgn == nil ||
+		pgn.PacketType != analyzer.PacketTypeFast ||
+		len(msg.Data) > 8 {
 		// No reassembly needed
 		return c.printPgn(msg, msg.Data[:msg.Len], writer)
 	}
@@ -411,6 +417,9 @@ func (c *CLI) printCanFormat(
 			p.AllFrames = (1 << (1 + (p.Size / 7))) - 1
 		}
 
+		if len(msg.Data[msgIdx:]) < frameLen {
+			return fmt.Errorf("frame (len=%d) smaller than expected (len=%d)", len(msg.Data[msgIdx:]), frameLen)
+		}
 		copy(p.Data[idx:], msg.Data[msgIdx:msgIdx+frameLen])
 		p.Frames |= 1 << frame
 

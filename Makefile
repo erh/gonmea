@@ -37,6 +37,7 @@ $(ANALYZER):
 	go build -o $(ANALYZER_LIB) cmd/analyzer_lib/main.go
 
 tests:	$(ANALYZER)
+	go test -v -race ./...
 	(cd analyzer/tests; make tests)
 
 tool-install:

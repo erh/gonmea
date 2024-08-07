@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"runtime/debug"
 	"strings"
 	"time"
 	"unicode"
@@ -398,14 +399,47 @@ func (c *CLI) PrintFieldLookup(
 
 	if s == "" && field.Lookup.LookupType != analyzer.LookupTypeNone && value >= 0 {
 		if field.Lookup.LookupType == analyzer.LookupTypePair || field.Lookup.LookupType == analyzer.LookupTypeFieldType {
-			s = field.Lookup.FunctionPair(int(value))
+			if field.Lookup.FunctionPair == nil {
+				debug.PrintStack()
+				fmt.Printf("???? %#v\n", field)
+				return false, fmt.Errorf(
+					"field '%s' (pgn=%d (%s) field_num=%d) should have a lookup function pair",
+					field.Description,
+					field.PGN.PGN,
+					field.PGN.Description,
+					field.Order)
+			}
+			var err error
+			var ok bool
+			s, ok, err = field.Lookup.FunctionPair(impl, int(value))
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				s = ""
+			}
 		} else if field.Lookup.LookupType == analyzer.LookupTypeTriplet {
 			var val1 int64
 
 			c.config.Logger.Debugf("Triplet extraction for field '%s'", field.Name)
 
 			if field.PGN != nil && analyzer.ExtractNumberByOrder(field.PGN, int(field.Lookup.Val1Order), data, &val1, c.config.Logger) {
-				s = field.Lookup.FunctionTriplet(int(val1), int(value))
+				if field.Lookup.FunctionTriplet == nil {
+					return false, fmt.Errorf(
+						"field '%s' (pgn=%d field_num=%d) should have a lookup function triplet",
+						field.PGN.Description,
+						field.PGN.PGN,
+						field.Order)
+				}
+				var err error
+				var ok bool
+				s, ok, err = field.Lookup.FunctionTriplet(impl, int(val1), int(value))
+				if err != nil {
+					return false, err
+				}
+				if !ok {
+					s = ""
+				}
 			}
 		}
 		// BIT is handled in fieldPrintBitLookup
@@ -476,12 +510,19 @@ func (c *CLI) PrintFieldBitLookup(
 		sep = ""
 	}
 
+	impl := c.ana.(analyzerImpl)
 	bit := 0
 	for bitValue := int64(1); bit < *bits; bit++ {
 		isSet := (value & bitValue) != 0
 		c.config.Logger.Debugf("RES_BITFIELD is bit %d value %d set? = %t", bit, bitValue, isSet)
 		if isSet {
-			s := field.Lookup.FunctionPair(bit)
+			s, ok, err := field.Lookup.FunctionPair(impl, bit)
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				s = ""
+			}
 
 			if s != "" {
 				//nolint:gocritic

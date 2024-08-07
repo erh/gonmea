@@ -213,7 +213,7 @@ func initFieldTypes() {
 		},
 
 		{
-			Name:                "FieldType_LOOKUP",
+			Name:                "FIELDTYPE_LOOKUP",
 			Description:         "Number value where each value encodes for a distinct meaning including a FieldType of the next variable field",
 			EncodingDescription: "Each lookup has a LookupFieldTypeEnumeration defining what the possible values mean",
 			Comment: "These values have been determined by reverse engineering, given the known values it is anticipated that there are " +

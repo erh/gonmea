@@ -24,13 +24,21 @@ import (
 type LookupType byte
 
 func fillLookups() {
+	ana, err := newOneOffAnalyzer()
+	if err != nil {
+		panic(err)
+	}
 	// Iterate over the PGNs and fill the description of company-code fixed values
 	for _, elem := range immutPGNs {
 		f := &elem.FieldList[0]
 		if f.Name != "" && f.Unit != "" && f.Name == "Manufacturer Code" {
 			var id int
 			fmt.Sscanf(f.Unit, "=%d")
-			f.Description = lookupFunctionPairForTyp["MANUFACTURER_CODE"](id)
+			var err error
+			f.Description, _, err = lookupFunctionPairForTyp["MANUFACTURER_CODE"](ana, id)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
@@ -46,38 +54,46 @@ const (
 type LookupInfo struct {
 	Name                   string
 	LookupType             LookupType
-	FunctionPair           func(val int) string
-	FunctionTriplet        func(val1, val2 int) string
-	FunctionPairReverse    func(resolved string) int
-	FunctionTripletReverse func(resolved string) (int, int)
+	FunctionPair           func(ana analyzerImplIfc, val int) (string, bool, error)
+	FunctionTriplet        func(ana analyzerImplIfc, val1, val2 int) (string, bool, error)
+	FunctionPairReverse    func(ana analyzerImplIfc, resolved string) (int, bool, error)
+	FunctionTripletReverse func(ana analyzerImplIfc, resolved string) (int, int, bool, error)
 	Val1Order              uint8 // Which field is the first field in a tripletEnumerator
 	Size                   int   // Used in analyzer only
 }
 
 var (
-	lookupFunctionPairForTyp             = map[string]func(val int) string{}
-	lookupFunctionTripletForTyp          = map[string]func(val1, val2 int) string{}
-	lookupFunctionFieldTypeForTyp        = map[string]func(ana *analyzerImpl, value int) (string, error){}
-	lookupFunctionPairReverseForTyp      = map[string]func(resolved string) int{}
-	lookupFunctionTripletReverseForTyp   = map[string]func(resolved string) (int, int){}
-	lookupFunctionFieldTypeReverseForTyp = map[string]func(ana *analyzerImpl, resolved string) (int, error){}
+	lookupFunctionPairForTyp             = map[string]func(ana analyzerImplIfc, val int) (string, bool, error){}
+	lookupFunctionTripletForTyp          = map[string]func(ana analyzerImplIfc, val1, val2 int) (string, bool, error){}
+	lookupFunctionFieldTypeForTyp        = map[string]func(ana analyzerImplIfc, value int) (string, bool, error){}
+	lookupFunctionPairReverseForTyp      = map[string]func(ana analyzerImplIfc, resolved string) (int, bool, error){}
+	lookupFunctionTripletReverseForTyp   = map[string]func(ana analyzerImplIfc, resolved string) (int, int, bool, error){}
+	lookupFunctionFieldTypeReverseForTyp = map[string]func(ana analyzerImplIfc, resolved string) (int, bool, error){}
 
 	lookupPairForTyp             = map[string]map[int]string{}
 	lookupTripletForTyp          = map[string]map[tripletPair]string{}
-	lookupFieldTypeForTyp        = map[string]map[int](func(ana *analyzerImpl) (string, error)){}
+	lookupFieldTypeForTyp        = map[string]map[int](func(ana analyzerImplIfc) (string, bool, error)){}
 	lookupPairReverseForTyp      = map[string]map[string]int{}
 	lookupTripletReverseForTyp   = map[string]map[string]tripletPair{}
-	lookupFieldTypeReverseForTyp = map[string]map[string](func(ana *analyzerImpl) (int, error)){}
+	lookupFieldTypeReverseForTyp = map[string]map[string](func(ana analyzerImplIfc) (int, bool, error)){}
 )
 
 func addLookupType(typ string, _ uint32) {
 	lookupPairForTyp[typ] = map[int]string{}
 	lookupPairReverseForTyp[typ] = map[string]int{}
-	lookupFunctionPairForTyp[typ] = func(val int) string {
-		return lookupPairForTyp[typ][val]
+	lookupFunctionPairForTyp[typ] = func(ana analyzerImplIfc, val int) (string, bool, error) {
+		str, ok := lookupPairForTyp[typ][val]
+		if !ok {
+			return "", false, nil
+		}
+		return str, true, nil
 	}
-	lookupFunctionPairReverseForTyp[typ] = func(resolved string) int {
-		return lookupPairReverseForTyp[typ][resolved]
+	lookupFunctionPairReverseForTyp[typ] = func(ana analyzerImplIfc, resolved string) (int, bool, error) {
+		val, ok := lookupPairReverseForTyp[typ][resolved]
+		if !ok {
+			return 0, false, nil
+		}
+		return val, true, nil
 	}
 }
 
@@ -94,12 +110,19 @@ type tripletPair struct {
 func addLookupTypeTriplet(typ string, _ uint32) {
 	lookupTripletForTyp[typ] = map[tripletPair]string{}
 	lookupTripletReverseForTyp[typ] = map[string]tripletPair{}
-	lookupFunctionTripletForTyp[typ] = func(val1, val2 int) string {
-		return lookupTripletForTyp[typ][tripletPair{val1, val2}]
+	lookupFunctionTripletForTyp[typ] = func(ana analyzerImplIfc, val1, val2 int) (string, bool, error) {
+		str, ok := lookupTripletForTyp[typ][tripletPair{val1, val2}]
+		if !ok {
+			return "", false, nil
+		}
+		return str, true, nil
 	}
-	lookupFunctionTripletReverseForTyp[typ] = func(resolved string) (int, int) {
-		pair := lookupTripletReverseForTyp[typ][resolved]
-		return pair.val1, pair.val2
+	lookupFunctionTripletReverseForTyp[typ] = func(ana analyzerImplIfc, resolved string) (int, int, bool, error) {
+		pair, ok := lookupTripletReverseForTyp[typ][resolved]
+		if !ok {
+			return 0, 0, false, nil
+		}
+		return pair.val1, pair.val2, true, nil
 	}
 }
 
@@ -112,11 +135,19 @@ func addLookupTriplet(typ string, val1, val2 int, desc string) {
 func addLookupTypeBitfield(typ string, _ uint32) {
 	lookupPairForTyp[typ] = map[int]string{}
 	lookupPairReverseForTyp[typ] = map[string]int{}
-	lookupFunctionPairForTyp[typ] = func(val int) string {
-		return lookupPairForTyp[typ][val]
+	lookupFunctionPairForTyp[typ] = func(ana analyzerImplIfc, val int) (string, bool, error) {
+		str, ok := lookupPairForTyp[typ][val]
+		if !ok {
+			return "", false, nil
+		}
+		return str, true, nil
 	}
-	lookupFunctionPairReverseForTyp[typ] = func(resolved string) int {
-		return lookupPairReverseForTyp[typ][resolved]
+	lookupFunctionPairReverseForTyp[typ] = func(ana analyzerImplIfc, resolved string) (int, bool, error) {
+		val, ok := lookupPairReverseForTyp[typ][resolved]
+		if !ok {
+			return 0, false, nil
+		}
+		return val, true, nil
 	}
 }
 
@@ -126,35 +157,45 @@ func addLookupBitfield(typ string, val int, desc string) {
 }
 
 func addLookupTypeFieldType(typ string, _ uint32) {
-	lookupFieldTypeForTyp[typ] = map[int](func(ana *analyzerImpl) (string, error)){}
-	lookupFieldTypeReverseForTyp[typ] = map[string](func(ana *analyzerImpl) (int, error)){}
-	lookupFunctionFieldTypeForTyp[typ] = func(ana *analyzerImpl, value int) (string, error) {
-		return lookupFieldTypeForTyp[typ][value](ana)
+	lookupFieldTypeForTyp[typ] = map[int](func(ana analyzerImplIfc) (string, bool, error)){}
+	lookupFieldTypeReverseForTyp[typ] = map[string](func(ana analyzerImplIfc) (int, bool, error)){}
+	lookupFunctionFieldTypeForTyp[typ] = func(ana analyzerImplIfc, value int) (string, bool, error) {
+		f, ok := lookupFieldTypeForTyp[typ][value]
+		if !ok {
+			return "", false, nil
+		}
+		return f(ana)
 	}
-	lookupFunctionFieldTypeReverseForTyp[typ] = func(ana *analyzerImpl, resolved string) (int, error) {
-		return lookupFieldTypeReverseForTyp[typ][resolved](ana)
+	lookupFunctionFieldTypeReverseForTyp[typ] = func(ana analyzerImplIfc, resolved string) (int, bool, error) {
+		f, ok := lookupFieldTypeReverseForTyp[typ][resolved]
+		if !ok {
+			return 0, false, nil
+		}
+		return f(ana)
 	}
 }
 
 func addLookupFieldType(fType string, n int, str, ft string) {
 	var f PGNField
-	lookupFieldTypeForTyp[fType][n] = func(ana *analyzerImpl) (string, error) {
+	lookupFieldTypeForTyp[fType][n] = func(ana analyzerImplIfc) (string, bool, error) {
 		if f.Name == "" {
-			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
-				return "", err
+			if err := ana.(*analyzerImpl).fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
+				return "", false, err
 			}
 		}
-		ana.state.FTF = &f
-		return str, nil
+		// this tells us later what field to use for lookup on a key/value
+		ana.State().FTF = &f
+		return str, true, nil
 	}
-	lookupFieldTypeReverseForTyp[fType][str] = func(ana *analyzerImpl) (int, error) {
+	lookupFieldTypeReverseForTyp[fType][str] = func(ana analyzerImplIfc) (int, bool, error) {
 		if f.Name == "" {
-			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
-				return 0, err
+			if err := ana.(*analyzerImpl).fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
+				return 0, false, err
 			}
 		}
-		ana.state.FTF = &f
-		return n, nil
+		// this tells us later what field to use for lookup on a key/value
+		ana.State().FTF = &f
+		return n, false, nil
 	}
 }
 
@@ -169,7 +210,7 @@ func addLookupFieldTypeLookup(
 	ln string,
 ) {
 	var f PGNField
-	lookupFieldTypeForTyp[fType][n] = func(ana *analyzerImpl) (string, error) {
+	lookupFieldTypeForTyp[fType][n] = func(ana analyzerImplIfc) (string, bool, error) {
 		if f.Name == "" {
 			f.Lookup.Name = ln
 			f.Size = uint32(numBits)
@@ -184,16 +225,17 @@ func addLookupFieldTypeLookup(
 				f.Lookup.FunctionTripletReverse = lookupFunctionTripletReverseForTyp[ln]
 			case LookupTypeNone:
 			default:
-				return "", fmt.Errorf("unknown LookupType %v", lt)
+				return "", false, fmt.Errorf("unknown LookupType %v", lt)
 			}
-			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
-				return "", err
+			if err := ana.(*analyzerImpl).fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
+				return "", false, err
 			}
 		}
-		ana.state.FTF = &f
-		return str, nil
+		// this tells us later what field to use for lookup on a key/value
+		ana.State().FTF = &f
+		return str, true, nil
 	}
-	lookupFieldTypeReverseForTyp[fType][str] = func(ana *analyzerImpl) (int, error) {
+	lookupFieldTypeReverseForTyp[fType][str] = func(ana analyzerImplIfc) (int, bool, error) {
 		if f.Name == "" {
 			f.Lookup.Name = ln
 			f.Size = uint32(numBits)
@@ -208,14 +250,15 @@ func addLookupFieldTypeLookup(
 				f.Lookup.FunctionTripletReverse = lookupFunctionTripletReverseForTyp[ln]
 			case LookupTypeNone:
 			default:
-				return 0, fmt.Errorf("unknown LookupType %v", lt)
+				return 0, false, fmt.Errorf("unknown LookupType %v", lt)
 			}
-			if err := ana.fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
-				return 0, err
+			if err := ana.(*analyzerImpl).fillFieldTypeLookupField(&f, fType, n, str, ft); err != nil {
+				return 0, false, err
 			}
 		}
-		ana.state.FTF = &f
-		return n, nil
+		// this tells us later what field to use for lookup on a key/value
+		ana.State().FTF = &f
+		return n, true, nil
 	}
 }
 
@@ -1845,7 +1888,6 @@ func initLookupTypes() {
 	addLookupType("SIMNET_COMMAND", 8*1)
 	addLookup("SIMNET_COMMAND", 50, "Text")
 
-	// Note(UNTESTED): See README.md
 	addLookupTypeFieldType("SIMNET_KEY_VALUE", 8*2)
 	addLookupFieldType("SIMNET_KEY_VALUE", 0, "Heading Offset", "ANGLE_FIX16")
 	addLookupFieldType("SIMNET_KEY_VALUE", 41, "Timezone offset", "TIME_FIX16_MIN")
@@ -2156,7 +2198,6 @@ func initLookupTypes() {
 	addLookup("DEVICE_TEMP_STATE", 1, "Warm")
 	addLookup("DEVICE_TEMP_STATE", 2, "Hot")
 
-	// Note(UNTESTED): See README.md
 	addLookupTypeFieldType("BANDG_KEY_VALUE", 12)
 	addLookupFieldType("BANDG_KEY_VALUE", 0x00, "Altitude", "FIX16")
 	addLookupFieldType("BANDG_KEY_VALUE", 0x0b, "Rudder Angle", "ANGLE_FIX16")
