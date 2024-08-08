@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/erh/gonmea/analyzer"
+	"github.com/erh/gonmea/common"
 )
 
 func main() {
@@ -80,32 +82,66 @@ func processData(in io.ReadCloser) error {
 			if err != nil {
 				return err
 			}
-			rtMsg, err := analyzer.ConvertRawMessage(rawMsg)
+			rtMsg, ok, err := analyzer.ConvertRawMessage(rawMsg)
 			if err != nil {
 				return err
 			}
-
-			if !reflect.DeepEqual(msg.Fields, rtMsg.Fields) {
-				fmt.Fprintln(os.Stderr, "(BYTES NEED NOT BE EXACTLY EQUAL)")
-				fmt.Fprintf(os.Stderr, "WANTED % 0b\n", msg.CachedRawData)
-				fmt.Fprintf(os.Stderr, "GOT    % 0b\n", rawMsg.Data)
-				{
-					rtMsg, err := analyzer.ConvertRawMessage(rawMsg)
-					if err == nil {
-						if possibleMd, err := json.MarshalIndent(rtMsg, "", "  "); err == nil {
-							fmt.Fprintf(os.Stderr, "And it would have looked like: %s\n", string(possibleMd))
-						}
-					}
-				}
-				return errors.New("bad round trip")
+			if !ok {
+				return errors.New("insufficient data in a single message")
 			}
 
-			fmt.Fprintln(os.Stdout, "rawMsg", rawMsg)
+			checkEqual := func(roundTripped *common.Message) error {
+				if !reflect.DeepEqual(msg.Fields, roundTripped.Fields) {
+					fmt.Fprintln(os.Stderr, "(BYTES NEED NOT BE EXACTLY EQUAL)")
+					fmt.Fprintf(os.Stderr, "WANTED % 0b\n", msg.CachedRawData)
+					fmt.Fprintf(os.Stderr, "GOT    % 0b\n", rawMsg.Data)
+					{
+						roundTripped, ok, err := analyzer.ConvertRawMessage(rawMsg)
+						if !ok {
+							return errors.New("insufficient data in a single message")
+						}
+						if err == nil {
+							if possibleMd, err := json.MarshalIndent(roundTripped, "", "  "); err == nil {
+								fmt.Fprintf(os.Stderr, "And it would have looked like: %s\n", string(possibleMd))
+							}
+						}
+					}
+					return errors.New("bad round trip")
+				}
+				return nil
+			}
+			if err := checkEqual(rtMsg); err != nil {
+				return nil
+			}
+
 			md, err := json.MarshalIndent(rtMsg, "", "  ")
 			if err != nil {
 				return err
 			}
 			fmt.Fprintln(os.Stdout, "rtMsg", string(md))
+
+			md, err = analyzer.MarshalMessage(msg)
+			if err != nil {
+				return err
+			}
+
+			reader, err := analyzer.NewMessageReader(bytes.NewReader(md))
+			if err != nil {
+				return err
+			}
+			rtMsg2, err := reader.Read()
+			if err != nil {
+				return err
+			}
+			if err := checkEqual(rtMsg2); err != nil {
+				return nil
+			}
+
+			md, err = json.MarshalIndent(rtMsg2, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(os.Stdout, "rtMsg2", string(md))
 		}
 	}
 }

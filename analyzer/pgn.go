@@ -160,11 +160,11 @@ func lookupFieldtypeField(nam string, dataLen uint32, typ string) PGNField {
 		HasSign:    false,
 		Lookup: LookupInfo{
 			LookupType:          LookupTypeFieldType,
-			FunctionPair:        lookupFunctionPairForTyp[typ],
-			FunctionPairReverse: lookupFunctionPairReverseForTyp[typ],
+			FunctionPair:        lookupFunctionFieldTypeForTyp[typ],
+			FunctionPairReverse: lookupFunctionFieldTypeReverseForTyp[typ],
 			Name:                typ,
 		},
-		FieldType: "FieldType_LOOKUP",
+		FieldType: "FIELDTYPE_LOOKUP",
 	}
 }
 
@@ -1380,7 +1380,7 @@ func varLenFieldListToFixed(list []PGNField) [33]PGNField {
  * If all else fails, return an 'Fallback' match-all PGN that
  * matches the fast/single frame, PDU1/PDU2 and Proprietary/generic range.
  */
-func GetMatchingPgnWithFields(pgnID uint32, fields map[string]interface{}, logger logging.Logger) (*PGNInfo, error) {
+func (ana *analyzerImpl) GetMatchingPgnWithFields(pgnID uint32, fields map[string]interface{}, logger logging.Logger) (*PGNInfo, error) {
 	pgn, pgnIdx := SearchForPgn(pgnID)
 
 	if pgn == nil {
@@ -1423,9 +1423,20 @@ func GetMatchingPgnWithFields(pgnID uint32, fields map[string]interface{}, logge
 				//nolint:errcheck
 				desiredValue, _ := strconv.ParseInt(field.Unit[1:], 10, 64)
 
+				var inverseValue int
+				if isValueStr && hasFieldValue && field.Lookup.FunctionPairReverse != nil {
+					var err error
+					var ok bool
+					inverseValue, ok, err = field.Lookup.FunctionPairReverse(ana, valueStr)
+					if err != nil {
+						return nil, err
+					}
+					if !ok {
+						inverseValue = 0
+					}
+				}
 				if !isValueStr || !hasFieldValue ||
-					field.Lookup.FunctionPairReverse == nil ||
-					field.Lookup.FunctionPairReverse(valueStr) != int(desiredValue) {
+					field.Lookup.FunctionPairReverse == nil || inverseValue != int(desiredValue) {
 					logger.Debugf("GetMatchingPgnWithFields: PGN %d field '%s' value %d does not match %d",
 						prn,
 						field.Name,

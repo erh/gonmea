@@ -105,6 +105,48 @@ func parseTimestamp(from string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("error parsing time '%s': %w; %w; %w", from, err1, err2, err3)
 }
 
+func DataLengthInPlainOrFast(msg []byte, logger logging.Logger) (int, bool) {
+	var prio, src, dst, dataLen uint8
+	var pgn uint32
+	var junk, r int
+
+	pIdx := findOccurrence(msg, ',', 1)
+	if pIdx == -1 {
+		return 0, false
+	}
+	pIdx-- // Back to comma
+
+	_, err := parseTimestamp(string(msg[:pIdx]))
+	if err != nil {
+		logger.Error("%s", err)
+		return 0, false
+	}
+
+	r, _ = fmt.Sscanf(string(msg[pIdx:]),
+		",%d,%d,%d,%d,%d"+
+			",%x,%x,%x,%x,%x,%x,%x,%x,%x",
+		&prio,
+		&pgn,
+		&src,
+		&dst,
+		&dataLen,
+		&junk,
+		&junk,
+		&junk,
+		&junk,
+		&junk,
+		&junk,
+		&junk,
+		&junk,
+		&junk)
+	if r < 5 {
+		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
+		return 0, false
+	}
+
+	return int(dataLen), true
+}
+
 // ParseRawFormatPlain parses PLAIN messages.
 func ParseRawFormatPlain(msg []byte, m *RawMessage, logger logging.Logger) int {
 	var prio, src, dst, dataLen uint8
@@ -247,7 +289,6 @@ func scanHex(p []byte, m *byte) (int, bool) {
 		return 0, false
 	}
 	*m = hi<<4 | lo
-	/* printf("(b=%02X,p=%p) ", *m, *p); */
 	return 2, true
 }
 

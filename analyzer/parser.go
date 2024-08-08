@@ -12,19 +12,16 @@ import (
 // Simple helpers
 
 // newOneOffAnalyzer returns a new analyzer ready to use for single use.
-func newOneOffAnalyzer() (Analyzer, error) {
+func newOneOffAnalyzer() (*analyzerImpl, error) {
 	return newOneOffAnalyzerWithFormat(RawFormatUnknown)
 }
 
 // newOneOffAnalyzerWithFormat returns a new analyzer for single use
 // that is expecting to read messages of the given format.
-func newOneOffAnalyzerWithFormat(format RawFormat) (Analyzer, error) {
+func newOneOffAnalyzerWithFormat(format RawFormat) (*analyzerImpl, error) {
 	conf := NewConfig(common.NewLogger(io.Discard))
 	conf.DesiredFormat = format
-	if conf.DesiredFormat != RawFormatPlain && conf.DesiredFormat != RawFormatPlainOrFast {
-		conf.MultiPacketsHint = MultiPacketsCoalesced
-	}
-	ana, err := NewAnalyzer(conf)
+	ana, err := newAnalyzer(conf)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +48,7 @@ func ParseMessage(msgData []byte) (*common.Message, RawFormat, error) {
 	if !hasMsg {
 		return nil, RawFormatUnknown, errExpectedOneMessage
 	}
-	return msg, ana.(analyzerStater).State().SelectedFormat, nil
+	return msg, ana.State().SelectedFormat, nil
 }
 
 // ParseRawMessage parses the given data into a raw message. It will attempt
@@ -68,7 +65,7 @@ func ParseRawMessage(msgData []byte) (*common.RawMessage, RawFormat, error) {
 	if !hasMsg {
 		return nil, RawFormatUnknown, errExpectedOneMessage
 	}
-	return msg, ana.(analyzerStater).State().SelectedFormat, nil
+	return msg, ana.State().SelectedFormat, nil
 }
 
 // ParseMessageWithFormat parses the given data into a message in the provided format.
@@ -77,7 +74,7 @@ func ParseMessageWithFormat(msgData []byte, format RawFormat) (*common.Message, 
 	if err != nil {
 		return nil, err
 	}
-	ana.(analyzerStater).State().SelectedFormat = format
+	ana.State().SelectedFormat = format
 	msg, hasMsg, err := ana.ProcessMessage(msgData)
 	if err != nil {
 		return nil, err
@@ -94,7 +91,7 @@ func ParseRawMessageWithFormat(msgData []byte, format RawFormat) (*common.RawMes
 	if err != nil {
 		return nil, err
 	}
-	ana.(analyzerStater).State().SelectedFormat = format
+	ana.State().SelectedFormat = format
 	msg, hasMsg, err := ana.ProcessRawMessage(msgData)
 	if err != nil {
 		return nil, err
@@ -105,12 +102,16 @@ func ParseRawMessageWithFormat(msgData []byte, format RawFormat) (*common.RawMes
 	return msg, nil
 }
 
-func ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+// ConvertRawMessage attemps to convert a raw message into a decode message. If it
+// fails an error will be returned. If the data is insufficient, a false bool will
+// be returned.
+func ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
 	ana, err := newOneOffAnalyzer()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	ana.(analyzerStater).State().MultiPackets = MultiPacketsCoalesced
+	// this is an optimistic assumption
+	ana.State().MultiPackets = common.MultiPacketsCoalesced
 	return ana.ConvertRawMessage(rawMsg)
 }
 

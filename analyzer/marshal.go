@@ -13,21 +13,82 @@ import (
 // Derived from https://github.com/canboat/canboat (Apache License, Version 2.0)
 // (C) 2009-2023, Kees Verruijt, Harlingen, The Netherlands.
 
+// MarshalMessage marshals to the PLAIN or FAST format as separate packets based on
+// whatever fits bests or is required by the PGN.
+// For a more specific format or multi packet scheme, use MarshalMessageToFormat.
+func MarshalMessage(msg *common.Message) ([]byte, error) {
+	return MarshalMessageToFormat(msg, RawFormatPlainOrFast, common.MultiPacketsSeparate)
+}
+
+// MarshalMessageToFormat marshals the given message into a series of raw bytes
+// encoded in the given format.
+func MarshalMessageToFormat(msg *common.Message, format RawFormat, multi common.MultiPackets) ([]byte, error) {
+	rawMsg, pgn, err := marshalMessageToRaw(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if multi == common.MultiPacketsSeparate {
+		if pgn.PacketType == PacketTypeFast && format == RawFormatPlain {
+			// not doing this breaks a detection heuristic
+			return nil, fmt.Errorf("data will be too large for a single packet, use %s instead", RawFormatPlainOrFast)
+		}
+
+		if pgn.PacketType == PacketTypeSingle &&
+			format == RawFormatFast &&
+			len(rawMsg.Data) <= 8 {
+			// not doing this breaks a detection heuristic
+			return nil, fmt.Errorf(
+				"data (len=%d) smaller than or equal to 8 bytes, use %s instead; otherwise data may be dropped",
+				len(rawMsg.Data), RawFormatPlainOrFast)
+		}
+	}
+
+	var marshaler func(rawMsg *common.RawMessage, multi common.MultiPackets) ([]byte, error)
+	switch format {
+	case RawFormatPlain:
+		marshaler = common.MarshalRawMessageToPlainFormat
+	case RawFormatFast:
+		marshaler = common.MarshalRawMessageToFastFormat
+	case RawFormatPlainOrFast:
+		if pgn.PacketType == PacketTypeFast {
+			marshaler = common.MarshalRawMessageToFastFormat
+		} else {
+			if multi == common.MultiPacketsCoalesced {
+				marshaler = common.MarshalRawMessageToPlainFormat
+			} else if len(rawMsg.Data) > 8 {
+				marshaler = common.MarshalRawMessageToFastFormat
+			} else {
+				marshaler = common.MarshalRawMessageToPlainFormat
+			}
+		}
+	default:
+		return nil, fmt.Errorf("format '%s' not yet supported", format)
+	}
+
+	return marshaler(rawMsg, multi)
+}
+
 // MarshalMessageToRaw marshals the given message into a raw message. This message is
 // then suitable to be further marshaled into a PGN format.
 func MarshalMessageToRaw(msg *common.Message) (*common.RawMessage, error) {
+	data, _, err := marshalMessageToRaw(msg)
+	return data, err
+}
+
+func marshalMessageToRaw(msg *common.Message) (*common.RawMessage, *PGNInfo, error) {
 	ana, err := newOneOffAnalyzer()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	data, err := ana.(*analyzerImpl).marshalPGN(msg)
+	data, pgn, err := ana.marshalPGN(msg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(data) > math.MaxUint8 {
-		return nil, errors.New("marshaled data too long")
+		return nil, nil, errors.New("marshaled data too long")
 	}
 
 	return &common.RawMessage{
@@ -38,7 +99,7 @@ func MarshalMessageToRaw(msg *common.Message) (*common.RawMessage, error) {
 		Src:       uint8(msg.Src),
 		Len:       uint8(len(data)),
 		Data:      data,
-	}, nil
+	}, pgn, nil
 }
 
 type bitWriter struct {
@@ -103,16 +164,16 @@ func (bw *bitWriter) length() int {
 	return len(bw.data)*8 + bw.dirtyBitPos
 }
 
-func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, error) {
+func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, *PGNInfo, error) {
 	if msg == nil {
-		return nil, errors.New("expected message")
+		return nil, nil, errors.New("expected message")
 	}
-	pgn, err := GetMatchingPgnWithFields(uint32(msg.PGN), msg.Fields, ana.Logger)
+	pgn, err := ana.GetMatchingPgnWithFields(uint32(msg.PGN), msg.Fields, ana.Logger)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if pgn == nil {
-		return nil, fmt.Errorf("no PGN definition found for PGN %d", msg.PGN)
+		return nil, nil, fmt.Errorf("no PGN definition found for PGN %d", msg.PGN)
 	}
 
 	ana.Logger.Debugf("FieldCount=%d RepeatingStart1=%d", pgn.FieldCount, pgn.RepeatingStart1)
@@ -138,7 +199,7 @@ func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, error) {
 			if list, ok := msg.Fields[repeatingListName]; ok {
 				fieldList, ok = list.([]interface{})
 				if !ok {
-					return nil, fmt.Errorf("field list is invalid %v", msg.Fields[repeatingListName])
+					return nil, nil, fmt.Errorf("field list is invalid %v", msg.Fields[repeatingListName])
 				}
 			}
 			variableFields = int64(pgn.RepeatingCount1) * int64(len(fieldList))
@@ -152,7 +213,7 @@ func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, error) {
 			if list, ok := msg.Fields[repeatingListName]; ok {
 				fieldList, ok = list.([]interface{})
 				if !ok {
-					return nil, fmt.Errorf("field list is invalid %v", msg.Fields[repeatingListName])
+					return nil, nil, fmt.Errorf("field list is invalid %v", msg.Fields[repeatingListName])
 				}
 			}
 			variableFields = int64(pgn.RepeatingCount2) * int64(len(fieldList))
@@ -186,11 +247,11 @@ func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, error) {
 			}
 			listIdx := repetition - 1
 			if listIdx >= len(fieldList) {
-				return nil, fmt.Errorf("field list is too small %v", fieldList)
+				return nil, nil, fmt.Errorf("field list is too small %v", fieldList)
 			}
 			fieldObj, ok := fieldList[listIdx].(map[string]interface{})
 			if !ok {
-				return nil, fmt.Errorf("field list value is invalid %v", fieldList[listIdx])
+				return nil, nil, fmt.Errorf("field list value is invalid %v", fieldList[listIdx])
 			}
 
 			fieldValue = fieldObj[field.Name]
@@ -211,11 +272,11 @@ func (ana *analyzerImpl) marshalPGN(msg *common.Message) ([]byte, error) {
 		}
 
 		if err := ana.marshalField(field, fieldValue, numBits, writer); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	writer.flush()
-	return writer.data, nil
+	return writer.data, pgn, nil
 }
 
 func (ana *analyzerImpl) marshalField(
@@ -337,10 +398,18 @@ func marshalFieldLookup(
 
 		var ret int
 		if field.Lookup.LookupType != LookupTypeNone {
+			var ok bool
+			var err error
 			if field.Lookup.LookupType == LookupTypePair || field.Lookup.LookupType == LookupTypeFieldType {
-				ret = field.Lookup.FunctionPairReverse(valueStr)
+				ret, ok, err = field.Lookup.FunctionPairReverse(ana, valueStr)
 			} else if field.Lookup.LookupType == LookupTypeTriplet {
-				_, ret = field.Lookup.FunctionTripletReverse(valueStr)
+				_, ret, ok, err = field.Lookup.FunctionTripletReverse(ana, valueStr)
+			}
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("lookup field type information missing for field %s", field.Name)
 			}
 			// BIT is handled in marshalFieldBitLookup
 		}

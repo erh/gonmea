@@ -54,7 +54,7 @@ type Analyzer interface {
 	// a false will be returned indicating this should be called again.
 	ProcessRawMessage(msgData []byte) (*common.RawMessage, bool, error)
 
-	ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error)
+	ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error)
 }
 
 type analyzerImpl struct {
@@ -86,7 +86,7 @@ var _ = analyzerImplIfc(&analyzerImpl{})
 
 type AnalyzerState struct {
 	SelectedFormat RawFormat
-	MultiPackets   MultiPackets
+	MultiPackets   common.MultiPackets
 
 	VariableFieldRepeat [2]int64
 	RefPgn              int64 // Remember this over the entire set of fields
@@ -98,8 +98,7 @@ type AnalyzerState struct {
 	ReassemblyBuffer [ReassemblyBufferSize]Packet
 }
 
-// NewAnalyzer returns a new analyzer using the given config.
-func NewAnalyzer(conf *Config) (Analyzer, error) {
+func newAnalyzer(conf *Config) (*analyzerImpl, error) {
 	ana := &analyzerImpl{
 		Config: *conf,
 		state: AnalyzerState{
@@ -111,10 +110,15 @@ func NewAnalyzer(conf *Config) (Analyzer, error) {
 	return ana, nil
 }
 
+// NewAnalyzer returns a new analyzer using the given config.
+func NewAnalyzer(conf *Config) (Analyzer, error) {
+	return newAnalyzer(conf)
+}
+
 // Config is used to configure an Analyzer.
 type Config struct {
 	DesiredFormat    RawFormat
-	MultiPacketsHint MultiPackets
+	MultiPacketsHint common.MultiPackets
 	Logger           logging.Logger
 }
 
@@ -122,7 +126,7 @@ type Config struct {
 func NewConfig(logger logging.Logger) *Config {
 	return &Config{
 		DesiredFormat:    RawFormatUnknown,
-		MultiPacketsHint: MultiPacketsSeparate,
+		MultiPacketsHint: common.MultiPacketsSeparate,
 		Logger:           logger,
 	}
 }
@@ -226,30 +230,42 @@ func (ana *analyzerImpl) ProcessRawMessage(msgData []byte) (*common.RawMessage, 
 	var r int
 	switch ana.state.SelectedFormat {
 	case RawFormatPlainOrFast:
-		ana.state.MultiPackets = MultiPacketsSeparate
-		r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
-		ana.Logger.Debug("plain_or_fast: plain r=%d\n", r)
-		if r < 0 {
-			ana.state.MultiPackets = MultiPacketsCoalesced
+		numBytes, ok := common.DataLengthInPlainOrFast(msgData, ana.Logger)
+		if !ok {
+			r = -1
+			break
+		}
+		if numBytes <= 8 {
+			r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
+			ana.Logger.Debugf("plain_or_fast: plain r=%d\n", r)
+		} else {
 			r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
-			ana.Logger.Debug("plain_or_fast: fast r=%d\n", r)
+			ana.Logger.Debugf("plain_or_fast: fast r=%d\n", r)
+			if r >= 0 {
+				ana.state.MultiPackets = common.MultiPacketsCoalesced
+				ana.state.SelectedFormat = RawFormatFast
+			}
+		}
+
+	case RawFormatPlainMixFast:
+		numBytes, ok := common.DataLengthInPlainOrFast(msgData, ana.Logger)
+		if !ok {
+			r = -1
+			break
+		}
+		if numBytes <= 8 {
+			r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
+			ana.Logger.Debugf("plain_mix_fast: plain r=%d\n", r)
+		} else {
+			r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
+			ana.Logger.Debugf("plain_mix_fast: fast r=%d\n", r)
 		}
 
 	case RawFormatPlain:
 		r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
-		if r >= 0 {
-			break
-		}
-		// Else fall through to fast!
-		fallthrough
 
 	case RawFormatFast:
 		r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
-		if r >= 0 && ana.state.SelectedFormat == RawFormatPlain {
-			ana.Logger.Info("Detected normal format with all frames on one line\n")
-			ana.state.MultiPackets = MultiPacketsCoalesced
-			ana.state.SelectedFormat = RawFormatFast
-		}
 
 	case RawFormatAirmar:
 		r = common.ParseRawFormatAirmar(msgData, &msg, ana.Logger)
@@ -292,6 +308,7 @@ const (
 	RawFormatPlain             RawFormat = "PLAIN"
 	RawFormatFast              RawFormat = "FAST"
 	RawFormatPlainOrFast       RawFormat = "PLAIN_OR_FAST"
+	RawFormatPlainMixFast      RawFormat = "PLAIN_MIX_FAST"
 	RawFormatAirmar            RawFormat = "AIRMAR"
 	RawFormatChetco            RawFormat = "CHETCO"
 	RawFormatGarminCSV1        RawFormat = "GARMIN_CSV1"
@@ -307,6 +324,7 @@ var RawFormats = []RawFormat{
 	RawFormatPlain,
 	RawFormatFast,
 	RawFormatPlainOrFast,
+	RawFormatPlainMixFast,
 	RawFormatAirmar,
 	RawFormatChetco,
 	RawFormatGarminCSV1,
@@ -315,13 +333,6 @@ var RawFormats = []RawFormat{
 	RawFormatNavLink2,
 	RawFormatActisenseN2KASCII,
 }
-
-type MultiPackets byte
-
-const (
-	MultiPacketsCoalesced MultiPackets = iota
-	MultiPacketsSeparate
-)
 
 type Packet struct {
 	Size      int
@@ -352,13 +363,13 @@ func (ana *analyzerImpl) showBuffers() {
 func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
 	if msg[0] == '$' && msg == "$PCDIN" {
 		ana.Logger.Info("Detected Chetco protocol with all data on one line")
-		ana.state.MultiPackets = MultiPacketsCoalesced
+		ana.state.MultiPackets = common.MultiPacketsCoalesced
 		return RawFormatChetco
 	}
 
 	if msg == "Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority,Single Frame,Size,packet\n" {
 		ana.Logger.Info("Detected Garmin CSV protocol with relative timestamps")
-		ana.state.MultiPackets = MultiPacketsCoalesced
+		ana.state.MultiPackets = common.MultiPacketsCoalesced
 		return RawFormatGarminCSV1
 	}
 
@@ -366,14 +377,14 @@ func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
 		"Sequence #,Month_Day_Year_Hours_Minutes_Seconds_msTicks,PGN,Processed PGN,Name,Manufacturer,Remote Address,Local "+
 			"Address,Priority,Single Frame,Size,packet\n" {
 		ana.Logger.Info("Detected Garmin CSV protocol with absolute timestamps")
-		ana.state.MultiPackets = MultiPacketsCoalesced
+		ana.state.MultiPackets = common.MultiPacketsCoalesced
 		return RawFormatGarminCSV2
 	}
 
 	p := strings.Index(msg, " ")
 	if p != -1 && (msg[p+1] == '-' || msg[p+2] == '-') {
 		ana.Logger.Info("Detected Airmar protocol with all data on one line")
-		ana.state.MultiPackets = MultiPacketsCoalesced
+		ana.state.MultiPackets = common.MultiPacketsCoalesced
 		return RawFormatAirmar
 	}
 
@@ -383,7 +394,7 @@ func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
 		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
 		if r == 6 && (e == 'R' || e == 'T') {
 			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame")
-			ana.state.MultiPackets = MultiPacketsSeparate
+			ana.state.MultiPackets = common.MultiPacketsSeparate
 			return RawFormatYDWG02
 		}
 	}
@@ -395,7 +406,7 @@ func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
 		r, _ := fmt.Sscanf(msg, "!PDGY,%d,%d,%d,%d,%f,%s ", &a, &b, &c, &d, &e, &f)
 		if r == 6 {
 			ana.Logger.Info("Detected Digital Yacht NavLink2 protocol with one line per frame")
-			ana.state.MultiPackets = MultiPacketsCoalesced
+			ana.state.MultiPackets = common.MultiPacketsCoalesced
 			return RawFormatNavLink2
 		}
 	}
@@ -406,40 +417,20 @@ func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
 		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
 		if r1 == 4 || r2 == 3 {
 			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line")
-			ana.state.MultiPackets = MultiPacketsCoalesced
+			ana.state.MultiPackets = common.MultiPacketsCoalesced
 			return RawFormatActisenseN2KASCII
 		}
 	}
 
-	p = strings.Index(msg, ",")
-	if p != -1 {
-		// NOTE(erd): this is a hacky af departure from the c code where it
-		// can somehow use sscanf to count the number of hexes with
-		// sscanf(p, ",%*u,%*u,%*u,%*u,%d,%*x,%*x,%*x,%*x,%*x,%*x,%*x,%*x,%*x", &len);
-		var a, b, c, d, e int
-		var hexes [9]hexScanner
-		r, _ := fmt.Sscanf(
-			msg[p:],
-			",%d,%d,%d,%d,%d,%x,%x,%x,%x,%x,%x,%x,%x,%x",
-			&a, &b, &c, &d, &e, &hexes[0], &hexes[1], &hexes[2], &hexes[3], &hexes[4], &hexes[5], &hexes[6], &hexes[7], &hexes[8],
-		)
-		if r < 1 {
-			return RawFormatUnknown
-		}
-		var countHex int
-		for _, h := range hexes {
-			if h.isSet {
-				countHex++
-			}
-		}
-		if countHex > 8 {
-			ana.Logger.Info("Detected normal format with all frames on one line")
-			ana.state.MultiPackets = MultiPacketsCoalesced
+	numBytes, ok := common.DataLengthInPlainOrFast([]byte(msg), ana.Logger)
+	if ok && numBytes > 0 {
+		if numBytes > 8 {
+			ana.Logger.Info("Detected FAST format with all frames on one line")
+			ana.state.MultiPackets = common.MultiPacketsCoalesced
 			return RawFormatFast
 		}
-		ana.Logger.Info("Assuming normal format with one line per frame")
-		ana.state.MultiPackets = MultiPacketsSeparate
-		return RawFormatPlain
+		ana.Logger.Info("Assuming PLAIN_OR_FAST format with one line per frame or one line per message\n")
+		return RawFormatPlainOrFast
 	}
 
 	return RawFormatUnknown
@@ -458,15 +449,15 @@ func (h *hexScanner) Scan(state fmt.ScanState, _ rune) error {
 	return err
 }
 
-func (ana *analyzerImpl) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, error) {
+func (ana *analyzerImpl) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
 	msg, hasMsg, err := ana.convertRawMessage(rawMsg)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !hasMsg {
-		return nil, nil
+		return nil, false, nil
 	}
-	return msg, nil
+	return msg, true, nil
 }
 
 func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
@@ -475,7 +466,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 	}
 
 	pgn, _ := SearchForPgn(rawMsg.PGN)
-	if ana.state.MultiPackets == MultiPacketsSeparate && pgn == nil {
+	if ana.state.MultiPackets == common.MultiPacketsSeparate && pgn == nil {
 		var err error
 		pgn, err = SearchForUnknownPgn(rawMsg.PGN, ana.Logger)
 		if err != nil {
@@ -483,7 +474,10 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 		}
 	}
 
-	if ana.state.MultiPackets == MultiPacketsCoalesced || pgn == nil || pgn.PacketType != PacketTypeFast {
+	if ana.state.MultiPackets == common.MultiPacketsCoalesced ||
+		pgn == nil ||
+		pgn.PacketType != PacketTypeFast ||
+		len(rawMsg.Data) > 8 {
 		// No reassembly needed
 		if len(rawMsg.Data) < int(rawMsg.Len) {
 			return nil, false, fmt.Errorf("raw messsage data shorter than expected length %d", rawMsg.Len)
@@ -551,6 +545,9 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 			p.AllFrames = (1 << (1 + (p.Size / 7))) - 1
 		}
 
+		if len(rawMsg.Data[msgIdx:]) < frameLen {
+			return nil, false, fmt.Errorf("frame (len=%d) smaller than expected (len=%d)", len(rawMsg.Data[msgIdx:]), frameLen)
+		}
 		copy(p.Data[idx:], rawMsg.Data[msgIdx:msgIdx+frameLen])
 		p.Frames |= 1 << frame
 

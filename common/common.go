@@ -39,6 +39,24 @@ const (
 	FastPacketMaxSize       = FastPacketBucket0Size + FastPacketBucketNSize*FastPacketMaxIndex
 )
 
+type MultiPackets byte
+
+const (
+	MultiPacketsSeparate MultiPackets = iota
+	MultiPacketsCoalesced
+)
+
+func (multi MultiPackets) String() string {
+	switch multi {
+	case MultiPacketsCoalesced:
+		return "coalesced"
+	case MultiPacketsSeparate:
+		return "separate"
+	default:
+		return "<unknown>"
+	}
+}
+
 /*
  * The 'converter' programs generate fake PGNs containing data that they generate
  * themselves or via proprietary non-PGN serial messages.
