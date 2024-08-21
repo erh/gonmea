@@ -7,6 +7,8 @@ import (
 
 	"go.viam.com/test"
 
+	"go.viam.com/rdk/logging"
+
 	"github.com/erh/gonmea/common"
 )
 
@@ -66,4 +68,16 @@ func TestParser(t *testing.T) {
 		test.That(t, err, test.ShouldNotBeNil)
 		test.That(t, errors.Is(err, errExpectedOneMessage), test.ShouldBeTrue)
 	})
+}
+
+func TestDYParse(t *testing.T) {
+
+	logger := logging.NewTestLogger(t)
+	parser, err := NewAnalyzer(NewConfig(logger))
+	test.That(t, err, test.ShouldBeNil)
+
+	msg, finished, err := parser.ProcessMessage([]byte("$PDGY,000000,0,0,2,28830,0,0"))
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, finished, test.ShouldBeTrue)
+	test.That(t, msg, test.ShouldBeNil)
 }

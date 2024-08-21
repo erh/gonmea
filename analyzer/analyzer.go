@@ -144,6 +144,9 @@ func (ana *analyzerImpl) ProcessMessage(msgData []byte) (*common.Message, bool, 
 	if !hasMsg {
 		return nil, false, nil
 	}
+	if rawMsg == nil {
+		return nil, true, err
+	}
 	converted, hasMsg, err := ana.convertRawMessage(rawMsg)
 	if err != nil {
 		return nil, false, err
@@ -216,14 +219,14 @@ func (ana *analyzerImpl) ProcessRawMessage(msgData []byte) (*common.RawMessage, 
 	if msgData[0] == '$' && len(msgData) > 12 && string(msgData[1:12]) == "PDGY,000000" {
 		// digital yacht special $PDGY,000000,0,0,2,28830,0,0
 		// is there something better to return??
-		return nil, false, nil
+		return nil, true, nil
 	}
 
 	if ana.state.SelectedFormat == RawFormatUnknown {
 		ana.state.SelectedFormat = ana.detectFormat(string(msgData))
 		if ana.state.SelectedFormat == RawFormatGarminCSV1 || ana.state.SelectedFormat == RawFormatGarminCSV2 {
 			// Skip first line containing header line
-			return nil, false, nil
+			return nil, true, nil
 		}
 	}
 
