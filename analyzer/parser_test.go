@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"go.viam.com/test"
-
 	"go.viam.com/rdk/logging"
+	"go.viam.com/test"
 
 	"github.com/erh/gonmea/common"
 )
@@ -71,7 +70,6 @@ func TestParser(t *testing.T) {
 }
 
 func TestDYParse(t *testing.T) {
-
 	logger := logging.NewTestLogger(t)
 	parser, err := NewAnalyzer(NewConfig(logger))
 	test.That(t, err, test.ShouldBeNil)

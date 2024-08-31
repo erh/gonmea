@@ -24,5 +24,4 @@ func TestGetISO11783BitsFromCanID(t *testing.T) {
 		id := GetCanIDFromISO11783Bits(prio, pgn, src, dst)
 		test.That(t, fmt.Sprintf("%x", d[0]), test.ShouldEqual, fmt.Sprintf("%x", id))
 	}
-
 }
