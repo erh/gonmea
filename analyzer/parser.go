@@ -102,7 +102,7 @@ func ParseRawMessageWithFormat(msgData []byte, format RawFormat) (*common.RawMes
 	return msg, nil
 }
 
-// ConvertRawMessage attemps to convert a raw message into a decode message. If it
+// ConvertRawMessage attempts to convert a raw message into a decode message. If it
 // fails an error will be returned. If the data is insufficient, a false bool will
 // be returned.
 func ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {

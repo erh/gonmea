@@ -215,8 +215,7 @@ func GetISO11783BitsFromCanID(id uint) (uint8, uint32, uint8, uint8) {
 	return prio, pgn, src, dst
 }
 
-func GetCanIDFromISO11783Bits(prio uint8, pgn uint32, src uint8, dst uint8) int {
-
+func GetCanIDFromISO11783Bits(prio uint8, pgn uint32, src, dst uint8) int {
 	id := 0
 
 	id |= int(src)

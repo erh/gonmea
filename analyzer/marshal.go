@@ -76,6 +76,17 @@ func MarshalMessageToRaw(msg *common.Message) (*common.RawMessage, error) {
 	return data, err
 }
 
+// MarshalMessageToSingleOrFastRaw marshals the given message into multiple raw messages.
+// If it's allowed to fit into a single message, one will be returned. Otherwise, if it
+// must be fast-packet marshaled or is large enough, multiple will be returned.
+func MarshalMessageToSingleOrFastRaw(msg *common.Message) ([]*common.RawMessage, error) {
+	data, pgn, err := marshalMessageToRaw(msg)
+	if err != nil {
+		return nil, err
+	}
+	return data.SeparateSingleOrFastPackets(pgn.PacketType == PacketTypeFast)
+}
+
 func marshalMessageToRaw(msg *common.Message) (*common.RawMessage, *PGNInfo, error) {
 	ana, err := newOneOffAnalyzer()
 	if err != nil {

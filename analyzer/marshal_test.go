@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/erh/gonmea/common"
 	"go.viam.com/test"
+
+	"github.com/erh/gonmea/common"
 )
 
 var (
@@ -165,7 +166,6 @@ func TestMarshalMessageToFormat(t *testing.T) {
 		},
 	} {
 		t.Run(tc.Case, func(t *testing.T) {
-
 			md, err := MarshalMessageToFormat(tc.Message, tc.Format, tc.Multi)
 			if tc.Err != "" {
 				test.That(t, err, test.ShouldNotBeNil)
@@ -195,6 +195,43 @@ func TestMarshalMessageToFormat(t *testing.T) {
 
 			_, err = reader.Read()
 			test.That(t, err, test.ShouldBeError, io.EOF)
+		})
+	}
+}
+
+func TestMarshalMessageToSingleOrFastRaw(t *testing.T) {
+	for _, tc := range []struct {
+		Case    string
+		Message *common.Message
+	}{
+		// separate
+		{
+			"short",
+			shortMessage,
+		},
+		{
+			"long",
+			longMessage,
+		},
+	} {
+		t.Run(tc.Case, func(t *testing.T) {
+			raws, err := MarshalMessageToSingleOrFastRaw(tc.Message)
+			test.That(t, err, test.ShouldBeNil)
+
+			ana, err := newOneOffAnalyzer()
+			test.That(t, err, test.ShouldBeNil)
+
+			for _, raw := range raws[:len(raws)-1] {
+				_, hasMsg, err := ana.ConvertRawMessage(raw)
+				test.That(t, err, test.ShouldBeNil)
+				test.That(t, hasMsg, test.ShouldBeFalse)
+			}
+			rtMsg, hasMsg, err := ana.ConvertRawMessage(raws[len(raws)-1])
+			test.That(t, err, test.ShouldBeNil)
+			test.That(t, hasMsg, test.ShouldBeTrue)
+			rtMsg.CachedRawData = nil
+
+			test.That(t, rtMsg, test.ShouldResemble, tc.Message)
 		})
 	}
 }

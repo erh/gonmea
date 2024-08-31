@@ -20,7 +20,9 @@ package common
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +56,67 @@ func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen 
 	rm.Dst = dst
 	rm.Src = src
 	rm.Len = dataLen
+}
+
+func (rm *RawMessage) SeparateSingleOrFastPackets(isFastPacket bool) ([]*RawMessage, error) {
+	if isFastPacket || len(rm.Data) > 8 {
+		return rm.SeparateFastPackets()
+	}
+	newRaw := *rm
+	newRaw.Data = make([]byte, len(rm.Data))
+	copy(newRaw.Data, rm.Data)
+	return []*RawMessage{&newRaw}, nil
+}
+
+func (rm *RawMessage) SeparateFastPackets() ([]*RawMessage, error) {
+	totalRawSize := len(rm.Data)
+	if totalRawSize == 0 {
+		return nil, errors.New("message has no data")
+	}
+	if totalRawSize > FastPacketMaxSize {
+		return nil, fmt.Errorf("data (%d) cannot fit into max combined packet size %d", totalRawSize, FastPacketMaxSize)
+	}
+
+	numFrames := 1 + int(math.Ceil((float64(totalRawSize-FastPacketBucket0Size) / FastPacketBucketNSize)))
+
+	frameEnvelopeSize := FastPacketBucketNSize + 1
+
+	var rawMsgs []*RawMessage
+	remData := rm.Data
+	for frameIdx := 0; frameIdx < numFrames; frameIdx++ {
+		frameBuf := make([]byte, frameEnvelopeSize)
+		var frameSize, frameOffset int
+
+		if frameIdx == 0 { // up to 6 inner bytes in 8 byte envelope -- first two bytes are seqFrame and numFrames
+			frameSize = FastPacketBucket0Size
+			frameOffset = FastPacketBucket0Offset
+			frameBuf[FastPacketBucket0Offset-1] = byte(totalRawSize)
+		} else { // up to 7 inner bytes in 8 byte envelope -- first byte is seqFrame
+			frameSize = FastPacketBucketNSize
+			frameOffset = FastPacketBucketNOffset
+		}
+		var seqFrame byte
+		seqFrame |= byte(frameIdx) & 0x1f // frame, lower 5 bits
+		// sequence will be zero since it seems unused/unspecified
+		frameBuf[0] = seqFrame
+
+		dataSpanSize := Min(len(remData), frameSize)
+		rawFrameData := remData[:dataSpanSize]
+		if len(rawFrameData) > len(frameBuf[frameOffset:]) {
+			return nil, fmt.Errorf(
+				"invariant: expected raw frame data (len=%d) to fit into FAST frame (len=%d)",
+				len(rawFrameData),
+				len(frameBuf[frameOffset:]),
+			)
+		}
+		copy(frameBuf[frameOffset:], rawFrameData)
+		remData = remData[dataSpanSize:]
+
+		newRaw := *rm
+		newRaw.Data = frameBuf
+		rawMsgs = append(rawMsgs, &newRaw)
+	}
+	return rawMsgs, nil
 }
 
 // Message is a NMEA 2000 PGN message.

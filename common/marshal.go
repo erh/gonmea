@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
 )
 
 /*
@@ -19,7 +18,7 @@ MarshalRawMessageToPlainFormat marshals a RawMessage to the PLAIN packet format,
 4. Source
 5. Destination
 6. Data Length
-7. Data
+7. Data.
 */
 func MarshalRawMessageToPlainFormat(rawMsg *RawMessage, multi MultiPackets) ([]byte, error) {
 	totalRawSize := len(rawMsg.Data)
@@ -64,22 +63,12 @@ If the data is larger than 8 bytes, it will be split across multiple packets up 
 4. Source
 5. Destination
 6. Data Length
-7. Data
+7. Data.
 */
 func MarshalRawMessageToFastFormat(rawMsg *RawMessage, multi MultiPackets) ([]byte, error) {
-	totalRawSize := len(rawMsg.Data)
-	if totalRawSize == 0 {
-		return nil, errors.New("message has no data")
-	}
 	if multi == MultiPacketsCoalesced {
-		// it's really just plain based on implementation
 		return MarshalRawMessageToPlainFormat(rawMsg, multi)
 	}
-	if totalRawSize > FastPacketMaxSize {
-		return nil, fmt.Errorf("data (%d) cannot fit into max combined packet size %d", totalRawSize, FastPacketMaxSize)
-	}
-
-	numFrames := 1 + int(math.Ceil((float64(totalRawSize-FastPacketBucket0Size) / FastPacketBucketNSize)))
 
 	frameEnvelopeSize := FastPacketBucketNSize + 1
 	commonPrefix := fmt.Sprintf(
@@ -92,42 +81,17 @@ func MarshalRawMessageToFastFormat(rawMsg *RawMessage, multi MultiPackets) ([]by
 		frameEnvelopeSize)
 
 	var out []byte
-	remData := rawMsg.Data
-	for frameIdx := 0; frameIdx < numFrames; frameIdx++ {
-		frameBuf := make([]byte, frameEnvelopeSize)
-		var frameSize, frameOffset int
-
-		if frameIdx == 0 { // up to 6 inner bytes in 8 byte envelope -- first two bytes are seqFrame and numFrames
-			frameSize = FastPacketBucket0Size
-			frameOffset = FastPacketBucket0Offset
-			frameBuf[FastPacketBucket0Offset-1] = byte(totalRawSize)
-		} else { // up to 7 inner bytes in 8 byte envelope -- first byte is seqFrame
-			frameSize = FastPacketBucketNSize
-			frameOffset = FastPacketBucketNOffset
-		}
-		var seqFrame byte
-		seqFrame |= byte(frameIdx) & 0x1f // frame, lower 5 bits
-		// sequence will be zero since it seems unused/unspecified
-		frameBuf[0] = seqFrame
-
-		dataSpanSize := Min(len(remData), frameSize)
-		rawFrameData := remData[:dataSpanSize]
-		if len(rawFrameData) > len(frameBuf[frameOffset:]) {
-			return nil, fmt.Errorf(
-				"invariant: expected raw frame data (len=%d) to fit into FAST frame (len=%d)",
-				len(rawFrameData),
-				len(frameBuf[frameOffset:]),
-			)
-		}
-		copy(frameBuf[frameOffset:], rawFrameData)
-		remData = remData[dataSpanSize:]
-
+	separate, err := rawMsg.SeparateFastPackets()
+	if err != nil {
+		return nil, err
+	}
+	for _, rm := range separate {
 		var frameData bytes.Buffer
 		if _, err := frameData.WriteString(commonPrefix); err != nil {
 			return nil, err
 		}
-		for i := 0; i < len(frameBuf); i++ {
-			frameData.WriteString(fmt.Sprintf(",%02x", frameBuf[i]))
+		for i := 0; i < len(rm.Data); i++ {
+			frameData.WriteString(fmt.Sprintf(",%02x", rm.Data[i]))
 		}
 		out = append(out, frameData.Bytes()...)
 		out = append(out, '\n')

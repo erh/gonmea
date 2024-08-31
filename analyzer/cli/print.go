@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"runtime/debug"
 	"strings"
 	"time"
 	"unicode"
@@ -400,8 +399,6 @@ func (c *CLI) PrintFieldLookup(
 	if s == "" && field.Lookup.LookupType != analyzer.LookupTypeNone && value >= 0 {
 		if field.Lookup.LookupType == analyzer.LookupTypePair || field.Lookup.LookupType == analyzer.LookupTypeFieldType {
 			if field.Lookup.FunctionPair == nil {
-				debug.PrintStack()
-				fmt.Printf("???? %#v\n", field)
 				return false, fmt.Errorf(
 					"field '%s' (pgn=%d (%s) field_num=%d) should have a lookup function pair",
 					field.Description,
