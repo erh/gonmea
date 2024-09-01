@@ -48,6 +48,10 @@ type RawMessage struct {
 	Src       uint8
 	Len       uint8
 	Data      []byte
+
+	// Only set when this is a fast packet
+	Sequence uint8 // 3 bits max, unvalidated
+	Frame    uint8 // 5 bits max, unvalidated
 }
 
 func (rm *RawMessage) setParsedValues(prio uint8, pgn uint32, dst, src, dataLen uint8) {
@@ -85,6 +89,9 @@ func (rm *RawMessage) SeparateFastPackets() ([]*RawMessage, error) {
 	remData := rm.Data
 	for frameIdx := 0; frameIdx < numFrames; frameIdx++ {
 		frameBuf := make([]byte, frameEnvelopeSize)
+		for i := 0; i < frameEnvelopeSize; i++ {
+			frameBuf[i] = 0xff
+		}
 		var frameSize, frameOffset int
 
 		if frameIdx == 0 { // up to 6 inner bytes in 8 byte envelope -- first two bytes are seqFrame and numFrames
@@ -96,8 +103,8 @@ func (rm *RawMessage) SeparateFastPackets() ([]*RawMessage, error) {
 			frameOffset = FastPacketBucketNOffset
 		}
 		var seqFrame byte
-		seqFrame |= byte(frameIdx) & 0x1f // frame, lower 5 bits
-		// sequence will be zero since it seems unused/unspecified
+		seqFrame |= (byte(rm.Sequence) << 5) & 0xe0 // sequence, upper 3 bits
+		seqFrame |= byte(frameIdx) & 0x1f           // frame, lower 5 bits
 		frameBuf[0] = seqFrame
 
 		dataSpanSize := Min(len(remData), frameSize)
@@ -129,6 +136,7 @@ type Message struct {
 	PGN           int                    `json:"pgn"`
 	Description   string                 `json:"description"`
 	Fields        map[string]interface{} `json:"fields"`
+	Sequence      uint8                  `json:"-"` // 3 bits max, unvalidated
 	CachedRawData []byte                 `json:"-"`
 }
 

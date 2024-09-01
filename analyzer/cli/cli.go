@@ -394,15 +394,15 @@ func (c *CLI) printCanFormat(
 
 	{
 		// YDWG can receive frames out of order, so handle this.
-		frame := uint32(msg.Data[0] & 0x1f)
-		seq := uint32(msg.Data[0] & 0xe0)
+		seq := uint8(msg.Data[0]&0xe0) >> 5
+		frame := uint8(msg.Data[0] & 0x1f)
 
 		idx := uint32(0)
 		frameLen := common.FastPacketBucket0Size
 		msgIdx := common.FastPacketBucket0Offset
 
 		if frame != 0 {
-			idx = common.FastPacketBucket0Size + (frame-1)*common.FastPacketBucketNSize
+			idx = common.FastPacketBucket0Size + uint32(frame-1)*common.FastPacketBucketNSize
 			frameLen = common.FastPacketBucketNSize
 			msgIdx = common.FastPacketBucketNOffset
 		}

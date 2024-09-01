@@ -489,6 +489,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 		if err != nil {
 			return nil, false, err
 		}
+		msg.Sequence = rawMsg.Sequence
 		return msg, true, nil
 	}
 
@@ -525,15 +526,17 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 
 	{
 		// YDWG can receive frames out of Order, so handle this.
-		frame := uint32(rawMsg.Data[0] & 0x1f)
-		seq := uint32(rawMsg.Data[0] & 0xe0)
+		seq := uint8(rawMsg.Data[0]&0xe0) >> 5
+		frame := uint8(rawMsg.Data[0] & 0x1f)
+		rawMsg.Sequence = seq
+		rawMsg.Frame = frame
 
 		idx := uint32(0)
 		frameLen := common.FastPacketBucket0Size
 		msgIdx := common.FastPacketBucket0Offset
 
 		if frame != 0 {
-			idx = common.FastPacketBucket0Size + (frame-1)*common.FastPacketBucketNSize
+			idx = common.FastPacketBucket0Size + uint32(frame-1)*common.FastPacketBucketNSize
 			frameLen = common.FastPacketBucketNSize
 			msgIdx = common.FastPacketBucketNOffset
 		}
@@ -571,6 +574,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 			}
 			p.Used = false
 			p.Frames = 0
+			msg.Sequence = seq
 			return msg, true, nil
 		}
 	}
