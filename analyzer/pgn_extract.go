@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"math"
+
 	"go.viam.com/rdk/logging"
 
 	"github.com/erh/gonmea/common"
@@ -158,7 +160,11 @@ func ExtractNumber(
 		maxv += uint64(field.Offset)
 	}
 
-	*maxValue = int64(maxv)
+	if maxv == math.MaxUint64 {
+		*maxValue = math.MaxInt64
+	} else {
+		*maxValue = int64(maxv)
+	}
 
 	logger.Debugf("ExtractNumber <%s> startBit=%d bits=%d value=%d max=%d", name, startBit, numBits, *value, *maxValue)
 
