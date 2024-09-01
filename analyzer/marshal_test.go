@@ -218,6 +218,31 @@ func TestMarshalMessageToSingleOrFastRaw(t *testing.T) {
 			"long",
 			longMessage,
 		},
+		{
+			"max uint64 field",
+			&common.Message{
+				Timestamp:   time.Date(2024, time.September, 28, 11, 36, 59, 668000000, time.UTC),
+				Priority:    2,
+				Src:         170,
+				Dst:         255,
+				PGN:         126985,
+				Description: "Alert Text",
+				Fields: map[string]interface{}{
+					"Alert Type":                      "Warning",
+					"Alert Category":                  "Technical",
+					"Alert System":                    17,
+					"Alert Sub-System":                18,
+					"Alert ID":                        517,
+					"Data Source Network ID NAME":     19,
+					"Data Source Instance":            0,
+					"Data Source Index-Source":        0,
+					"Alert Occurrence Number":         0,
+					"Language ID":                     "English (US)",
+					"Alert Text Description":          "advise",
+					"Alert Location Text Description": "vessel_instr_1",
+				},
+			},
+		},
 	} {
 		t.Run(tc.Case, func(t *testing.T) {
 			raws, err := MarshalMessageToSingleOrFastRaw(tc.Message)
