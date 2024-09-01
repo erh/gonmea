@@ -54,6 +54,7 @@ var (
 			"SID":                231,
 			"Time":               time.Duration(70192000000000),
 		},
+		Sequence: 6,
 	}
 )
 
@@ -190,6 +191,10 @@ func TestMarshalMessageToFormat(t *testing.T) {
 			rtMsg, err := reader.Read()
 			test.That(t, err, test.ShouldBeNil)
 			rtMsg.CachedRawData = nil
+			if tc.Multi == common.MultiPacketsCoalesced {
+				// sequence makes no sense here
+				rtMsg.Sequence = tc.Message.Sequence
+			}
 
 			test.That(t, rtMsg, test.ShouldResemble, tc.Message)
 

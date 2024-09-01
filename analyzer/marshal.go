@@ -110,6 +110,7 @@ func marshalMessageToRaw(msg *common.Message) (*common.RawMessage, *PGNInfo, err
 		Src:       uint8(msg.Src),
 		Len:       uint8(len(data)),
 		Data:      data,
+		Sequence:  msg.Sequence,
 	}, pgn, nil
 }
 
