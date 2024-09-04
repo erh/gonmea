@@ -341,6 +341,12 @@ func marshalFieldNumber(
 	case int:
 		writer.writeIntBits(int64(v), numBits)
 		return nil
+	case int32:
+		writer.writeIntBits(int64(v), numBits)
+		return nil
+	case int64:
+		writer.writeIntBits(v, numBits)
+		return nil
 	case float64:
 		// rounding seems to help with floating point imprecision but may not be the best
 		// solution.
@@ -363,8 +369,19 @@ func marshalFieldFloat(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueFloat, ok := value.(float64)
-	if !ok {
+	var valueFloat float64
+	switch v := value.(type) {
+	case float64:
+		valueFloat = v
+	case float32:
+		valueFloat = float64(v)
+	case int:
+		valueFloat = float64(v)
+	case int32:
+		valueFloat = float64(v)
+	case int64:
+		valueFloat = float64(v)
+	default:
 		return wrongTypeError("float64", value, field)
 	}
 
@@ -381,8 +398,19 @@ func marshalFieldDecimal(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueFloat, ok := value.(float64)
-	if !ok {
+	var valueFloat float64
+	switch v := value.(type) {
+	case float64:
+		valueFloat = v
+	case float32:
+		valueFloat = float64(v)
+	case int:
+		valueFloat = float64(v)
+	case int32:
+		valueFloat = float64(v)
+	case int64:
+		valueFloat = float64(v)
+	default:
 		return wrongTypeError("float64", value, field)
 	}
 
@@ -401,6 +429,12 @@ func marshalFieldLookup(
 	switch v := value.(type) {
 	case int:
 		writer.writeIntBits(int64(v), numBits)
+		return nil
+	case int32:
+		writer.writeIntBits(int64(v), numBits)
+		return nil
+	case int64:
+		writer.writeIntBits(v, numBits)
 		return nil
 	case string:
 		valueStr, ok := value.(string)
@@ -449,6 +483,10 @@ func marshalFieldBitLookup(
 		switch v := valueIfc.(type) {
 		case int:
 			writer.writeBitRepeat(false, 1)
+		case int32:
+			writer.writeBitRepeat(false, 1)
+		case int64:
+			writer.writeBitRepeat(false, 1)
 		case string:
 			writer.writeBitRepeat(true, 1)
 		default:
@@ -465,8 +503,13 @@ func marshalFieldBinary(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueBin, ok := value.([]uint8)
-	if !ok {
+	var valueBin []uint8
+	switch v := value.(type) {
+	case []uint8:
+		valueBin = v
+	case string:
+		valueBin = []uint8(v)
+	default:
 		return wrongTypeError("[]uint8", value, field)
 	}
 
@@ -504,8 +547,15 @@ func marshalFieldMMSI(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueInt, ok := value.(int)
-	if !ok {
+	var valueInt int
+	switch v := value.(type) {
+	case int:
+		valueInt = v
+	case int32:
+		valueInt = int(v)
+	case int64:
+		valueInt = int(v)
+	default:
 		return wrongTypeError("int", value, field)
 	}
 
@@ -531,8 +581,19 @@ func marshalFieldLatLon(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueFloat, ok := value.(float64)
-	if !ok {
+	var valueFloat float64
+	switch v := value.(type) {
+	case float64:
+		valueFloat = v
+	case float32:
+		valueFloat = float64(v)
+	case int:
+		valueFloat = float64(v)
+	case int32:
+		valueFloat = float64(v)
+	case int64:
+		valueFloat = float64(v)
+	default:
 		return wrongTypeError("float64", value, field)
 	}
 
@@ -549,8 +610,17 @@ func marshalFieldDate(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueTime, ok := value.(time.Time)
-	if !ok {
+	var valueTime time.Time
+	switch v := value.(type) {
+	case time.Time:
+		valueTime = v
+	case string:
+		parsed, err := common.ParseTimestamp(v)
+		if err != nil {
+			return wrongTypeError("time.Time", value, field)
+		}
+		valueTime = parsed
+	default:
 		return wrongTypeError("time.Time", value, field)
 	}
 
@@ -629,8 +699,17 @@ func marshalFieldTime(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	valueDur, ok := value.(time.Duration)
-	if !ok {
+	var valueDur time.Duration
+	switch v := value.(type) {
+	case time.Duration:
+		valueDur = v
+	case string:
+		parsed, err := time.ParseDuration(v)
+		if err != nil {
+			return wrongTypeError("time.Duration", value, field)
+		}
+		valueDur = parsed
+	default:
 		return wrongTypeError("time.Duration", value, field)
 	}
 

@@ -160,7 +160,7 @@ func findOccurrence(msg []byte, c rune, count int) int {
 	return pIdx
 }
 
-func parseTimestamp(from string) (time.Time, error) {
+func ParseTimestamp(from string) (time.Time, error) {
 	tm, err1 := time.Parse(timestampFormat, from)
 	if err1 == nil {
 		return tm, nil
@@ -172,6 +172,54 @@ func parseTimestamp(from string) (time.Time, error) {
 	tm, err3 := time.Parse(timestampFormatAlt2, from)
 	if err3 == nil {
 		return tm, nil
+	}
+	var day, year, hour, minute, millis int
+	var month string
+	r, _ := fmt.Sscanf(from,
+		"%d %s %d %d:%d +%d",
+		&day,
+		&month,
+		&year,
+		&hour,
+		&minute,
+		&millis)
+	if r == 6 {
+		var mMonth time.Month
+		monthOk := true
+		switch month {
+		case "Jan":
+			mMonth = time.January
+		case "Feb":
+			mMonth = time.February
+		case "Mar":
+			mMonth = time.March
+		case "Apr":
+			mMonth = time.April
+		case "May":
+			mMonth = time.May
+		case "Jun":
+			mMonth = time.June
+		case "Jul":
+			mMonth = time.July
+		case "Aug":
+			mMonth = time.August
+		case "Sep":
+			mMonth = time.September
+		case "Oct":
+			mMonth = time.October
+		case "Nov":
+			mMonth = time.November
+		case "Dec":
+			mMonth = time.December
+		default:
+			monthOk = false
+		}
+		if monthOk {
+			secs := millis / 1000
+			millis = millis % 1000
+			nanos := millis * 1000000
+			return time.Date(2000+year, mMonth, day, hour, minute, secs, nanos, time.Local), nil
+		}
 	}
 	return time.Time{}, fmt.Errorf("error parsing time '%s': %w; %w; %w", from, err1, err2, err3)
 }
@@ -187,7 +235,7 @@ func DataLengthInPlainOrFast(msg []byte, logger logging.Logger) (int, bool) {
 	}
 	pIdx-- // Back to comma
 
-	_, err := parseTimestamp(string(msg[:pIdx]))
+	_, err := ParseTimestamp(string(msg[:pIdx]))
 	if err != nil {
 		logger.Error("%s", err)
 		return 0, false
@@ -231,7 +279,7 @@ func ParseRawFormatPlain(msg []byte, m *RawMessage, logger logging.Logger) int {
 	}
 	pIdx-- // Back to comma
 
-	tm, err := parseTimestamp(string(msg[:pIdx]))
+	tm, err := ParseTimestamp(string(msg[:pIdx]))
 	if err != nil {
 		logger.Error("%s", err)
 		return -1
@@ -291,7 +339,7 @@ func ParseRawFormatFast(msg []byte, m *RawMessage, logger logging.Logger) int {
 	}
 	pIdx-- // Back to comma
 
-	tm, err := parseTimestamp(string(msg[:pIdx]))
+	tm, err := ParseTimestamp(string(msg[:pIdx]))
 	if err != nil {
 		logger.Error("%s", err)
 		return -1
@@ -449,7 +497,7 @@ func ParseRawFormatAirmar(msg []byte, m *RawMessage, logger logging.Logger) int 
 		return 1
 	}
 
-	tm, err := parseTimestamp(string(msg[:pIdx-1]))
+	tm, err := ParseTimestamp(string(msg[:pIdx-1]))
 	if err != nil {
 		logger.Error("%s", err)
 		return -1
