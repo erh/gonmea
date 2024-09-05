@@ -763,7 +763,7 @@ func convertFieldVariable(
 		return common.FieldVariable{PGN: pgn, Index: index + 1, Value: val}, true, nil
 	}
 
-	ana.Logger.Errorf("Field %s: cannot derive variable length for PGN %d field # %d", fieldName, ana.state.RefPgn, data[len(data)-1])
+	ana.Logger.Errorf("Field %s: cannot derive variable length for PGN %d field # %d", fieldName, ana.state.RefPgn, index)
 	*bits = 8 /* Gotta assume something */
 	return nil, false, nil
 }
