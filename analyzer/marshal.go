@@ -436,6 +436,9 @@ func marshalFieldLookup(
 	case int64:
 		writer.writeIntBits(v, numBits)
 		return nil
+	case float64:
+		writer.writeIntBits(int64(v), numBits)
+		return nil
 	case string:
 		valueStr, ok := value.(string)
 		if !ok {
@@ -554,6 +557,8 @@ func marshalFieldMMSI(
 	case int32:
 		valueInt = int(v)
 	case int64:
+		valueInt = int(v)
+	case float64:
 		valueInt = int(v)
 	default:
 		return wrongTypeError("int", value, field)
