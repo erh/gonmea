@@ -542,7 +542,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 		}
 
 		if (p.Frames & (1 << frame)) != 0 {
-			ana.Logger.Errorf("Received incomplete fast packet PGN %d from source %d", rawMsg.PGN, rawMsg.Src)
+			ana.Logger.Errorf("Received duplicate fast packet tuple (PGN/src/frame)  (%d/%d/%d)", rawMsg.PGN, rawMsg.Src, frame)
 			p.Frames = 0
 		}
 
