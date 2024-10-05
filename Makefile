@@ -49,3 +49,7 @@ lint: tool-install
 	GOGC=50 $(TOOL_BIN)/golangci-lint run -v --fix --config=./etc/.golangci.yaml
 
 .PHONY:	$(ANALYZER) tests
+
+update:
+	go get go.viam.com/rdk@latest
+	go mod tidy
