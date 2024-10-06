@@ -20,6 +20,7 @@ package common
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -779,13 +780,36 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) in
 	// there's no time but we can start from the beginning of time.
 	m.Timestamp = time.Time{}.Add(time.Microsecond * time.Duration(timer*1e3))
 
-	decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
-	if err != nil {
-		logger.Error("error decoding base64 data: %s", err)
-		return -1
-	}
-	m.Data = decoded
+	gotHex := false
+	if false {
+		allHex := true
+		if true {
+			for _, d := range pgnData {
+				if (d >= '0' && d <= '9') || (d >= 'A' || d <= 'F') {
+					continue
+				}
+				allHex = false
+			}
 
-	m.setParsedValues(prio, pgn, dst, src, uint8(len(decoded)))
+			if allHex && len(pgnData) > 40 {
+				decoded, err := hex.DecodeString(pgnData)
+				if err == nil {
+					m.Data = decoded
+					gotHex = true
+				}
+			}
+		}
+	}
+
+	if !gotHex {
+		decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
+		if err != nil {
+			logger.Error("error decoding base64 data: %s", err)
+			return -1
+		}
+		m.Data = decoded
+	}
+
+	m.setParsedValues(prio, pgn, dst, src, uint8(len(m.Data)))
 	return 0
 }
