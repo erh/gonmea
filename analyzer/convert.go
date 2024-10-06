@@ -669,8 +669,10 @@ func convertFieldStringLAU(
 		ana.Logger.Debugf("convertFieldStringLAU: UTF16 len %d requires %d utf8 bytes", specifiedDataLen/2, len(utf8Str))
 		data = []byte(utf8Str)
 		specifiedDataLen = len(data)
-	} else if control > 1 {
-		ana.Logger.Errorf("Unhandled string type %d in PGN", control)
+	} else if control == 1 {
+		// no-op, data is ascii
+	} else {
+		ana.Logger.Errorf("Invalid control type %d in PGN", control)
 		return nil, false, nil
 	}
 

@@ -79,3 +79,23 @@ func TestDYParse(t *testing.T) {
 	test.That(t, finished, test.ShouldBeTrue)
 	test.That(t, msg, test.ShouldBeNil)
 }
+
+func TestSZParse(t *testing.T) {
+
+	// this is hex encoded
+	//msgData := []byte("!PDGY,126998,6,200,255,7525.87,050169643105016964321A0153706F745A65726F2052657665727365204F736D6F736973")
+
+	// this is base64 encoded
+	msgData := []byte("!PDGY,126998,6,200,255,7525.87,BQFpZDEFAWlkMhoBU3BvdFplcm8gUmV2ZXJzZSBPc21vc2lz")
+
+	logger := logging.NewTestLogger(t)
+	p, err := NewAnalyzer(NewConfig(logger))
+	test.That(t, err, test.ShouldBeNil)
+
+	msg, finished, err := p.ProcessMessage(msgData)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, finished, test.ShouldBeTrue)
+	test.That(t, len(msg.Fields), test.ShouldEqual, 3)
+	test.That(t, msg.Fields["Manufacturer Information"], test.ShouldEqual, "SpotZero Reverse Osmosis")
+
+}

@@ -228,6 +228,8 @@ func (ana *analyzerImpl) ProcessRawMessage(msgData []byte) (*common.RawMessage, 
 			// Skip first line containing header line
 			return nil, true, nil
 		}
+
+		ana.Logger.Infof("selecting format %v", ana.state.SelectedFormat)
 	}
 
 	var r int
@@ -607,7 +609,7 @@ func (ana *analyzerImpl) convertPGN(rawMsg *common.RawMessage, data []byte) (*co
 	}
 	convertedMsg.Fields = make(map[string]interface{}, pgn.FieldCount)
 
-	ana.Logger.Debugf("FieldCount=%d RepeatingStart1=%d", pgn.FieldCount, pgn.RepeatingStart1)
+	ana.Logger.Debugf("FieldCount=%d RepeatingStart1=%d data size:%d", pgn.FieldCount, pgn.RepeatingStart1, len(data))
 
 	ana.state.VariableFieldRepeat[0] = 255 // Can be overridden by '# of parameters'
 	ana.state.VariableFieldRepeat[1] = 0   // Can be overridden by '# of parameters'
