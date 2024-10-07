@@ -137,13 +137,7 @@ func parseCLIArgs(args []string) (*cliConfig, *os.File, error) {
 		hasNext := argIdx < len(args)-1
 
 		//nolint:gocritic
-		if strings.EqualFold(arg, "-version") {
-			fmt.Fprintf(os.Stderr, "%s\n", common.Version)
-			os.Exit(0)
-		} else if strings.EqualFold(arg, "-schema-version") {
-			fmt.Fprintf(os.Stderr, "%s\n", common.SchemaVersion)
-			os.Exit(0)
-		} else if strings.EqualFold(arg, "-raw") {
+		if strings.EqualFold(arg, "-raw") {
 			conf.ShowRaw = true
 		} else if strings.EqualFold(arg, "-debug") {
 			conf.ShowJSONEmpty = true
@@ -253,25 +247,6 @@ func parseCLIArgs(args []string) (*cliConfig, *os.File, error) {
 
 // Run performs analysis.
 func (c *CLI) Run() error {
-	if !c.config.ShowJSON {
-		c.config.Logger.Info("N2K packet analyzer\n" + common.Copyright)
-	} else if c.config.ShowVersion {
-		siStr := "si"
-		if !c.config.showSI {
-			siStr = "std"
-		}
-
-		jsonValueStr := "true"
-		if !c.config.ShowJSONValue {
-			jsonValueStr = "false"
-		}
-		writer := os.Stdout
-		fmt.Fprintf(writer, "{\"version\":\"%s\",\"units\":\"%s\",\"showLookupValues\":%s}\n",
-			common.Version,
-			siStr,
-			jsonValueStr)
-	}
-
 	reader := bufio.NewReader(c.inFile)
 	for {
 		msg, isPrefix, err := reader.ReadLine()
