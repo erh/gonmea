@@ -781,7 +781,8 @@ func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) in
 	m.Timestamp = time.Time{}.Add(time.Microsecond * time.Duration(timer*1e3))
 
 	gotHex := false
-	if false {
+	if true {
+		// this is to work around a dy bug where sometimes it sends hex, and sometimes base64
 		allHex := true
 		if true {
 			for _, d := range pgnData {

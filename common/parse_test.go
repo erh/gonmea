@@ -30,11 +30,9 @@ func TestNavLink2a(t *testing.T) {
 	test.That(t, len(m.Data), test.ShouldEqual, 36)
 	test.That(t, m.PGN, test.ShouldEqual, 126998)
 
-	/*
-		msgData = []byte("!PDGY,126998,6,200,255,7525.87,050169643105016964321A0153706F745A65726F2052657665727365204F736D6F736973")
-		res = ParseRawFormatNavLink2(msgData, &m, logger)
-		test.That(t, res, test.ShouldEqual, 0)
-		test.That(t, m.PGN, test.ShouldEqual, 126998)
-		test.That(t, len(m.Data), test.ShouldEqual, 36)
-	*/
+	msgData = []byte("!PDGY,126998,6,200,255,7525.87,050169643105016964321A0153706F745A65726F2052657665727365204F736D6F736973")
+	res = ParseRawFormatNavLink2(msgData, &m, logger)
+	test.That(t, res, test.ShouldEqual, 0)
+	test.That(t, m.PGN, test.ShouldEqual, 126998)
+	test.That(t, len(m.Data), test.ShouldEqual, 36)
 }
