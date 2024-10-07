@@ -19,8 +19,6 @@ package common
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -749,68 +747,12 @@ func ParseRawFormatYDWG02(msg []byte, m *RawMessage, logger logging.Logger) int 
 	return 0
 }
 
-// ParseRawFormatNavLink2 parses Digital Yacht NavLink 2 messages.
-// https://github.com/digitalyacht/iKonvert/wiki/4.-Serial-Protocol#41-rx-pgn-sentence
-// !PDGY,<pgn#>,p,src,dst,timer,<pgn_data> CR LF
-//
-// # Key
-//
-// <pgn#> = NMEA2000 PGN number between 0 and 999999
-//
-// p = Priority 0-7 with 0 being highest and 7 lowest
-//
-// src = Source Address of the device sending the PGN between 0-251
-//
-// dst = Destination Address of the device receiving the PGN between 0-255 (255 = global)
-//
-// timer = internal timer of the gateway in milliseconds 0-999999
-//
-// <pgn_data> = The binary payload of the PGN encoded in Base64.
 func ParseRawFormatNavLink2(msg []byte, m *RawMessage, logger logging.Logger) int {
-	var prio, src, dst uint8
-	var pgn uint32
-	var timer float64
-	var pgnData string
-	r, _ := fmt.Sscanf(string(msg), "!PDGY,%d,%d,%d,%d,%f,%s ", &pgn, &prio, &src, &dst, &timer, &pgnData)
-	if r != 6 {
-		logger.Error("wrong amount of fields in message: %d", r)
+	p := navLink2Parser{}
+	err := p.Parse(string(msg), m)
+	if err != nil {
+		logger.Errorf("error parsing: %v", err)
 		return -1
 	}
-
-	// there's no time but we can start from the beginning of time.
-	m.Timestamp = time.Time{}.Add(time.Microsecond * time.Duration(timer*1e3))
-
-	gotHex := false
-	if true {
-		// this is to work around a dy bug where sometimes it sends hex, and sometimes base64
-		allHex := true
-		if true {
-			for _, d := range pgnData {
-				if (d >= '0' && d <= '9') || (d >= 'A' || d <= 'F') {
-					continue
-				}
-				allHex = false
-			}
-
-			if allHex && len(pgnData) > 40 {
-				decoded, err := hex.DecodeString(pgnData)
-				if err == nil {
-					m.Data = decoded
-					gotHex = true
-				}
-			}
-		}
-	}
-
-	if !gotHex {
-		decoded, err := base64.RawStdEncoding.DecodeString(pgnData)
-		if err != nil {
-			logger.Error("error decoding base64 data: %s", err)
-			return -1
-		}
-		m.Data = decoded
-	}
-
-	m.setParsedValues(prio, pgn, dst, src, uint8(len(m.Data)))
 	return 0
 }
