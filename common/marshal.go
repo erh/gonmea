@@ -20,13 +20,13 @@ MarshalRawMessageToPlainFormat marshals a RawMessage to the PLAIN packet format,
 6. Data Length
 7. Data.
 */
-func MarshalRawMessageToPlainFormat(rawMsg *RawMessage, multi MultiPackets) ([]byte, error) {
+func MarshalRawMessageToPlainFormat(rawMsg *RawMessage, multi MultiPackets) (string, error) {
 	totalRawSize := len(rawMsg.Data)
 	if totalRawSize == 0 {
-		return nil, errors.New("message has no data")
+		return "", errors.New("message has no data")
 	}
 	if multi == MultiPacketsSeparate && totalRawSize > 8 {
-		return nil, fmt.Errorf("data (%d) cannot fit into max packet size %d", totalRawSize, 8)
+		return "", fmt.Errorf("data (%d) cannot fit into max packet size %d", totalRawSize, 8)
 	}
 
 	commonPrefix := fmt.Sprintf(
@@ -40,14 +40,14 @@ func MarshalRawMessageToPlainFormat(rawMsg *RawMessage, multi MultiPackets) ([]b
 
 	var frameData bytes.Buffer
 	if _, err := frameData.WriteString(commonPrefix); err != nil {
-		return nil, err
+		return "", err
 	}
 	for i := 0; i < len(rawMsg.Data); i++ {
 		frameData.WriteString(fmt.Sprintf(",%02x", rawMsg.Data[i]))
 	}
 	frameData.WriteByte('\n')
 
-	return frameData.Bytes(), nil
+	return frameData.String(), nil
 }
 
 /*
@@ -65,7 +65,7 @@ If the data is larger than 8 bytes, it will be split across multiple packets up 
 6. Data Length
 7. Data.
 */
-func MarshalRawMessageToFastFormat(rawMsg *RawMessage, multi MultiPackets) ([]byte, error) {
+func MarshalRawMessageToFastFormat(rawMsg *RawMessage, multi MultiPackets) (string, error) {
 	if multi == MultiPacketsCoalesced {
 		return MarshalRawMessageToPlainFormat(rawMsg, multi)
 	}
@@ -80,22 +80,19 @@ func MarshalRawMessageToFastFormat(rawMsg *RawMessage, multi MultiPackets) ([]by
 		rawMsg.Dst,
 		frameEnvelopeSize)
 
-	var out []byte
 	separate, err := rawMsg.SeparateFastPackets()
 	if err != nil {
-		return nil, err
-	}
-	for _, rm := range separate {
-		var frameData bytes.Buffer
-		if _, err := frameData.WriteString(commonPrefix); err != nil {
-			return nil, err
-		}
-		for i := 0; i < len(rm.Data); i++ {
-			frameData.WriteString(fmt.Sprintf(",%02x", rm.Data[i]))
-		}
-		out = append(out, frameData.Bytes()...)
-		out = append(out, '\n')
+		return "", err
 	}
 
-	return out, nil
+	sb := bytes.Buffer{}
+	for _, rm := range separate {
+		sb.WriteString(commonPrefix)
+		for i := 0; i < len(rm.Data); i++ {
+			sb.WriteString(fmt.Sprintf(",%02x", rm.Data[i]))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String(), nil
 }

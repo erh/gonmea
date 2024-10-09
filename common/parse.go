@@ -18,16 +18,12 @@ package common
 // limitations under the License.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
-
-	"go.viam.com/rdk/logging"
 )
 
 const (
@@ -139,15 +135,14 @@ type Message struct {
 	CachedRawData []byte                 `json:"-"`
 }
 
-func findOccurrence(msg []byte, c rune, count int) int {
+func findOccurrence(msg string, c rune, count int) int {
 	if len(msg) == 0 || msg[0] == '\n' {
 		return 0
 	}
 
-	cBytes := []byte{byte(c)}
 	pIdx := 0
 	for i := 0; i < count && len(msg) != pIdx-1; i++ {
-		nextIdx := bytes.Index(msg[pIdx:], cBytes)
+		nextIdx := strings.IndexByte(msg[pIdx:], byte(c))
 		if nextIdx == -1 {
 			return -1
 		}
@@ -223,161 +218,6 @@ func ParseTimestamp(from string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("error parsing time '%s': %w; %w; %w", from, err1, err2, err3)
 }
 
-func DataLengthInPlainOrFast(msg []byte, logger logging.Logger) (int, bool) {
-	var prio, src, dst, dataLen uint8
-	var pgn uint32
-	var junk, r int
-
-	pIdx := findOccurrence(msg, ',', 1)
-	if pIdx == -1 {
-		return 0, false
-	}
-	pIdx-- // Back to comma
-
-	_, err := ParseTimestamp(string(msg[:pIdx]))
-	if err != nil {
-		logger.Error("%s", err)
-		return 0, false
-	}
-
-	r, _ = fmt.Sscanf(string(msg[pIdx:]),
-		",%d,%d,%d,%d,%d"+
-			",%x,%x,%x,%x,%x,%x,%x,%x,%x",
-		&prio,
-		&pgn,
-		&src,
-		&dst,
-		&dataLen,
-		&junk,
-		&junk,
-		&junk,
-		&junk,
-		&junk,
-		&junk,
-		&junk,
-		&junk,
-		&junk)
-	if r < 5 {
-		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
-		return 0, false
-	}
-
-	return int(dataLen), true
-}
-
-// ParseRawFormatPlain parses PLAIN messages.
-func ParseRawFormatPlain(msg []byte, m *RawMessage, logger logging.Logger) int {
-	var prio, src, dst, dataLen uint8
-	var pgn uint32
-	var junk, r int
-	var data [8]int
-
-	pIdx := findOccurrence(msg, ',', 1)
-	if pIdx == -1 {
-		return 1
-	}
-	pIdx-- // Back to comma
-
-	tm, err := ParseTimestamp(string(msg[:pIdx]))
-	if err != nil {
-		logger.Error("%s", err)
-		return -1
-	}
-	m.Timestamp = tm
-
-	r, _ = fmt.Sscanf(string(msg[pIdx:]),
-		",%d,%d,%d,%d,%d"+
-			",%x,%x,%x,%x,%x,%x,%x,%x,%x",
-		&prio,
-		&pgn,
-		&src,
-		&dst,
-		&dataLen,
-		&data[0],
-		&data[1],
-		&data[2],
-		&data[3],
-		&data[4],
-		&data[5],
-		&data[6],
-		&data[7],
-		&junk)
-	if r < 5 {
-		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
-		return 2
-	}
-
-	if dataLen > 8 {
-		// This is not PLAIN format but FAST format */
-		return -1
-	}
-
-	m.Data = make([]byte, dataLen)
-	if r <= 5+8 {
-		for i := uint8(0); i < dataLen; i++ {
-			m.Data[i] = uint8(data[i])
-		}
-	} else {
-		return -1
-	}
-
-	m.setParsedValues(prio, pgn, dst, src, dataLen)
-	return 0
-}
-
-// ParseRawFormatFast parses FAST messages.
-func ParseRawFormatFast(msg []byte, m *RawMessage, logger logging.Logger) int {
-	var prio, src, dst, dataLen uint8
-	var pgn uint32
-
-	var r int
-
-	pIdx := findOccurrence(msg, ',', 1)
-	if pIdx == -1 {
-		return 1
-	}
-	pIdx-- // Back to comma
-
-	tm, err := ParseTimestamp(string(msg[:pIdx]))
-	if err != nil {
-		logger.Error("%s", err)
-		return -1
-	}
-	m.Timestamp = tm
-
-	r, _ = fmt.Sscanf(string(msg[pIdx:]), ",%d,%d,%d,%d,%d ", &prio, &pgn, &src, &dst, &dataLen)
-	if r < 5 {
-		logger.Error("Error reading message, scanned %d from %s", r, string(msg))
-		return 2
-	}
-
-	nextIdx := findOccurrence(msg[pIdx:], ',', 6)
-	if nextIdx == -1 {
-		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		return 2
-	}
-	m.Data = make([]byte, dataLen)
-	pIdx += nextIdx
-	for i := uint8(0); i < dataLen; i++ {
-		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
-		if !ok {
-			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			return 2
-		}
-		pIdx += advancedBy
-		if i < dataLen && pIdx < len(msg) {
-			if msg[pIdx] != ',' && !unicode.IsSpace(rune(msg[pIdx])) {
-				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-				return 2
-			}
-			pIdx++
-		}
-	}
-
-	m.setParsedValues(prio, pgn, dst, src, dataLen)
-	return 0
-}
-
 func scanNibble(c byte) byte {
 	if unicode.IsDigit(rune(c)) {
 		return c - '0'
@@ -391,10 +231,10 @@ func scanNibble(c byte) byte {
 	return 16
 }
 
-func scanHex(p []byte, m *byte) (int, bool) {
+func scanHex(p string, m *byte) (int, bool) {
 	var hi, lo byte
 
-	if p[0] == 0 || p[1] == 0 {
+	if len(p) < 2 {
 		return 0, false
 	}
 
@@ -408,263 +248,4 @@ func scanHex(p []byte, m *byte) (int, bool) {
 	}
 	*m = hi<<4 | lo
 	return 2, true
-}
-
-var tiden int
-
-// ParseRawFormatActisenseN2KAscii parses Actisense N2K ASCII messages.
-func ParseRawFormatActisenseN2KAscii(msg []byte, m *RawMessage, logger logging.Logger) int {
-	scanned := 0
-
-	// parse timestamp. Actisense doesn't give us date so let's figure it out ourself
-	splitBySpaces := strings.Split(string(msg), " ")
-	if len(splitBySpaces) == 1 || splitBySpaces[0][0] != 'A' {
-		logger.Error("No message or does not start with 'A'\n")
-		return -1
-	}
-
-	var secs, millis int
-	r, _ := fmt.Sscanf(splitBySpaces[0][1:], "%d.%d", &secs, &millis)
-	if r < 1 {
-		return -1
-	}
-
-	if tiden == 0 {
-		tiden = int(Now().Unix()) - secs
-	}
-	now := tiden + secs
-
-	//nolint:gosmopolitan
-	m.Timestamp = time.Unix(int64(now), 0).Add(time.Millisecond * time.Duration(millis)).Local()
-
-	// parse <SRC><DST><P>
-	scanned += len(splitBySpaces[0]) + 1
-	splitBySpaces = splitBySpaces[1:]
-	if len(splitBySpaces) == 0 {
-		return -1
-	}
-	//nolint:errcheck
-	n, _ := strconv.ParseInt(splitBySpaces[0], 16, 64)
-	m.Prio = uint8(n & 0xf)
-	m.Dst = uint8((n >> 4) & 0xff)
-	m.Src = uint8((n >> 12) & 0xff)
-
-	// parse <PGN>
-	scanned += len(splitBySpaces[0]) + 1
-	splitBySpaces = splitBySpaces[1:]
-	if len(splitBySpaces) == 0 {
-		logger.Error("Incomplete message")
-		return -1
-	}
-	//nolint:errcheck
-	n, _ = strconv.ParseInt(splitBySpaces[0], 16, 64)
-	m.PGN = uint32(n)
-
-	// parse DATA
-	scanned += len(splitBySpaces[0]) + 1
-	p := []byte(strings.Join(splitBySpaces[1:], " "))
-	var i uint8
-	m.Data = make([]byte, FastPacketMaxSize)
-	for i = 0; i < FastPacketMaxSize; i++ {
-		if len(p) == 0 || unicode.IsSpace(rune(p[0])) {
-			break
-		}
-		advancedBy, ok := scanHex(p, &m.Data[i])
-		if !ok {
-			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", len(msg)-scanned, string(msg), string(p), i)
-			return 2
-		}
-		scanned += advancedBy
-		p = p[advancedBy:]
-	}
-	m.Len = i
-
-	return 0
-}
-
-// ParseRawFormatAirmar parses Airmar messages.
-// Note(UNTESTED): See README.md.
-func ParseRawFormatAirmar(msg []byte, m *RawMessage, logger logging.Logger) int {
-	var dataLen uint
-	var prio, src, dst uint8
-	var pgn uint32
-
-	var id uint
-
-	pIdx := findOccurrence(msg, ' ', 1)
-	if pIdx < 4 || pIdx >= 60 {
-		return 1
-	}
-
-	tm, err := ParseTimestamp(string(msg[:pIdx-1]))
-	if err != nil {
-		logger.Error("%s", err)
-		return -1
-	}
-	m.Timestamp = tm
-	pIdx += 3
-
-	r, _ := fmt.Sscanf(string(msg[pIdx:]), "%d", &pgn)
-	if r != 1 {
-		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		return 2
-	}
-	pIdx += len(strconv.FormatUint(uint64(pgn), 10))
-	if msg[pIdx] == ' ' {
-		pIdx++
-
-		r, _ := fmt.Sscanf(string(msg[pIdx:]), "%x", &id)
-		if r != 1 {
-			logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-			return 2
-		}
-		pIdx += len(strconv.FormatUint(uint64(id), 16))
-	}
-	if msg[pIdx] != ' ' {
-		logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-		return 2
-	}
-
-	prio, pgn, src, dst = GetISO11783BitsFromCanID(id)
-
-	pIdx++
-	dataLen = uint(len(msg[pIdx:]) / 2)
-	m.Data = make([]byte, dataLen)
-	for i := uint(0); i < dataLen; i++ {
-		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
-		if !ok {
-			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			return 2
-		}
-		pIdx += advancedBy
-		if i < dataLen {
-			if msg[pIdx] != ',' && msg[pIdx] != ' ' {
-				logger.Error("Error reading message, scanned %d bytes from %s", pIdx, string(msg))
-				return 2
-			}
-			pIdx++
-		}
-	}
-
-	m.setParsedValues(prio, pgn, dst, src, uint8(dataLen))
-	return 0
-}
-
-// ParseRawFormatChetco parses Chetco messages.
-// Note(UNTESTED): See README.md.
-func ParseRawFormatChetco(msg []byte, m *RawMessage, logger logging.Logger) int {
-	var tstamp uint
-
-	if len(msg) == 0 || msg[0] == '\n' {
-		return 1
-	}
-
-	if r, _ := fmt.Sscanf(string(msg), "$PCDIN,%x,%x,%x,", &m.PGN, &tstamp, &m.Src); r < 3 {
-		logger.Error("Error reading Chetco message: %s", msg)
-		return 2
-	}
-
-	t := int(tstamp / 1000)
-	//nolint:gosmopolitan
-	m.Timestamp = time.Unix(int64(t), 0).Local()
-
-	pIdx := len("$PCDIN,01FD07,089C77D!,03,") // Fixed length where data bytes start;
-
-	var i uint
-	for i = 0; msg[pIdx] != '*'; i++ {
-		m.Data = append(m.Data, 0x00)
-		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
-		if !ok {
-			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			return 2
-		}
-		pIdx += advancedBy
-	}
-
-	m.Prio = 0
-	m.Dst = 255
-	m.Len = uint8(i + 1)
-	return 0
-}
-
-/*
-ParseRawFormatGarminCSV parses Garmin CSV (1 and 2) messages.
-
-Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority,Single Frame,Size,Packet
-0,486942,127508,Battery Status,Garmin,6,255,2,1,8,0x017505FF7FFFFFFF
-129,491183,129029,GNSS Position Data,Unknown
-Manufacturer,3,255,3,0,43,0xFFDF40A6E9BB22C04B3666C18FBF0600A6C33CA5F84B01A0293B140000000010FC01AC26AC264A12000000
-*/
-// Note(UNTESTED): See README.md.
-func ParseRawFormatGarminCSV(msg []byte, m *RawMessage, absolute bool, logger logging.Logger) int {
-	var seq, tstamp, pgn, src, dst, prio, single, count uint
-	var t int
-
-	if len(msg) == 0 || msg[0] == '\n' {
-		return 1
-	}
-
-	var pIdx int
-	if absolute {
-		var month, day, year, hours, minutes, seconds, ms uint
-
-		if r, _ := fmt.Sscanf(
-			string(msg),
-			"%d,%d_%d_%d_%d_%d_%d_%d,%d,",
-			&seq, &month, &day, &year, &hours, &minutes, &seconds, &ms, &pgn); r < 9 {
-			logger.Error("Error reading Garmin CSV message: %s", msg)
-			return 2
-		}
-
-		//nolint:gosmopolitan
-		m.Timestamp = time.Date(
-			int(year),
-			time.Month(month),
-			int(day),
-			int(hours),
-			int(minutes),
-			int(seconds),
-			int((ms%1000)*1e6),
-			time.Local,
-		)
-
-		pIdx = findOccurrence(msg, ',', 6)
-	} else {
-		if r, _ := fmt.Sscanf(string(msg), "%d,%d,%d,", &seq, &tstamp, &pgn); r < 3 {
-			logger.Error("Error reading Garmin CSV message: %s", msg)
-			return 2
-		}
-
-		t = int(tstamp / 1000)
-		//nolint:gosmopolitan
-		m.Timestamp = time.Unix(int64(t), 0).Local()
-
-		pIdx = findOccurrence(msg, ',', 5)
-	}
-
-	if len(msg[pIdx:]) == 0 {
-		logger.Error("Error reading Garmin CSV message: %s", msg)
-		return 3
-	}
-
-	var restOfData string
-	if r, _ := fmt.Sscanf(string(msg[pIdx:]), "%d,%d,%d,%d,%d,0x%s", &src, &dst, &prio, &single, &count, &restOfData); r < 5 {
-		logger.Error("Error reading Garmin CSV message: %s", msg)
-		return 3
-	}
-	pIdx += strings.Index(string(msg[pIdx:]), ",0x") + 3
-
-	m.Data = make([]byte, count)
-	var i uint
-	for i = 0; len(msg[pIdx:]) != 0 && i < count; i++ {
-		advancedBy, ok := scanHex(msg[pIdx:], &m.Data[i])
-		if !ok {
-			logger.Error("Error reading message, scanned %d bytes from %s/%s, index %d", pIdx, string(msg), string(msg[pIdx:]), i)
-			return 2
-		}
-		pIdx += advancedBy
-	}
-
-	m.setParsedValues(uint8(prio), uint32(pgn), uint8(dst), uint8(src), uint8(i+1))
-	return 0
 }

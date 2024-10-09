@@ -16,57 +16,19 @@ import (
 // MarshalMessage marshals to the PLAIN or FAST format as separate packets based on
 // whatever fits bests or is required by the PGN.
 // For a more specific format or multi packet scheme, use MarshalMessageToFormat.
-func MarshalMessage(msg *common.Message) ([]byte, error) {
-	return MarshalMessageToFormat(msg, RawFormatPlainOrFast, common.MultiPacketsSeparate)
+func MarshalMessage(msg *common.Message) (string, error) {
+	return MarshalMessageToFormat(msg, common.PlainOrFastParserInstance, common.MultiPacketsSeparate)
 }
 
 // MarshalMessageToFormat marshals the given message into a series of raw bytes
 // encoded in the given format.
-func MarshalMessageToFormat(msg *common.Message, format RawFormat, multi common.MultiPackets) ([]byte, error) {
+func MarshalMessageToFormat(msg *common.Message, parser common.TextLineParser, multi common.MultiPackets) (string, error) {
 	rawMsg, pgn, err := marshalMessageToRaw(msg)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	if multi == common.MultiPacketsSeparate {
-		if pgn.PacketType == PacketTypeFast && format == RawFormatPlain {
-			// not doing this breaks a detection heuristic
-			return nil, fmt.Errorf("data will be too large for a single packet, use %s instead", RawFormatPlainOrFast)
-		}
-
-		if pgn.PacketType == PacketTypeSingle &&
-			format == RawFormatFast &&
-			len(rawMsg.Data) <= 8 {
-			// not doing this breaks a detection heuristic
-			return nil, fmt.Errorf(
-				"data (len=%d) smaller than or equal to 8 bytes, use %s instead; otherwise data may be dropped",
-				len(rawMsg.Data), RawFormatPlainOrFast)
-		}
-	}
-
-	var marshaler func(rawMsg *common.RawMessage, multi common.MultiPackets) ([]byte, error)
-	switch format {
-	case RawFormatPlain:
-		marshaler = common.MarshalRawMessageToPlainFormat
-	case RawFormatFast:
-		marshaler = common.MarshalRawMessageToFastFormat
-	case RawFormatPlainOrFast:
-		if pgn.PacketType == PacketTypeFast {
-			marshaler = common.MarshalRawMessageToFastFormat
-		} else {
-			if multi == common.MultiPacketsCoalesced {
-				marshaler = common.MarshalRawMessageToPlainFormat
-			} else if len(rawMsg.Data) > 8 {
-				marshaler = common.MarshalRawMessageToFastFormat
-			} else {
-				marshaler = common.MarshalRawMessageToPlainFormat
-			}
-		}
-	default:
-		return nil, fmt.Errorf("format '%s' not yet supported", format)
-	}
-
-	return marshaler(rawMsg, multi)
+	return parser.Marshal(rawMsg, pgn.PacketType == PacketTypeFast, multi)
 }
 
 // MarshalMessageToRaw marshals the given message into a raw message. This message is

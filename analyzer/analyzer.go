@@ -19,10 +19,8 @@ package analyzer
 // limitations under the License.
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"strings"
 
 	"go.viam.com/rdk/logging"
 
@@ -47,12 +45,12 @@ type Analyzer interface {
 	// ProcessMessage attempts to process and read a message given by msgData.
 	// If if it is not yet complete due to fragementation or other reasons,
 	// a false will be returned indicating this should be called again.
-	ProcessMessage(msgData []byte) (*common.Message, bool, error)
+	ProcessMessage(msg string) (*common.Message, bool, error)
 
 	// ProcessRawMessage attempts to process and read a raw message given by msgData.
 	// If if it is not yet complete due to fragementation or other reasons,
 	// a false will be returned indicating this should be called again.
-	ProcessRawMessage(msgData []byte) (*common.RawMessage, bool, error)
+	ProcessRawMessage(msg string) (*common.RawMessage, bool, error)
 
 	ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error)
 }
@@ -85,8 +83,8 @@ type analyzerImplIfc interface {
 var _ = analyzerImplIfc(&analyzerImpl{})
 
 type AnalyzerState struct {
-	SelectedFormat RawFormat
-	MultiPackets   common.MultiPackets
+	parser       common.TextLineParser
+	MultiPackets common.MultiPackets
 
 	VariableFieldRepeat [2]int64
 	RefPgn              int64 // Remember this over the entire set of fields
@@ -102,7 +100,7 @@ func newAnalyzer(conf *Config) (*analyzerImpl, error) {
 	ana := &analyzerImpl{
 		Config: *conf,
 		state: AnalyzerState{
-			SelectedFormat:      conf.DesiredFormat,
+			parser:              common.FindParserByName(conf.DesiredFormat),
 			MultiPackets:        conf.MultiPacketsHint,
 			VariableFieldRepeat: [2]int64{0, 0}, // Actual number of repetitions
 		},
@@ -117,7 +115,7 @@ func NewAnalyzer(conf *Config) (Analyzer, error) {
 
 // Config is used to configure an Analyzer.
 type Config struct {
-	DesiredFormat    RawFormat
+	DesiredFormat    string
 	MultiPacketsHint common.MultiPackets
 	Logger           logging.Logger
 }
@@ -125,7 +123,6 @@ type Config struct {
 // NewConfig returns a new default config.
 func NewConfig(logger logging.Logger) *Config {
 	return &Config{
-		DesiredFormat:    RawFormatUnknown,
 		MultiPacketsHint: common.MultiPacketsSeparate,
 		Logger:           logger,
 	}
@@ -136,8 +133,8 @@ func (ana *analyzerImpl) State() *AnalyzerState {
 }
 
 // ProcessMessage returns the next message read, if available.
-func (ana *analyzerImpl) ProcessMessage(msgData []byte) (*common.Message, bool, error) {
-	rawMsg, hasMsg, err := ana.ProcessRawMessage(msgData)
+func (ana *analyzerImpl) ProcessMessage(msg string) (*common.Message, bool, error) {
+	rawMsg, hasMsg, err := ana.ProcessRawMessage(msg)
 	if err != nil {
 		return nil, false, err
 	}
@@ -203,12 +200,13 @@ func (ana *analyzerImpl) ProcessMessage(msgData []byte) (*common.Message, bool, 
  */
 
 // ProcessRawMessage returns the next raw message read, if available.
-func (ana *analyzerImpl) ProcessRawMessage(msgData []byte) (*common.RawMessage, bool, error) {
+// TOOD(erh) - make this a string
+func (ana *analyzerImpl) ProcessRawMessage(msgData string) (*common.RawMessage, bool, error) {
 	var msg common.RawMessage
 
 	if len(msgData) == 0 || msgData[0] == '\r' || msgData[0] == '\n' || msgData[0] == '#' {
 		if len(msgData) != 0 && msgData[0] == '#' {
-			if bytes.Equal(msgData[1:], []byte("SHOWBUFFERS")) {
+			if msgData[1:] == "SHOWBUFFERS" {
 				ana.showBuffers()
 			}
 		}
@@ -216,127 +214,29 @@ func (ana *analyzerImpl) ProcessRawMessage(msgData []byte) (*common.RawMessage, 
 		return nil, false, nil
 	}
 
-	if msgData[0] == '$' && len(msgData) > 12 && string(msgData[1:12]) == "PDGY,000000" {
+	if msgData[0] == '$' && len(msgData) > 12 && msgData[1:12] == "PDGY,000000" {
 		// digital yacht special $PDGY,000000,0,0,2,28830,0,0
 		// is there something better to return??
 		return nil, true, nil
 	}
 
-	if ana.state.SelectedFormat == RawFormatUnknown {
-		ana.state.SelectedFormat = ana.detectFormat(string(msgData))
-		if ana.state.SelectedFormat == RawFormatGarminCSV1 || ana.state.SelectedFormat == RawFormatGarminCSV2 {
-			// Skip first line containing header line
+	if ana.state.parser == nil {
+		ana.state.parser = common.FindParser(msgData)
+		if ana.state.parser == nil {
+			return nil, false, fmt.Errorf("cannot find parser for line: %v", msgData)
+		}
+		if ana.state.parser.SkipFirstLine() {
 			return nil, true, nil
 		}
-
-		ana.Logger.Infof("selecting format %v", ana.state.SelectedFormat)
+		ana.Logger.Infof("selecting format %v", ana.state.parser.Name())
 	}
 
-	var r int
-	switch ana.state.SelectedFormat {
-	case RawFormatPlainOrFast:
-		numBytes, ok := common.DataLengthInPlainOrFast(msgData, ana.Logger)
-		if !ok {
-			r = -1
-			break
-		}
-		if numBytes <= 8 {
-			r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
-			ana.Logger.Debugf("plain_or_fast: plain r=%d\n", r)
-		} else {
-			r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
-			ana.Logger.Debugf("plain_or_fast: fast r=%d\n", r)
-			if r >= 0 {
-				ana.state.MultiPackets = common.MultiPacketsCoalesced
-				ana.state.SelectedFormat = RawFormatFast
-			}
-		}
-
-	case RawFormatPlainMixFast:
-		numBytes, ok := common.DataLengthInPlainOrFast(msgData, ana.Logger)
-		if !ok {
-			r = -1
-			break
-		}
-		if numBytes <= 8 {
-			r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
-			ana.Logger.Debugf("plain_mix_fast: plain r=%d\n", r)
-		} else {
-			r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
-			ana.Logger.Debugf("plain_mix_fast: fast r=%d\n", r)
-		}
-
-	case RawFormatPlain:
-		r = common.ParseRawFormatPlain(msgData, &msg, ana.Logger)
-
-	case RawFormatFast:
-		r = common.ParseRawFormatFast(msgData, &msg, ana.Logger)
-
-	case RawFormatAirmar:
-		r = common.ParseRawFormatAirmar(msgData, &msg, ana.Logger)
-
-	case RawFormatChetco:
-		r = common.ParseRawFormatChetco(msgData, &msg, ana.Logger)
-
-	case RawFormatGarminCSV1, RawFormatGarminCSV2:
-		r = common.ParseRawFormatGarminCSV(msgData, &msg, ana.state.SelectedFormat == RawFormatGarminCSV2, ana.Logger)
-
-	case RawFormatYDWG02:
-		r = common.ParseRawFormatYDWG02(msgData, &msg, ana.Logger)
-
-	case RawFormatNavLink2:
-		r = common.ParseRawFormatNavLink2(msgData, &msg, ana.Logger)
-
-	case RawFormatActisenseN2KASCII:
-		r = common.ParseRawFormatActisenseN2KAscii(msgData, &msg, ana.Logger)
-
-	case RawFormatUnknown:
-		fallthrough
-	default:
-		return nil, false, errors.New("Unknown message format")
+	err := ana.state.parser.Parse(msgData, &msg)
+	if err != nil {
+		return nil, false, err
 	}
 
-	if r == 0 {
-		return &msg, true, nil
-	}
-	ana.Logger.Error("Unknown message error %d: '%s'\n", r, msgData)
-
-	return nil, false, nil
-}
-
-// RawFormat is the format that raw data is serialized into.
-type RawFormat string
-
-// All supported/known raw formats.
-const (
-	RawFormatUnknown           RawFormat = "UNKNOWN"
-	RawFormatPlain             RawFormat = "PLAIN"
-	RawFormatFast              RawFormat = "FAST"
-	RawFormatPlainOrFast       RawFormat = "PLAIN_OR_FAST"
-	RawFormatPlainMixFast      RawFormat = "PLAIN_MIX_FAST"
-	RawFormatAirmar            RawFormat = "AIRMAR"
-	RawFormatChetco            RawFormat = "CHETCO"
-	RawFormatGarminCSV1        RawFormat = "GARMIN_CSV1"
-	RawFormatGarminCSV2        RawFormat = "GARMIN_CSV2"
-	RawFormatYDWG02            RawFormat = "YDWG02"
-	RawFormatNavLink2          RawFormat = "NAVLINK2"
-	RawFormatActisenseN2KASCII RawFormat = "ACTISENSE_N2K_ASCII"
-)
-
-// RawFormats is the list of all supported/known raw formats.
-var RawFormats = []RawFormat{
-	RawFormatUnknown,
-	RawFormatPlain,
-	RawFormatFast,
-	RawFormatPlainOrFast,
-	RawFormatPlainMixFast,
-	RawFormatAirmar,
-	RawFormatChetco,
-	RawFormatGarminCSV1,
-	RawFormatGarminCSV2,
-	RawFormatYDWG02,
-	RawFormatNavLink2,
-	RawFormatActisenseN2KASCII,
+	return &msg, true, nil
 }
 
 type Packet struct {
@@ -363,82 +263,6 @@ func (ana *analyzerImpl) showBuffers() {
 			ana.Logger.Debugf("ReassemblyBuffer[%d]: inUse=false", buffer)
 		}
 	}
-}
-
-func (ana *analyzerImpl) detectFormat(msg string) RawFormat {
-	if msg[0] == '$' && msg == "$PCDIN" {
-		ana.Logger.Info("Detected Chetco protocol with all data on one line")
-		ana.state.MultiPackets = common.MultiPacketsCoalesced
-		return RawFormatChetco
-	}
-
-	if msg == "Sequence #,Timestamp,PGN,Name,Manufacturer,Remote Address,Local Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with relative timestamps")
-		ana.state.MultiPackets = common.MultiPacketsCoalesced
-		return RawFormatGarminCSV1
-	}
-
-	if msg ==
-		"Sequence #,Month_Day_Year_Hours_Minutes_Seconds_msTicks,PGN,Processed PGN,Name,Manufacturer,Remote Address,Local "+
-			"Address,Priority,Single Frame,Size,packet\n" {
-		ana.Logger.Info("Detected Garmin CSV protocol with absolute timestamps")
-		ana.state.MultiPackets = common.MultiPacketsCoalesced
-		return RawFormatGarminCSV2
-	}
-
-	p := strings.Index(msg, " ")
-	if p != -1 && (msg[p+1] == '-' || msg[p+2] == '-') {
-		ana.Logger.Info("Detected Airmar protocol with all data on one line")
-		ana.state.MultiPackets = common.MultiPacketsCoalesced
-		return RawFormatAirmar
-	}
-
-	{
-		var a, b, c, d, f int
-		var e rune
-		r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
-		if r == 6 && (e == 'R' || e == 'T') {
-			ana.Logger.Info("Detected YDWG-02 protocol with one line per frame")
-			ana.state.MultiPackets = common.MultiPacketsSeparate
-			return RawFormatYDWG02
-		}
-	}
-
-	{
-		var a, b, c, d int
-		var e float64
-		var f string
-		r, _ := fmt.Sscanf(msg, "!PDGY,%d,%d,%d,%d,%f,%s ", &a, &b, &c, &d, &e, &f)
-		if r == 6 {
-			ana.Logger.Info("Detected Digital Yacht NavLink2 protocol with one line per frame")
-			ana.state.MultiPackets = common.MultiPacketsCoalesced
-			return RawFormatNavLink2
-		}
-	}
-
-	{
-		var a, b, c, d int
-		r1, _ := fmt.Sscanf(msg, "A%d.%d %x %x ", &a, &b, &c, &d)
-		r2, _ := fmt.Sscanf(msg, "A%d %x %x ", &a, &b, &c)
-		if r1 == 4 || r2 == 3 {
-			ana.Logger.Info("Detected Actisense N2K Ascii protocol with all frames on one line")
-			ana.state.MultiPackets = common.MultiPacketsCoalesced
-			return RawFormatActisenseN2KASCII
-		}
-	}
-
-	numBytes, ok := common.DataLengthInPlainOrFast([]byte(msg), ana.Logger)
-	if ok && numBytes > 0 {
-		if numBytes > 8 {
-			ana.Logger.Info("Detected FAST format with all frames on one line")
-			ana.state.MultiPackets = common.MultiPacketsCoalesced
-			return RawFormatFast
-		}
-		ana.Logger.Info("Assuming PLAIN_OR_FAST format with one line per frame or one line per message\n")
-		return RawFormatPlainOrFast
-	}
-
-	return RawFormatUnknown
 }
 
 type hexScanner struct {

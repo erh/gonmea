@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+func TestStandardCandump2Analyzer(t *testing.T) {
+	s := "2024-10-09-19:57:34.731,7,126720,3,255,8,20,11,e5,98,10,17,04,04"
+	p := FindParser(s)
+	test.That(t, p, test.ShouldNotBeNil)
+
+	m := RawMessage{}
+	err := p.Parse(s, &m)
+	test.That(t, err, test.ShouldBeNil)
+	test.That(t, m.PGN, test.ShouldEqual, 126720)
+	test.That(t, p.Name(), test.ShouldEqual, "PLAIN_OR_FAST")
+}
+
 func TestNavLink2a(t *testing.T) {
 	p := navLink2Parser{}
 	m := RawMessage{}

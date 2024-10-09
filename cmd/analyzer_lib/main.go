@@ -120,12 +120,12 @@ func processData(in io.ReadCloser) error {
 			}
 			fmt.Fprintln(os.Stdout, "rtMsg", string(md))
 
-			md, err = analyzer.MarshalMessage(msg)
+			mdString, err := analyzer.MarshalMessage(msg)
 			if err != nil {
 				return err
 			}
 
-			reader, err := analyzer.NewMessageReader(bytes.NewReader(md))
+			reader, err := analyzer.NewMessageReader(bytes.NewReader([]byte(mdString)))
 			if err != nil {
 				return err
 			}

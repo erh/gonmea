@@ -13,12 +13,12 @@ import (
 
 // newOneOffAnalyzer returns a new analyzer ready to use for single use.
 func newOneOffAnalyzer() (*analyzerImpl, error) {
-	return newOneOffAnalyzerWithFormat(RawFormatUnknown)
+	return newOneOffAnalyzerWithFormat("")
 }
 
 // newOneOffAnalyzerWithFormat returns a new analyzer for single use
 // that is expecting to read messages of the given format.
-func newOneOffAnalyzerWithFormat(format RawFormat) (*analyzerImpl, error) {
+func newOneOffAnalyzerWithFormat(format string) (*analyzerImpl, error) {
 	conf := NewConfig(common.NewLogger(io.Discard))
 	conf.DesiredFormat = format
 	ana, err := newAnalyzer(conf)
@@ -36,45 +36,44 @@ var errExpectedOneMessage = errors.New("expected to parse a message but got noth
 
 // ParseMessage parses the given data into a message. It will attempt
 // to detect the format of the message.
-func ParseMessage(msgData []byte) (*common.Message, RawFormat, error) {
+func ParseTextMessage(msgData string) (*common.Message, common.TextLineParser, error) {
 	ana, err := newOneOffAnalyzer()
 	if err != nil {
-		return nil, RawFormatUnknown, err
+		return nil, nil, err
 	}
 	msg, hasMsg, err := ana.ProcessMessage(msgData)
 	if err != nil {
-		return nil, RawFormatUnknown, err
+		return nil, nil, err
 	}
 	if !hasMsg {
-		return nil, RawFormatUnknown, errExpectedOneMessage
+		return nil, nil, errExpectedOneMessage
 	}
-	return msg, ana.State().SelectedFormat, nil
+	return msg, ana.State().parser, nil
 }
 
 // ParseRawMessage parses the given data into a raw message. It will attempt
 // to detect the format of the message.
-func ParseRawMessage(msgData []byte) (*common.RawMessage, RawFormat, error) {
+func ParseRawTextMessage(msgData string) (*common.RawMessage, common.TextLineParser, error) {
 	ana, err := newOneOffAnalyzer()
 	if err != nil {
-		return nil, RawFormatUnknown, err
+		return nil, nil, err
 	}
 	msg, hasMsg, err := ana.ProcessRawMessage(msgData)
 	if err != nil {
-		return nil, RawFormatUnknown, err
+		return nil, nil, err
 	}
 	if !hasMsg {
-		return nil, RawFormatUnknown, errExpectedOneMessage
+		return nil, nil, errExpectedOneMessage
 	}
-	return msg, ana.State().SelectedFormat, nil
+	return msg, ana.State().parser, nil
 }
 
 // ParseMessageWithFormat parses the given data into a message in the provided format.
-func ParseMessageWithFormat(msgData []byte, format RawFormat) (*common.Message, error) {
+func ParseTextMessageWithFormat(msgData string, format string) (*common.Message, error) {
 	ana, err := newOneOffAnalyzerWithFormat(format)
 	if err != nil {
 		return nil, err
 	}
-	ana.State().SelectedFormat = format
 	msg, hasMsg, err := ana.ProcessMessage(msgData)
 	if err != nil {
 		return nil, err
@@ -86,12 +85,11 @@ func ParseMessageWithFormat(msgData []byte, format RawFormat) (*common.Message, 
 }
 
 // ParseRawMessageWithFormat parses the given data into a raw message in the provided format.
-func ParseRawMessageWithFormat(msgData []byte, format RawFormat) (*common.RawMessage, error) {
+func ParseRawMessageWithFormat(msgData string, format string) (*common.RawMessage, error) {
 	ana, err := newOneOffAnalyzerWithFormat(format)
 	if err != nil {
 		return nil, err
 	}
-	ana.State().SelectedFormat = format
 	msg, hasMsg, err := ana.ProcessRawMessage(msgData)
 	if err != nil {
 		return nil, err
@@ -130,11 +128,11 @@ func (mr messageReader) Read() (*common.Message, error) {
 		if err != nil {
 			return nil, err
 		}
-		line = []byte(strings.TrimSpace(string(line)))
+		msgData := strings.TrimSpace(string(line))
 		if len(line) == 0 {
 			continue
 		}
-		msg, hasMsg, err := mr.ana.ProcessMessage(line)
+		msg, hasMsg, err := mr.ana.ProcessMessage(msgData)
 		if err != nil {
 			return nil, err
 		}

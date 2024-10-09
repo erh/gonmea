@@ -201,22 +201,7 @@ func parseCLIArgs(args []string) (*cliConfig, *os.File, error) {
 			}
 			argIdx++
 		} else if hasNext && strings.EqualFold(arg, "-format") {
-			nextArg := args[argIdx+1]
-			for _, format := range analyzer.RawFormats {
-				if strings.EqualFold(nextArg, string(format)) {
-					conf.DesiredFormat = format
-					if conf.DesiredFormat != analyzer.RawFormatPlain &&
-						conf.DesiredFormat != analyzer.RawFormatPlainOrFast &&
-						conf.DesiredFormat != analyzer.RawFormatPlainMixFast &&
-						conf.DesiredFormat != analyzer.RawFormatYDWG02 {
-						conf.MultiPacketsHint = common.MultiPacketsCoalesced
-					}
-					break
-				}
-			}
-			if conf.DesiredFormat == analyzer.RawFormatUnknown {
-				return nil, nil, fmt.Errorf("Unknown message format '%s'", nextArg)
-			}
+			conf.DesiredFormat = args[argIdx+1]
 			argIdx++
 		} else {
 			//nolint:errcheck
@@ -253,7 +238,7 @@ func (c *CLI) Run() error {
 		if err != nil || isPrefix {
 			return nil
 		}
-		rawMsg, hasMsg, err := c.ana.ProcessRawMessage(msg)
+		rawMsg, hasMsg, err := c.ana.ProcessRawMessage(string(msg))
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
@@ -288,8 +273,8 @@ func cliUsage(progNameAsExeced, invalidArgName string, writer io.Writer) error {
 	fmt.Fprintf(writer, "     -geo dm           Print geographic format in dd.mm.mmm format\n")
 	fmt.Fprintf(writer, "     -geo dms          Print geographic format in dd.mm.sss format\n")
 	fmt.Fprintf(writer, "     -format <fmt>     Select a particular format, either: ")
-	for _, format := range analyzer.RawFormats {
-		fmt.Fprintf(writer, "%s, ", format)
+	for _, format := range common.AllParsers {
+		fmt.Fprintf(writer, "%s, ", format.Name())
 	}
 	fmt.Fprintf(writer, "\n")
 	fmt.Fprintf(writer, "     -version          Print the version of the program and quit\n")
