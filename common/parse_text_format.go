@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,7 @@ type TextLineParser interface {
 
 func init() {
 	AllParsers = append(AllParsers, &navLink2Parser{})
+	AllParsers = append(AllParsers, &ydwg02Parser{})
 }
 
 // ----------------------
@@ -103,4 +106,102 @@ func (p *navLink2Parser) MultiPacketsCoalesced() bool {
 
 func (p *navLink2Parser) Name() string {
 	return "NavLink2"
+}
+
+// -----
+
+type ydwg02Parser struct {
+}
+
+//nolint:dupword
+/*
+ParseRawFormatYDWG02 parses YDWG-02 messages.
+
+Yacht Digital, YDWG-02
+
+   Example output: 00:17:55.475 R 0DF50B23 FF FF FF FF FF 00 00 FF
+
+   Example usage:
+
+pi@yacht:~/canboat/analyzer $ netcat 192.168.3.2 1457 | analyzer -json
+INFO 2018-10-16T09:57:39.665Z [analyzer] Detected YDWG-02 protocol with all data on one line
+INFO 2018-10-16T09:57:39.665Z [analyzer] New PGN 128267 for device 35 (heap 5055 bytes)
+{"timestamp":"2018-10-16T22:25:25.166","prio":3,"src":35,"dst":255,"pgn":128267,"description":"Water
+Depth","fields":{"Offset":0.000}} INFO 2018-10-16T09:57:39.665Z [analyzer] New PGN 128259 for device 35 (heap 5070 bytes)
+{"timestamp":"2018-10-16T22:25:25.177","prio":2,"src":35,"dst":255,"pgn":128259,"description":"Speed","fields":{"Speed Water
+Referenced":0.00,"Speed Water Referenced Type":"Paddle wheel"}} INFO 2018-10-16T09:57:39.666Z [analyzer] New PGN 128275 for device
+35 (heap 5091 bytes)
+{"timestamp":"2018-10-16T22:25:25.179","prio":6,"src":35,"dst":255,"pgn":128275,"description":"Distance
+Log","fields":{"Date":"1980.05.04"}} INFO 2018-10-16T09:57:39.666Z [analyzer] New PGN 130311 for device 35 (heap 5106 bytes)
+{"timestamp":"2018-10-16T22:25:25.181","prio":5,"src":35,"dst":255,"pgn":130311,"description":"Environmental
+Parameters","fields":{"Temperature Source":"Sea Temperature","Temperature":13.39}}
+{"timestamp":"2018-10-16T22:25:25.181","prio":6,"src":35,"dst":255,"pgn":128275,"description":"Distance
+Log","fields":{"Date":"2006.11.06", "Time": "114:38:39.07076","Log":1940}}
+{"timestamp":"2018-10-16T22:25:25.185","prio":6,"src":35,"dst":255,"pgn":128275,"description":"Distance
+Log","fields":{"Date":"1970.07.14"}} INFO 2018-10-16T09:57:39.666Z [analyzer] New PGN 130316 for device 35 (heap 5121 bytes)
+{"timestamp":"2018-10-16T22:25:25.482","prio":5,"src":35,"dst":255,"pgn":130316,"description":"Temperature Extended
+Range","fields":{"Instance":0,"Source":"Sea Temperature","Temperature":13.40}}
+{"timestamp":"2018-10-16T22:25:25.683","prio":5,"src":35,"dst":255,"pgn":130311,"description":"Environmental
+Parameters","fields":{"Temperature Source":"Sea Temperature","Temperature":13.39}}
+*/
+// Note(UNTESTED): See README.md.
+func (p *ydwg02Parser) Parse(msg string, m *RawMessage) error {
+	var msgid uint
+	var prio, src, dst uint8
+	var pgn uint32
+
+	// parse timestamp. YDWG doesn't give us date so let's figure it out ourself
+	splitBySpaces := strings.Split(string(msg), " ")
+	if len(splitBySpaces) == 1 {
+		return fmt.Errorf("invalid ydwg format")
+	}
+	tiden := Now().Unix()
+	//nolint:gosmopolitan
+	m.Timestamp = time.Unix(tiden, 0).Local()
+
+	// parse direction, not really used in analyzer
+	splitBySpaces = splitBySpaces[1:]
+	if len(splitBySpaces) == 0 {
+		return fmt.Errorf("invalid ydwg format")
+	}
+
+	// parse msgid
+	splitBySpaces = splitBySpaces[1:]
+	if len(splitBySpaces) == 0 {
+		return fmt.Errorf("invalid ydwg format")
+	}
+	//nolint:errcheck
+	n, _ := strconv.ParseInt(splitBySpaces[0], 16, 64)
+	msgid = uint(n)
+	prio, pgn, src, dst = GetISO11783BitsFromCanID(msgid)
+
+	// parse data
+	i := 0
+	for splitBySpaces = splitBySpaces[1:]; len(splitBySpaces) != 0; splitBySpaces = splitBySpaces[1:] {
+		//nolint:errcheck
+		n, _ := strconv.ParseInt(splitBySpaces[0], 16, 64)
+		m.Data = append(m.Data, byte(n))
+		i++
+		if i > FastPacketMaxSize {
+			return fmt.Errorf("invalid ydwg format")
+		}
+	}
+
+	m.setParsedValues(prio, pgn, dst, src, uint8(i))
+	return nil
+}
+
+func (p *ydwg02Parser) Detect(msg string) bool {
+	var a, b, c, d, f int
+	var e rune
+	r, _ := fmt.Sscanf(msg, "%d:%d:%d.%d %c %02X ", &a, &b, &c, &d, &e, &f)
+	return r == 6 && (e == 'R' || e == 'T')
+}
+
+func (p *ydwg02Parser) MultiPacketsCoalesced() bool {
+	return false
+}
+
+func (p *ydwg02Parser) Name() string {
+	return "ydwg02"
 }
