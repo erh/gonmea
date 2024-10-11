@@ -144,14 +144,7 @@ func (ana *analyzerImpl) ProcessMessage(msg string) (*common.Message, bool, erro
 	if rawMsg == nil {
 		return nil, true, err
 	}
-	converted, hasMsg, err := ana.convertRawMessage(rawMsg)
-	if err != nil {
-		return nil, false, err
-	}
-	if !hasMsg {
-		return nil, false, nil
-	}
-	return converted, true, nil
+	return ana.ConvertRawMessage(rawMsg)
 }
 
 /*
@@ -268,31 +261,7 @@ func (ana *analyzerImpl) showBuffers() {
 	}
 }
 
-type hexScanner struct {
-	val   int
-	isSet bool
-}
-
-func (h *hexScanner) Scan(state fmt.ScanState, _ rune) error {
-	n, err := fmt.Fscanf(state, "%x", &h.val)
-	if n > 0 {
-		h.isSet = true
-	}
-	return err
-}
-
 func (ana *analyzerImpl) ConvertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
-	msg, hasMsg, err := ana.convertRawMessage(rawMsg)
-	if err != nil {
-		return nil, false, err
-	}
-	if !hasMsg {
-		return nil, false, nil
-	}
-	return msg, true, nil
-}
-
-func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.Message, bool, error) {
 	if rawMsg == nil {
 		return nil, false, nil
 	}
