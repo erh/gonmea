@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/erh/gonmea/common"
-)
 
-// Simple helpers
+	"go.viam.com/rdk/logging"
+)
 
 // newOneOffAnalyzer returns a new analyzer ready to use for single use.
 func newOneOffAnalyzer() (*analyzerImpl, error) {
@@ -19,7 +19,7 @@ func newOneOffAnalyzer() (*analyzerImpl, error) {
 // newOneOffAnalyzerWithFormat returns a new analyzer for single use
 // that is expecting to read messages of the given format.
 func newOneOffAnalyzerWithFormat(format string) (*analyzerImpl, error) {
-	conf := NewConfig(common.NewLogger(io.Discard))
+	conf := NewConfig(logging.NewBlankLogger("")) // TODO(erh): should this be real?
 	conf.DesiredFormat = format
 	ana, err := newAnalyzer(conf)
 	if err != nil {

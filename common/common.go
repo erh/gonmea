@@ -20,11 +20,8 @@ package common
 import (
 	"cmp"
 	"fmt"
-	"io"
 	"sync/atomic"
 	"time"
-
-	"go.viam.com/rdk/logging"
 )
 
 // FastPacket constants.
@@ -68,13 +65,6 @@ const (
 	ActisenseBEM    = 0x40000 /* Actisense specific fake PGNs */
 	IKnovertBEM     = 0x40100 /* iKonvert specific fake PGNs */
 )
-
-// NewLogger returns a new logger that appends to the given writer.
-func NewLogger(writer io.Writer) logging.Logger {
-	logger := logging.NewBlankLogger("")
-	logger.AddAppender(logging.ConsoleAppender{Writer: writer})
-	return logger
-}
 
 // Min returns the min of x,y.
 func Min[T cmp.Ordered](x, y T) T {
