@@ -229,6 +229,9 @@ func (ana *analyzerImpl) ProcessRawMessage(msgData string) (*common.RawMessage, 
 			return nil, true, nil
 		}
 		ana.Logger.Infof("selecting format %v", ana.state.parser.Name())
+		if ana.state.parser.MultiPacketsCoalesced() {
+			ana.state.MultiPackets = common.MultiPacketsCoalesced
+		}
 	}
 
 	err := ana.state.parser.Parse(msgData, &msg)
@@ -378,7 +381,7 @@ func (ana *analyzerImpl) convertRawMessage(rawMsg *common.RawMessage) (*common.M
 		}
 
 		if len(rawMsg.Data[msgIdx:]) < frameLen {
-			return nil, false, fmt.Errorf("frame (len=%d) smaller than expected (len=%d)", len(rawMsg.Data[msgIdx:]), frameLen)
+			return nil, false, fmt.Errorf("frame (len=%d) smaller than expected (len=%d) msgIdx: %d", len(rawMsg.Data[msgIdx:]), frameLen, msgIdx)
 		}
 		copy(p.Data[idx:], rawMsg.Data[msgIdx:msgIdx+frameLen])
 		p.Frames |= 1 << frame
