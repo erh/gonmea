@@ -128,7 +128,7 @@ func New(args []string) (*CLI, error) {
 func parseCLIArgs(args []string) (*cliConfig, *os.File, error) {
 	progNameAsExeced := args[0]
 
-	conf := newConfig(common.NewLogger(os.Stderr))
+	conf := newConfig(logging.NewLogger(""))
 
 	logLevel := zapcore.InfoLevel
 	inFile := os.Stdin
@@ -654,18 +654,6 @@ func (c *CLI) printField(
 		*bits,
 		field.Proprietary,
 		state.RefPgn)
-
-	if field.Proprietary {
-		if (state.RefPgn >= 65280 && state.RefPgn <= 65535) ||
-			(state.RefPgn >= 126720 && state.RefPgn <= 126975) ||
-			(state.RefPgn >= 130816 && state.RefPgn <= 131071) {
-			// proprietary, allow field
-		} else {
-			// standard PGN, skip field
-			*bits = 0
-			return true, nil
-		}
-	}
 
 	var oldClosingBracesLen int
 	if field.FT != nil && field.FT.PF != nil {

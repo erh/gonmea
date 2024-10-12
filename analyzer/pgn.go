@@ -1464,3 +1464,9 @@ func (ana *analyzerImpl) GetMatchingPgnWithFields(pgnID uint32, fields map[strin
 
 	return SearchForUnknownPgn(pgnID, logger)
 }
+
+func IsPropietaryPGN(pgn uint32) bool {
+	return (pgn >= 65280 && pgn <= 65535) ||
+		(pgn >= 126720 && pgn <= 126975) ||
+		(pgn >= 130816 && pgn <= 131071)
+}

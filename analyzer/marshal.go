@@ -259,15 +259,9 @@ func (ana *analyzerImpl) marshalField(
 	numBits int,
 	writer *bitWriter,
 ) error {
-	if field.Proprietary {
-		if (ana.state.RefPgn >= 65280 && ana.state.RefPgn <= 65535) ||
-			(ana.state.RefPgn >= 126720 && ana.state.RefPgn <= 126975) ||
-			(ana.state.RefPgn >= 130816 && ana.state.RefPgn <= 131071) {
-			// Proprietary, allow field
-		} else {
-			// standard PGN, skip field
-			return nil
-		}
+	if field.Proprietary && !IsPropietaryPGN(uint32(ana.state.RefPgn)) {
+		// standard PGN, skip field
+		return nil
 	}
 
 	if value == nil {
